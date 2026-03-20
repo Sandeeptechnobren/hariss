@@ -1,0 +1,18 @@
+<?php
+namespace App\Providers;
+
+use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
+use Laravel\Passport\Passport;
+
+class AuthServiceProvider extends ServiceProvider
+{
+    protected $policies = [];
+
+    public function boot(): void
+    {
+        $this->registerPolicies();
+        Passport::tokensExpireIn(now()->addHours(10));
+        Passport::refreshTokensExpireIn(now()->addDays(7));
+        Passport::personalAccessTokensExpireIn(now()->addHours(10));
+    }
+}

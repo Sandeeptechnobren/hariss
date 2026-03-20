@@ -1,0 +1,27 @@
+# Redirect all requests to /osa_developmentV2/ to the root directory
+RedirectMatch 301 ^/osa_developmentV2/$ /
+
+# Other .htaccess code goes here
+
+#Require all denied
+RewriteEngine On
+#Require all denied
+# Allow access only to /osa_developmentV2/public/api/ and its subpaths
+RewriteCond %{REQUEST_URI} !^/osa_developmentV2/public/api(/|$)
+RewriteCond %{REQUEST_URI} !^/osa_developmentV2/storage/app/public(/|$)
+RewriteRule ^ - [F,L]
+
+<IfModule mod_rewrite.c>
+<Files ~ "^.*\.([Ee][Nn][Vv])">
+        order allow,deny
+        deny from all
+        satisfy all
+    </Files>
+    </IfModule>
+   
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET,POST,OPTIONS,DELETE,PUT"
+    Header set Access-Control-Allow-Headers "*"
+#    RequestHeader unset x-domain
+</IfModule>
