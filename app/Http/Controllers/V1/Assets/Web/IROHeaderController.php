@@ -99,6 +99,7 @@ class IROHeaderController extends Controller
             'header_id' => $request->query('header_id'),
             'iro_id'    => $request->query('iro_id'),
             'status'    => $request->query('status'),
+            'warehouse_id' => $request->query('warehouse_id'),
         ], fn($v) => !is_null($v) && $v !== '');
         $perPage = max((int) $request->query('per_page', 10), 1);
         $page    = max((int) $request->query('page', 1), 1);

@@ -45,6 +45,7 @@ class ItemResource extends JsonResource
             'sequence_no'            => $this->sequence_no,
             'rewards'                => $this->rewards,
             'volumes'                => $this->volumes,
+            'discount_status'       => $this->discount_status,
             'uom' => $this->itemUoms->map(function ($u) {
                 return [
                     'id'        => $u->id,

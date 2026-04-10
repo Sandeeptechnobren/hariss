@@ -14,6 +14,7 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use App\Helpers\DataAccessHelper;
 use Illuminate\Support\Facades\Auth;
+use App\Services\V1\Agent_Transaction\UnloadHeaderService;
 
 class UnloadHeaderFullExport implements
     FromCollection,
@@ -21,44 +22,88 @@ class UnloadHeaderFullExport implements
     ShouldAutoSize,
     WithEvents
 {
+    protected $fromDate;
+    protected $toDate;
+    protected $warehouseIds;
+    protected $routeIds;
+    protected $salesmanIds;
+
+    public function __construct($fromDate, $toDate, $warehouseIds, $routeIds = [], $salesmanIds = [])
+    {
+        $today = now()->toDateString();
+
+        $this->fromDate = $fromDate ?: $today;
+        $this->toDate   = $toDate   ?: $today;
+        $this->warehouseIds = $warehouseIds;
+        $this->routeIds = $routeIds;
+        $this->salesmanIds = $salesmanIds;
+    }
+
     public function collection()
     {
         $rows = [];
 
-        $query = UnloadHeader::with([
-            'warehouse',
-            'route',
-            'salesman',
-            'projecttype'
-        ]);
+        $query = UnloadHeader::with(['warehouse', 'route', 'salesman', 'details']);
+
+
+        if (!empty($this->warehouseIds)) {
+            $query->whereIn('warehouse_id', $this->warehouseIds);
+        }
+
+        if (!empty($this->routeIds)) {
+            $query->whereIn('route_id', $this->routeIds);
+        }
+
+        if (!empty($this->salesmanIds)) {
+            $query->whereIn('salesman_id', $this->salesmanIds);
+        }
+
+        // ✅ DATE FILTER (IMPORTANT — match global column)
+        if (!empty($this->fromDate)) {
+            $query->whereDate('unload_date', '>=', $this->fromDate);
+        }
+
+        if (!empty($this->toDate)) {
+            $query->whereDate('unload_date', '<=', $this->toDate);
+        }
 
         $query = DataAccessHelper::filterAgentTransaction($query, Auth::user());
-        $unloads = $query->get();
 
+        $unloads = $query->get();
 
         foreach ($unloads as $unload) {
 
             $rows[] = [
-                'OSA Code'    => (string) ($unload->osa_code ?? ''),
+                // 'OSA Code'    => (string) ($unload->osa_code ?? ''),
                 'Unload No'   => (string) ($unload->unload_no ?? ''),
-                'Unload Date' => (string) ($unload->unload_date ?? ''),
-                'Unload Time' => (string) ($unload->unload_time ?? ''),
+                'Unload Date' => $unload->unload_date
+                    ? \Carbon\Carbon::parse($unload->unload_date)->format('d M Y')
+                    : '',
+
+                'Unload Time' => $unload->unload_time
+                    ? \Carbon\Carbon::parse($unload->unload_time)->format('h:i A')
+                    : '',
+
+                'Load Date' => $unload->load_date
+                    ? \Carbon\Carbon::parse($unload->load_date)->format('d M Y')
+                    : '',
                 'Warehouse' => trim(
-                    ($unload->warehouse->warehouse_code ?? '') . ' - ' .
-                    ($unload->warehouse->warehouse_name ?? '')
+                    (optional($unload->warehouse)->warehouse_code ?? '') . ' - ' .
+                        (optional($unload->warehouse)->warehouse_name ?? '')
                 ),
 
                 'Route' => trim(
-                    ($unload->route->route_code ?? '') . ' - ' .
-                    ($unload->route->route_name ?? '')
+                    (optional($unload->route)->route_code ?? '') . ' - ' .
+                        (optional($unload->route)->route_name ?? '')
                 ),
 
                 'Salesman' => trim(
-                    ($unload->salesman->osa_code ?? '') . ' - ' .
-                    ($unload->salesman->name ?? '')
+                    (optional($unload->salesman)->osa_code ?? '') . ' - ' .
+                        (optional($unload->salesman)->name ?? '')
                 ),
-                'Load Date' => (string) ($unload->load_date ?? ''),
-                'Status'    => $unload->status == 1 ? 'Active' : 'Inactive',
+
+                // 'Load Date' => (string) ($unload->load_date ?? ''),
+                'Total Item' => $unload->details ? $unload->details->count() : 0,
             ];
         }
 
@@ -68,15 +113,15 @@ class UnloadHeaderFullExport implements
     public function headings(): array
     {
         return [
-            'OSA Code',
+            // 'OSA Code',
             'Unload No',
             'Unload Date',
             'Unload Time',
-            'Warehouse',
+            'Load Date',
+            'Distributors',
             'Route',
             'Salesman',
-            'Load Date',
-            'Status',
+            'Total Item',
         ];
     }
 

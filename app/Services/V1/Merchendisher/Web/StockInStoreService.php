@@ -12,6 +12,7 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
+use Exception;
 class StockInStoreService
 {
   public function create(array $data): StockInStore
@@ -65,8 +66,8 @@ public function getAll()
         'created_at',
         'updated_at',
         'deleted_at',
-    ]);
-        return $query->paginate(request()->get('per_page', 50));
+        ]);
+            return $query->paginate(request()->get('per_page', 50));
     }
 
     public function getByUuid(string $uuid): StockInStore
@@ -160,5 +161,47 @@ public function getPostsByStockUuid(string $uuid)
         return StockInStorePost::where('stock_id', $stock->id)
             ->orderBy('id', 'desc')
             ->paginate(request()->get('per_page', 50));
+    }
+
+public function createStockpost(array $data)
+{
+    DB::beginTransaction();
+    try {
+        $response = [];
+        foreach ($data['stocks'] as $item) {
+
+            if (empty($item['date'])) {
+                $item['date'] = now()->toDateString();
+            }
+            $response[] = StockInStorePost::create($item);
+        }
+        DB::commit();
+        return $response;
+    } catch (\Exception $e) {
+        DB::rollBack();
+        throw $e;
+    }
+}
+  public function getStockByMerchandiser(int $merchandiserId)
+    {
+        try {
+            // Step 1: Get customer IDs
+            $customerIds = CompanyCustomer::where('merchandiser_id', $merchandiserId)
+                ->pluck('id')
+                ->toArray();
+            if (empty($customerIds)) {
+                return collect();
+            }
+            $stocks =StockInStore::with('inventories')
+                    ->where(function ($query) use ($customerIds) {
+                    foreach ($customerIds as $id) {
+                        $query->orWhereJsonContains('assign_customers', $id);
+                    }
+                })
+                ->get();
+            return $stocks;
+        } catch (Exception $e) {
+            throw $e;
+        }
     }
 }

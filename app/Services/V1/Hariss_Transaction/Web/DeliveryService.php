@@ -38,11 +38,11 @@ class DeliveryService
         }
         $fromDate = !empty($filters['from_date'])
             ? Carbon::parse($filters['from_date'])->toDateString()
-            : null;
+            : now()->toDateString(); // ✅ default today
 
         $toDate = !empty($filters['to_date'])
             ? Carbon::parse($filters['to_date'])->toDateString()
-            : null;
+            : now()->toDateString(); // ✅ default today
 
         if ($fromDate || $toDate) {
 

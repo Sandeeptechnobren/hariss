@@ -21,13 +21,14 @@ class AgentDeliveryHeaders extends Model
 
     protected $fillable = [
         'uuid',
-        'delivery_code', 
+        'delivery_code',
         'warehouse_id',
         'customer_id',
         'currency',
         'country_id',
         'route_id',
         'salesman_id',
+        'delivery_date',
         'gross_total',
         'vat',
         'discount',
@@ -57,24 +58,24 @@ class AgentDeliveryHeaders extends Model
         return $this->hasMany(AgentDeliveryDetails::class, 'header_id');
     }
 
-     public function warehouse()
+    public function warehouse()
     {
-        return $this->belongsTo(Warehouse ::class, 'warehouse_id');
+        return $this->belongsTo(Warehouse::class, 'warehouse_id');
     }
-     public function customer()
+    public function customer()
     {
-        return $this->belongsTo(AgentCustomer ::class, 'customer_id');
+        return $this->belongsTo(AgentCustomer::class, 'customer_id');
     }
-     public function country()
+    public function country()
     {
-        return $this->belongsTo(Country ::class, 'country_id');
+        return $this->belongsTo(Country::class, 'country_id');
     }
-     public function route()
+    public function route()
     {
-        return $this->belongsTo(Route ::class, 'route_id');
+        return $this->belongsTo(Route::class, 'route_id');
     }
-     public function salesman()
+    public function salesman()
     {
-        return $this->belongsTo(Salesman ::class, 'salesman_id');
+        return $this->belongsTo(Salesman::class, 'salesman_id');
     }
 }

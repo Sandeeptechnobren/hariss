@@ -12,6 +12,7 @@ class CustomerType extends Model
     use SoftDeletes; // ✅ enable soft deletes
 
     protected $fillable = [
+        'id',
         'code',
         'name',
         'status',

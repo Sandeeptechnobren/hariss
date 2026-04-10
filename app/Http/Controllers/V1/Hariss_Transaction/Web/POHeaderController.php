@@ -18,6 +18,8 @@ use Exception;
 use Illuminate\Support\Facades\Storage;
 use App\Helpers\LogHelper;
 use App\Exports\ItemPoOrderCollapseExport;
+use App\Helpers\DataAccessHelper;
+
 use App\Helpers\CommonLocationFilter;
 
 class POHeaderController extends Controller
@@ -28,24 +30,43 @@ class POHeaderController extends Controller
     {
         $this->service = $service;
     }
-
     // public function exportPoOrderHeader(Request $request)
     // {
-    //     $format = strtolower($request->input('format', 'xlsx'));
+    //     $format    = strtolower($request->input('format', 'xlsx'));
     //     $extension = $format === 'csv' ? 'csv' : 'xlsx';
-    //     $fromDate = $request->input('from_date');
-    //     $toDate   = $request->input('to_date');
 
     //     $filename = 'Purchase_Order_' . now()->format('Ymd_His') . '.' . $extension;
-    //     $path = 'poorderexports/' . $filename;
+    //     $path     = 'poorderexports/' . $filename;
 
-    //     $export = new PoOrderExport($fromDate, $toDate);
+    //     $filters = $request->input('filter', []);
+
+    //     $fromDate = $filters['from_date'] ?? Null;
+    //     $toDate   = $filters['to_date'] ?? Null;
+
+    //     $routeIds = !empty($filters['route_id'])
+    //         ? explode(',', $filters['route_id'])
+    //         : [];
+
+    //     $salesmanIds = !empty($filters['salesman_id'])
+    //         ? explode(',', $filters['salesman_id'])
+    //         : [];
+
+    //     $warehouseIds = CommonLocationFilter::resolveWarehouseIds($filters);
+
+    //     $export = new PoOrderExport(
+    //         $fromDate,
+    //         $toDate,
+    //         $warehouseIds,
+    //         $routeIds,
+    //         $salesmanIds
+    //     );
 
     //     if ($format === 'csv') {
     //         Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
     //     } else {
     //         Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
     //     }
+
     //     $appUrl = rtrim(config('app.url'), '/');
     //     $fullUrl = $appUrl . '/storage/app/public/' . $path;
 
@@ -54,52 +75,100 @@ class POHeaderController extends Controller
     //         'download_url' => $fullUrl,
     //     ]);
     // }
+public function exportPoOrderHeader(Request $request)
+{
+    $format    = strtolower($request->input('format', 'xlsx'));
+    $extension = $format === 'csv' ? 'csv' : 'xlsx';
 
-    public function exportPoOrderHeader(Request $request)
-    {
-        $format    = strtolower($request->input('format', 'xlsx'));
-        $extension = $format === 'csv' ? 'csv' : 'xlsx';
+    $filename = 'Purchase_Order_' . now()->format('Ymd_His') . '.' . $extension;
+    $path     = 'poorderexports/' . $filename;
 
-        $filename = 'Purchase_Order_' . now()->format('Ymd_His') . '.' . $extension;
-        $path     = 'poorderexports/' . $filename;
+    $filters = $request->input('filter', []);
+    $user    = auth()->user();
 
-        $filters = $request->input('filter', []);
+    $filter = $filters;
 
-        $fromDate = $filters['from_date'] ?? Null;
-        $toDate   = $filters['to_date'] ?? Null;
+    $query = PoOrderHeader::latest('id');
 
-        $routeIds = !empty($filters['route_id'])
-            ? explode(',', $filters['route_id'])
-            : [];
+    // SAME AS GLOBAL FILTER
+    // $query = DataAccessHelper::filterAgentTransaction($query, $user);
 
-        $salesmanIds = !empty($filters['salesman_id'])
-            ? explode(',', $filters['salesman_id'])
-            : [];
+    $warehouseIds = CommonLocationFilter::resolveWarehouseIds([
+        'company_id'   => $filter['company_id'] ?? null,
+        'region_id'    => $filter['region_id'] ?? null,
+        'area_id'      => $filter['area_id'] ?? null,
+        'warehouse_id' => $filter['warehouse_id'] ?? null,
+        'route_id'     => $filter['route_id'] ?? null,
+        'salesman_id'     => $filter['salesman_id'] ?? null,
+    ]);
 
-        $warehouseIds = CommonLocationFilter::resolveWarehouseIds($filters);
+    if (!empty($warehouseIds)) {
+        $warehouseIds = is_array($warehouseIds)
+            ? $warehouseIds
+            : explode(',', $warehouseIds);
 
-        $export = new PoOrderExport(
-            $fromDate,
-            $toDate,
-            $warehouseIds,
-            $routeIds,
-            $salesmanIds
-        );
+        $query->whereIn('warehouse_id', $warehouseIds);
+    }
 
-        if ($format === 'csv') {
-            Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
-        } else {
-            Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
+    if (!empty($filter['salesman_id'])) {
+        $salesmanIds = is_array($filter['salesman_id'])
+            ? $filter['salesman_id']
+            : explode(',', $filter['salesman_id']);
+
+        $query->whereIn('salesman_id', $salesmanIds);
+    }
+
+    if (isset($filter['status'])) {
+        $query->where('status', $filter['status']);
+    }
+
+    if (!empty($filter['from_date']) && !empty($filter['to_date'])) {
+        // IMPORTANT FIX: use whereBetween correctly
+        $query->whereBetween('order_date', [
+            $filter['from_date'],
+            $filter['to_date']
+        ]);
+    } else {
+        if (!empty($filter['from_date'])) {
+            $query->whereDate('order_date', '>=', $filter['from_date']);
         }
 
-        $appUrl = rtrim(config('app.url'), '/');
-        $fullUrl = $appUrl . '/storage/app/public/' . $path;
-
-        return response()->json([
-            'status'       => 'success',
-            'download_url' => $fullUrl,
-        ]);
+        if (!empty($filter['to_date'])) {
+            $query->whereDate('order_date', '<=', $filter['to_date']);
+        }
     }
+
+    // 🔥 KEY FIX: PASS FILTERS (NOT DATA)
+    $export = new PoOrderExport(
+        $filter['from_date'] ?? null,
+        $filter['to_date'] ?? null,
+        $warehouseIds ?? [],
+        !empty($filter['route_id']) ? explode(',', $filter['route_id']) : [],
+        !empty($filter['salesman_id']) ? explode(',', $filter['salesman_id']) : []
+    );
+
+    // ALSO FORCE SAME QUERY LOGIC IN EXPORT USING GLOBAL SCOPE
+    PoOrderHeader::addGlobalScope('export_filter', function ($builder) use ($query) {
+        $builder->whereIn('id', $query->pluck('id'));
+    });
+
+    if ($format === 'csv') {
+        Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
+    } else {
+        Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
+    }
+
+    // REMOVE SCOPE AFTER USE (IMPORTANT)
+    PoOrderHeader::withoutGlobalScope('export_filter');
+
+    $appUrl  = rtrim(config('app.url'), '/');
+    $fullUrl = $appUrl . '/storage/app/public/' . $path;
+
+    return response()->json([
+        'status'       => 'success',
+        'download_url' => $fullUrl,
+    ]);
+}
 
     public function exportPoOrders(Request $request)
     {
@@ -292,19 +361,13 @@ class POHeaderController extends Controller
         $format = strtolower($request->input('format', 'xlsx'));
         $extension = $format === 'csv' ? 'csv' : 'xlsx';
         $filters = $request->input('filter', []);
-
         $fromDate = $filters['from_date'] ?? Null;
         $toDate   = $filters['to_date'] ?? Null;
-
         $customerId = $filters['customer_id'] ?? null;
-
         $salesmanIds = CommonLocationFilter::normalizeIds($filters['salesman_id'] ?? []);
-
         $warehouseIds = CommonLocationFilter::resolveWarehouseIds($filters);
-
         $filename = 'Purchase_Order_Detail_' . now()->format('Ymd_His') . '.' . $extension;
         $path = 'poorderexports/' . $filename;
-
         $export = new PoOrderCollapseExport(
             $fromDate,
             $toDate,
@@ -317,10 +380,8 @@ class POHeaderController extends Controller
         } else {
             Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
         }
-
         $appUrl = rtrim(config('app.url'), '/');
         $fullUrl = $appUrl . '/storage/app/public/' . $path;
-
         return response()->json([
             'status'       => 'success',
             'download_url' => $fullUrl,
@@ -460,9 +521,10 @@ class POHeaderController extends Controller
 
             // ✅ DATE FILTER FIXED
             ->when($fromDate && $toDate, function ($q) use ($fromDate, $toDate) {
-                $q->whereDate('created_at', '>=', $fromDate)
-                    ->whereDate('created_at', '<=', $toDate);
+                $q->whereDate('created_at', '<=', $fromDate)
+                    ->whereDate('created_at', '>=', $toDate);
             })
+
             ->when($fromDate && !$toDate, function ($q) use ($fromDate) {
                 $q->whereDate('created_at', '>=', $fromDate);
             })
@@ -478,7 +540,6 @@ class POHeaderController extends Controller
 
             ->orderBy('id', 'desc')
             ->paginate($limit);
-
         $pagination = [
             'page'         => $orders->currentPage(),
             'limit'        => $orders->perPage(),

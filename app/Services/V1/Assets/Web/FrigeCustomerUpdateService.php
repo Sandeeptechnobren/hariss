@@ -4,6 +4,8 @@ namespace App\Services\V1\Assets\Web;
 
 use App\Models\FrigeCustomerUpdate;
 use App\Exports\FridgeCustomerUpdateExport;
+use App\Helpers\DataAccessHelper;
+use App\Helpers\CommonLocationFilter;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -14,6 +16,8 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Pagination\Paginator;
 
 class FrigeCustomerUpdateService
 {
@@ -181,7 +185,7 @@ class FrigeCustomerUpdateService
     {
         $latestInvoiceDate = DB::table('invoice_headers')
             ->where('customer_id', $customerId)
-            ->max('invoice_date');
+            ->max('created_at');
 
         if (!$latestInvoiceDate) {
             return 0;
@@ -194,7 +198,7 @@ class FrigeCustomerUpdateService
         return (float) DB::table('invoice_headers as ih')
             ->join('invoice_details as id', 'ih.id', '=', 'id.header_id')
             ->where('ih.customer_id', $customerId)
-            ->where('ih.invoice_date', '>=', $threeMonthsAgo)
+            ->where('ih.created_at', '>=', $threeMonthsAgo)
             ->sum('id.item_total');
     }
 
@@ -327,78 +331,155 @@ class FrigeCustomerUpdateService
         }
     }
 
-    public function export(Request $request): array
+    public function export(Request $request)
     {
 
-        $format = strtolower($request->input('format', 'xlsx'));
+        $format    = strtolower($request->input('format', 'xlsx'));
+        $extension = $format === 'csv' ? 'csv' : 'xlsx';
 
         if (!in_array($format, ['csv', 'xlsx'])) {
             throw new \Exception('Invalid format. Use csv or xlsx only.');
         }
+        $date = now()->format('Ymd');
+        $directory = 'exports';
 
-        $filename = 'fridge_customer_update_' . now()->format('Ymd_His') . '.' . $format;
-        $path     = 'exports/' . $filename;
-        $query = FrigeCustomerUpdate::with([
-            'salesman:id,osa_code,name',
-            'route:id,route_code,route_name',
-            'warehouse:id,warehouse_code,warehouse_name',
-            'customer:id,osa_code,name'
+        $files = Storage::disk('public')->files($directory);
+        $todayFiles = array_filter($files, function ($file) use ($date) {
+            return str_contains($file, "Fridge_customer_update_{$date}_");
+        });
+
+        $numbers = [];
+
+        foreach ($todayFiles as $file) {
+            if (preg_match('/_(\d+)\.(csv|xlsx)$/', $file, $matches)) {
+                $numbers[] = (int) $matches[1];
+            }
+        }
+
+        $next = !empty($numbers) ? max($numbers) + 1 : 1;
+        $sequence = str_pad($next, 2, '0', STR_PAD_LEFT);
+
+        $filename = "Fridge_customer_update_{$date}_{$sequence}.{$extension}";
+        $path     = $directory . '/' . $filename;
+        $filters = $request->input('filter', []);
+
+        $fromDate = $filters['from_date'] ?? now()->toDateString();
+        $toDate   = $filters['to_date'] ?? now()->toDateString();
+
+        $parseIds = function ($value) {
+            if (empty($value)) return [];
+            return array_map('intval', array_filter(array_map('trim', explode(',', $value))));
+        };
+
+        // ✅ Resolve warehouse (main filter logic)
+        $resolvedWarehouseIds = CommonLocationFilter::resolveWarehouseIds([
+            'company_id'   => $filters['company_id'] ?? null,
+            'region_id'    => $filters['region_id'] ?? null,
+            'area_id'      => $filters['area_id'] ?? null,
+            'warehouse_id' => $parseIds($filters['warehouse_id'] ?? null),
+            'route_id'     => $filters['route_id'] ?? null,
         ]);
 
-        if ($request->filled('search')) {
-            $search = trim($request->search);
+        // ✅ Optional salesman (if passed)
+        $salesmanIds = $parseIds($filters['salesman_id'] ?? null);
 
-            $query->where(function ($q) use ($search) {
-                $q->where('osa_code', 'ILIKE', "%{$search}%")
-                    ->orWhere('outlet_name', 'ILIKE', "%{$search}%")
-                    ->orWhere('owner_name', 'ILIKE', "%{$search}%")
-                    ->orWhere('contact_number', 'ILIKE', "%{$search}%")
-                    ->orWhere('asset_number', 'ILIKE', "%{$search}%")
-                    ->orWhere('serial_no', 'ILIKE', "%{$search}%")
-                    ->orWhere('brand', 'ILIKE', "%{$search}%")
-
-                    ->orWhereHas('salesman', function ($s) use ($search) {
-                        $s->where('osa_code', 'ILIKE', "%{$search}%")
-                            ->orWhere('name', 'ILIKE', "%{$search}%");
-                    })
-
-                    ->orWhereHas('route', function ($r) use ($search) {
-                        $r->where('route_code', 'ILIKE', "%{$search}%")
-                            ->orWhere('route_name', 'ILIKE', "%{$search}%");
-                    })
-
-                    ->orWhereHas('customer', function ($c) use ($search) {
-                        $c->where('osa_code', 'ILIKE', "%{$search}%")
-                            ->orWhere('name', 'ILIKE', "%{$search}%");
-                    });
-            });
-        }
-
-        /* ========= DATE FILTER ========= */
-        if ($request->filled('from_date') && $request->filled('to_date')) {
-            $query->whereBetween('created_at', [
-                $request->from_date,
-                $request->to_date
-            ]);
-        }
-
-        $export = new FridgeCustomerUpdateExport($query);
-
-        Excel::store(
-            $export,
-            $path,
-            'public',
-            $format === 'csv'
-                ? \Maatwebsite\Excel\Excel::CSV
-                : \Maatwebsite\Excel\Excel::XLSX
+        // ✅ Export call
+        $export = new FridgeCustomerUpdateExport(
+            $fromDate,
+            $toDate,
+            $resolvedWarehouseIds,
+            $salesmanIds
         );
 
-        $appUrl = rtrim(config('app.url'), '/');
+        // ✅ Store file
+        if ($format === 'csv') {
+            \Maatwebsite\Excel\Facades\Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
+        } else {
+            \Maatwebsite\Excel\Facades\Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
+        }
+
+        $fullUrl = rtrim(config('app.url'), '/') . '/storage/app/public/' . $path;
 
         return [
-            'download_url' => $appUrl . '/storage/app/public/' . $path
+            'status' => 'success',
+            'download_url' => $fullUrl,
         ];
     }
+
+    // public function export(Request $request): array
+    // {
+
+    //     $format = strtolower($request->input('format', 'xlsx'));
+
+    //     if (!in_array($format, ['csv', 'xlsx'])) {
+    //         throw new \Exception('Invalid format. Use csv or xlsx only.');
+    //     }
+
+    //     $filename = 'fridge_customer_update_' . now()->format('Ymd_His') . '.' . $format;
+    //     $path     = 'exports/' . $filename;
+    //     $query = FrigeCustomerUpdate::with([
+    //         'salesman:id,osa_code,name',
+    //         'route:id,route_code,route_name',
+    //         'warehouse:id,warehouse_code,warehouse_name',
+    //         'customer:id,osa_code,name',
+    //         'outletChannel:id,outlet_channel'
+
+    //     ]);
+
+    //     if ($request->filled('search')) {
+    //         $search = trim($request->search);
+
+    //         $query->where(function ($q) use ($search) {
+    //             $q->where('osa_code', 'ILIKE', "%{$search}%")
+    //                 ->orWhere('outlet_name', 'ILIKE', "%{$search}%")
+    //                 ->orWhere('owner_name', 'ILIKE', "%{$search}%")
+    //                 ->orWhere('contact_number', 'ILIKE', "%{$search}%")
+    //                 ->orWhere('asset_number', 'ILIKE', "%{$search}%")
+    //                 ->orWhere('serial_no', 'ILIKE', "%{$search}%")
+    //                 ->orWhere('brand', 'ILIKE', "%{$search}%")
+
+    //                 ->orWhereHas('salesman', function ($s) use ($search) {
+    //                     $s->where('osa_code', 'ILIKE', "%{$search}%")
+    //                         ->orWhere('name', 'ILIKE', "%{$search}%");
+    //                 })
+
+    //                 ->orWhereHas('route', function ($r) use ($search) {
+    //                     $r->where('route_code', 'ILIKE', "%{$search}%")
+    //                         ->orWhere('route_name', 'ILIKE', "%{$search}%");
+    //                 })
+
+    //                 ->orWhereHas('customer', function ($c) use ($search) {
+    //                     $c->where('osa_code', 'ILIKE', "%{$search}%")
+    //                         ->orWhere('name', 'ILIKE', "%{$search}%");
+    //                 });
+    //         });
+    //     }
+
+    //     /* ========= DATE FILTER ========= */
+    //     if ($request->filled('from_date') && $request->filled('to_date')) {
+    //         $query->whereBetween('created_at', [
+    //             $request->from_date,
+    //             $request->to_date
+    //         ]);
+    //     }
+
+    //     $export = new FridgeCustomerUpdateExport($query);
+
+    //     Excel::store(
+    //         $export,
+    //         $path,
+    //         'public',
+    //         $format === 'csv'
+    //             ? \Maatwebsite\Excel\Excel::CSV
+    //             : \Maatwebsite\Excel\Excel::XLSX
+    //     );
+
+    //     $appUrl = rtrim(config('app.url'), '/');
+
+    //     return [
+    //         'download_url' => $appUrl . '/storage/app/public/' . $path
+    //     ];
+    // }
 
     public function globalSearch(string $searchTerm = null, int $perPage = 20)
     {
@@ -466,5 +547,129 @@ class FrigeCustomerUpdateService
 
             throw new \Exception('Failed to search Fridge Customer Update', 0, $e);
         }
+    }
+
+    public function generateAndStoreFridgeCustomerPdf($uuid)
+    {
+        $data = DB::table('frige_customer_update')->where('uuid', $uuid)->first();
+
+        if (!$data) {
+            return null;
+        }
+
+        $imageFields = [
+            'national_id_file' => 'National Id Front',
+            'national_id1_file' => 'National Id Back',
+            'password_photo_file' => 'Password Photo',
+            'outlet_address_proof_file' => 'Outlet Address Proof',
+            'trading_licence_file' => 'Trading License',
+            'lc_letter_file' => 'Lc Letter',
+            'outlet_stamp_file' => 'Outlet Stamp',
+            'sign__customer_file' => 'Sign Customer',
+            'sign_salesman_file' => 'Sign Salesman',
+            'fridge_scan_img' => 'Fridge Scan Image',
+        ];
+
+        $images = [];
+
+        foreach ($imageFields as $column => $label) {
+            if (!empty($data->$column)) {
+                $images[] = [
+                    'label' => $label,
+                    'path' => $data->$column,
+                ];
+            }
+        }
+
+        if (empty($images)) {
+            return null;
+        }
+
+        $pdf = Pdf::loadView('fridge-customer-images', [
+            'images' => $images,
+            'uuid' => $uuid,
+        ]);
+
+        $fileName = "fridge_customer_update/{$uuid}.pdf";
+
+        Storage::disk('public')->put($fileName, $pdf->output());
+
+        return $fileName;
+    }
+
+    private function parseIds($value): array
+    {
+        if (is_array($value)) {
+            return array_map('intval', $value);
+        }
+
+        return array_map(
+            'intval',
+            array_filter(array_map('trim', explode(',', $value)))
+        );
+    }
+    public function globalFilter(int $perPage = 50, array $filters = [])
+    {
+        $user   = auth()->user();
+        $filter = $filters['filter'] ?? [];
+
+        if (!empty($filters['current_page'])) {
+            Paginator::currentPageResolver(function () use ($filters) {
+                return (int) $filters['current_page'];
+            });
+        }
+
+        $query = FrigeCustomerUpdate::with([
+            'warehouse:id,warehouse_code,warehouse_name',
+            'customer:id,name,osa_code',
+            'salesman:id,name,osa_code',
+        ])->latest();
+
+        $query = DataAccessHelper::filterAgentTransaction($query, $user);
+
+        // =========================
+        // ✅ LOCATION FILTER
+        // =========================
+        if (!empty($filter)) {
+
+            $warehouseIds = CommonLocationFilter::resolveWarehouseIds([
+                'company_id'   => $filter['company_id'] ?? null,
+                'region_id'    => $filter['region_id'] ?? null,
+                'area_id'      => $filter['area_id'] ?? null,
+                'warehouse_id' => !empty($filter['warehouse_id']) ? $this->parseIds($filter['warehouse_id']) : null,
+                'route_id'     => $filter['route_id'] ?? null,
+            ]);
+
+            if (!empty($warehouseIds)) {
+                $query->whereIn('warehouse_id', $warehouseIds);
+            }
+        }
+
+        // =========================
+        // ✅ SALESMAN FILTER (FIXED)
+        // =========================
+        if (!empty($filter['salesman_id'])) {
+            $salesmanIds = $this->parseIds($filter['salesman_id']);
+            $query->whereIn('salesman_id', $salesmanIds);
+        }
+
+        // =========================
+        // ✅ DATE FILTER
+        // =========================
+        $fromDate = $filter['from_date'] ?? null;
+        $toDate   = $filter['to_date'] ?? null;
+
+        if ($fromDate && $toDate) {
+            $query->whereBetween('created_at', [
+                $fromDate . ' 00:00:00',
+                $toDate   . ' 23:59:59'
+            ]);
+        } elseif ($fromDate) {
+            $query->whereDate('created_at', '>=', $fromDate);
+        } elseif ($toDate) {
+            $query->whereDate('created_at', '<=', $toDate);
+        }
+
+        return $query->paginate($perPage);
     }
 }

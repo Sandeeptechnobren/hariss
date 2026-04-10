@@ -5,6 +5,7 @@ namespace App\Http\Controllers\V1\Merchendisher\Mob;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\V1\Merchendisher\Mob\SurveyHeaderRequest;
 use App\Http\Resources\V1\Merchendisher\Mob\SurveyHeaderResource;
+use App\Http\Resources\V1\Merchendisher\Mob\SurveyResource;
 use App\Services\V1\Merchendisher\Mob\SurveyHeaderService;
 use Illuminate\Http\JsonResponse;
 /**
@@ -203,85 +204,124 @@ public function show(string $surveyUuid): JsonResponse
 /**
  * @OA\Post(
  *     path="/mob/merchendisher_mob/survey-header/add",
- *     tags={"Survey Headers"},
- *     summary="Create a new survey header",
- *     description="Adds a new survey header entry with merchandiser and survey details.",
- *     security={{"bearerAuth":{}}},
+ *     tags={"Survey Headers Mob"},
+ *     summary="Create survey header with details",
+ *     description="Creates survey header along with multiple survey detail answers.",
+ *
  *     @OA\RequestBody(
  *         required=true,
  *         @OA\JsonContent(
- *             required={"merchandiser_id","survey_id","date","answerer_name"},
+ *             required={"merchandiser_id","survey_id","date","details"},
  *             type="object",
+ *
  *             @OA\Property(property="merchandiser_id", type="integer", example=5),
  *             @OA\Property(property="survey_id", type="integer", example=3),
  *             @OA\Property(property="date", type="string", format="date", example="2025-09-27"),
  *             @OA\Property(property="answerer_name", type="string", example="John Doe"),
  *             @OA\Property(property="address", type="string", example="123 Main St"),
- *             @OA\Property(property="phone", type="string", example="1234567890")
+ *             @OA\Property(property="phone", type="string", example="9876543210"),
+ *
+ *             @OA\Property(
+ *                 property="details",
+ *                 type="array",
+ *                 @OA\Items(
+ *                     type="object",
+ *                     required={"question_id"},
+ *                     @OA\Property(property="question_id", type="integer", example=1),
+ *                     @OA\Property(property="answer", type="string", example="Yes")
+ *                 )
+ *             )
  *         )
  *     ),
+ *
  *     @OA\Response(
  *         response=201,
- *         description="Survey header created successfully",
+ *         description="Survey created successfully",
  *         @OA\JsonContent(
  *             type="object",
- *             @OA\Property(property="success", type="boolean", example=true),
- *             @OA\Property(property="message", type="string", example="Survey header created successfully"),
+ *
+ *             @OA\Property(property="status", type="boolean", example=true),
+ *             @OA\Property(property="code", type="integer", example=201),
+ *             @OA\Property(property="message", type="string", example="Survey created successfully"),
+ *
  *             @OA\Property(
  *                 property="data",
  *                 type="object",
+ *
  *                 @OA\Property(property="id", type="integer", example=1),
+ *                 @OA\Property(property="uuid", type="string", example="550e8400-e29b-41d4-a716-446655440000"),
+ *
  *                 @OA\Property(
  *                     property="merchandiser",
  *                     type="object",
  *                     @OA\Property(property="id", type="integer", example=5)
  *                 ),
+ *
  *                 @OA\Property(
  *                     property="survey",
  *                     type="object",
  *                     @OA\Property(property="id", type="integer", example=3)
  *                 ),
+ *
  *                 @OA\Property(property="date", type="string", format="date", example="2025-09-27"),
  *                 @OA\Property(property="answerer_name", type="string", example="John Doe"),
  *                 @OA\Property(property="address", type="string", example="123 Main St"),
- *                 @OA\Property(property="phone", type="string", example="1234567890"),
- *                 @OA\Property(property="uuid", type="string", example="550e8400-e29b-41d4-a716-446655440000"),
- *                 @OA\Property(property="created_user", type="integer", example=1),
- *                 @OA\Property(property="updated_user", type="integer", example=2),
- *                 @OA\Property(property="deleted_user", type="integer", example=null),
+ *                 @OA\Property(property="phone", type="string", example="9876543210"),
+ *
+ *                 @OA\Property(
+ *                     property="details",
+ *                     type="array",
+ *                     @OA\Items(
+ *                         type="object",
+ *                         @OA\Property(property="id", type="integer", example=1),
+ *                         @OA\Property(property="question_id", type="integer", example=1),
+ *                         @OA\Property(property="answer", type="string", example="Yes")
+ *                     )
+ *                 ),
+ *
  *                 @OA\Property(property="created_at", type="string", format="date-time", example="2025-09-27T04:00:00Z"),
- *                 @OA\Property(property="updated_at", type="string", format="date-time", example="2025-09-27T04:00:00Z"),
- *                 @OA\Property(property="deleted_at", type="string", format="date-time", example=null)
+ *                 @OA\Property(property="updated_at", type="string", format="date-time", example="2025-09-27T04:00:00Z")
  *             )
  *         )
  *     ),
+ *
  *     @OA\Response(
  *         response=422,
  *         description="Validation error",
  *         @OA\JsonContent(
  *             type="object",
- *             @OA\Property(property="success", type="boolean", example=false),
+ *             @OA\Property(property="status", type="boolean", example=false),
  *             @OA\Property(property="message", type="string", example="Validation failed"),
  *             @OA\Property(property="errors", type="object")
  *         )
  *     ),
+ *
  *     @OA\Response(
  *         response=401,
  *         description="Unauthorized"
  *     )
  * )
  */
-     public function store(SurveyHeaderRequest $request): JsonResponse
-    {
-        $header = $this->service->create($request->validated());
-
+public function store(SurveyHeaderRequest $request)
+{
+    try {
+        $survey = $this->service->createSurvey($request->validated());
         return response()->json([
-            'success' => true,
-            'message' => 'Survey header created successfully',
-            'data' => new SurveyHeaderResource($header)
+            'status'  => true,
+            'code'    => 201,
+            'message' => 'Survey created successfully',
+            'data'    => $survey
         ], 201);
+    } catch (\Throwable $e) {
+        \Log::error('Survey Create Error: ' . $e->getMessage());
+        return response()->json([
+            'status'  => false,
+            'code'    => 500,
+            'message' => 'Failed to create survey',
+            'error'   => config('app.debug') ? $e->getMessage() : null
+        ], 500);
     }
-
+}
 /**
  * @OA\Put(
  *     path="/mob/merchendisher_mob/survey-header/{id}",
@@ -466,4 +506,101 @@ public function show(string $surveyUuid): JsonResponse
         'file_url' => asset($fileUrl),
     ]);
 }
+/**
+ * @OA\Get(
+ *     path="/mob/merchendisher_mob/survey-header/list/{id}",
+ *     summary="Get surveys by merchandiser/salesman",
+ *     tags={"Survey Headers Mob"},
+ *
+ *     @OA\Parameter(
+ *         name="id",
+ *         in="path",
+ *         required=true,
+ *         description="Merchandiser (Salesman) ID",
+ *         @OA\Schema(type="integer", example=10)
+ *     ),
+ *
+ *     @OA\Response(
+ *         response=200,
+ *         description="Survey data fetched successfully",
+ *         @OA\JsonContent(
+ *             @OA\Property(property="status", type="boolean", example=true),
+ *             @OA\Property(property="message", type="string", example="Survey data fetched successfully"),
+ *             @OA\Property(
+ *                 property="data",
+ *                 type="array",
+ *                 @OA\Items(
+ *                     @OA\Property(property="id", type="integer", example=1),
+ *                     @OA\Property(property="merchandiser_id", type="integer", example=10),
+ *                     @OA\Property(property="survey_name", type="string", example="Outlet Survey"),
+ *                     @OA\Property(property="status", type="string", example="active"),
+ *                     @OA\Property(property="created_at", type="string", format="date-time", example="2025-01-01 10:00:00")
+ *                 )
+ *             )
+ *         )
+ *     ),
+ *
+ *     @OA\Response(
+ *         response=400,
+ *         description="Invalid merchandiser id",
+ *         @OA\JsonContent(
+ *             @OA\Property(property="status", type="boolean", example=false),
+ *             @OA\Property(property="message", type="string", example="Invalid merchandiser id")
+ *         )
+ *     ),
+ *
+ *     @OA\Response(
+ *         response=404,
+ *         description="No survey data found",
+ *         @OA\JsonContent(
+ *             @OA\Property(property="status", type="boolean", example=false),
+ *             @OA\Property(property="message", type="string", example="No survey data found"),
+ *             @OA\Property(
+ *                 property="data",
+ *                 type="array",
+ *                 @OA\Items(type="object")
+ *             )
+ *         )
+ *     ),
+ *
+ *     @OA\Response(
+ *         response=500,
+ *         description="Something went wrong",
+ *         @OA\JsonContent(
+ *             @OA\Property(property="status", type="boolean", example=false),
+ *             @OA\Property(property="message", type="string", example="Something went wrong")
+ *         )
+ *     )
+ * )
+ */
+ public function getByMerchandiser($id)
+    {
+        try {
+            if (!is_numeric($id)) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Invalid merchandiser id'
+                ], 400);
+            }
+            $surveys = $this->service->getBySalesman($id);
+            if ($surveys->isEmpty()) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'No survey data found',
+                    'data' => []
+                ], 404);
+            }
+            return response()->json([
+                'status' => true,
+                'message' => 'Survey data fetched successfully',
+                'data' => SurveyResource::collection($surveys)
+            ], 200);
+        } catch (\Exception $e) {
+            \Log::error('Survey Fetch Error: '.$e->getMessage());
+            return response()->json([
+                'status' => false,
+                'message' => 'Something went wrong'
+            ], 500);
+        }
+    }
 }

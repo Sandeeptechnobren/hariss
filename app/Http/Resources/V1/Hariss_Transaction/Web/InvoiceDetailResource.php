@@ -22,6 +22,7 @@ class InvoiceDetailResource extends JsonResource
             'gross_total' => $this->gross_total,
             'net'        => $this->net,
             'vat'        => $this->vat,
+            'excise'        => $this->excise,
             'total'      => $this->total,
             'batch_number' => $this->batch_number
         ];

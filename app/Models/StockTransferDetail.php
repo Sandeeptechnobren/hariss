@@ -17,6 +17,7 @@ class StockTransferDetail extends Model
         'created_user',
         'updated_user',
         'deleted_user',
+        'uom_id',
     ];
 
     public function header(): BelongsTo
@@ -32,4 +33,11 @@ class StockTransferDetail extends Model
     {
         return $this->belongsTo(Item::class, 'item_id', 'id');
     }
+
+    public function Uom(): BelongsTo
+    {
+        return $this->belongsTo(Uom::class, 'uom_id', 'id');
+    }
+
 }
+ 

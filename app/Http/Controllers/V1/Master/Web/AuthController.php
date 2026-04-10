@@ -289,18 +289,67 @@ class AuthController extends Controller
      *     )
      * )
      */
-    public function getUserList(Request $request)
-    {
-        $perPage = $request->get('per_page', 50);
+    // public function getUserList(Request $request)
+    // {
+    //     $perPage = $request->get('per_page', 50);
+    //     $paginator = $this->authService->getUserList($perPage);
+    //     return ResponseHelper::paginatedResponse(
+    //         'Users retrieved successfully',
+    //         \App\Http\Resources\V1\Master\Web\UserResource::class,
+    //         $paginator
+    //     );
+    // }
+//     public function getUserList(Request $request)
+// {
+//     $perPage = $request->get('per_page', 50);
 
-        $paginator = $this->authService->getUserList($perPage);
+//     $paginator = $this->authService->getUserList($perPage);
 
-        return ResponseHelper::paginatedResponse(
-            'Users retrieved successfully',
-            \App\Http\Resources\V1\Master\Web\UserResource::class,
-            $paginator
-        );
-    }
+//     return response()->json([
+//         'status'  => 'success',
+//         'code'    => 200,
+//         'message' => 'Users retrieved successfully',
+//         'data'    => $paginator->items(),
+//         'pagination' => [
+//             'page' => $paginator->currentPage(),
+//             'last_page'    => $paginator->lastPage(),
+//             'per_page'     => $paginator->perPage(),
+//             'total'        => $paginator->total(),
+//         ]
+//     ], 200);
+// }
+public function getUserList(Request $request)
+{
+    $perPage = $request->get('per_page', 50);
+
+    $paginator = $this->authService->getUserList($perPage);
+
+    $items = collect($paginator->items())->map(function ($user) {
+        return [
+            'id'             => $user->id,
+            'name'           => $user->name,
+            'user_code'      => $user->user_code,
+            'email'          => $user->email,
+            'contact_number' => $user->contact_number,
+            'status'         => $user->status,
+            'uuid'          => $user->uuid,
+            'role'           => optional($user->roleDetails)->name, // ✅ FIX
+        ];
+    });
+
+    return response()->json([
+        'status'  => 'success',
+        'code'    => 200,
+        'message' => 'Users retrieved successfully',
+        'data'    => $items,
+        'pagination' => [
+            'page' => $paginator->currentPage(),
+            'last_page'    => $paginator->lastPage(),
+            'per_page'     => $paginator->perPage(),
+            'total'        => $paginator->total(),
+        ]
+    ], 200);
+}
     // public function getUserList(Request $request)
     // {
     //     $users = $this->authService->getUserList();

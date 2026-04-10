@@ -5,6 +5,8 @@ namespace App\Services\V1\Hariss_transaction\Web;
 use App\Models\Hariss_Transaction\Web\HtCapsHeader;
 use App\Models\Hariss_Transaction\Web\HtCapsDetail;
 use App\Models\CapsCollectionQty;
+use App\Models\Item;
+use App\Models\Warehouse;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -92,6 +94,10 @@ class CapsHService
                 'status'        => $data['status'] ?? "0",
             ]);
 
+            $noStockItems = [];
+            $insufficientItems = [];
+            $warehouse_name=Warehouse::where('id',$header->warehouse_id)->value('warehouse_code');
+
             foreach ($data['details'] as $detail) {
 
                 HtCapsDetail::create([
@@ -116,23 +122,52 @@ class CapsHService
                     ->where('item_id', $itemId)
                     ->lockForUpdate()
                     ->first();
+                $item_name=Item::where('id',$itemId)->value('erp_code');
+                // $itemNames = Item::whereIn('id', $itemId)->pluck('erp_code')->toArray();
+                // dd($itemNames);
+                // $itemNamesString = implode(', ', $itemNames);
+                // if (!$qtyRow) {
+                //     throw new \Exception(
+                //         "No stock available for item {$itemNamesString} in distributor {$warehouse_name}"
+                //     );
+                // }
+
+                // if ($qtyRow->quantity < $decreaseQty) {
+                //     throw new \Exception(
+                //         "Insufficient stock for item {$itemNamesString} in distributor {$warehouse_name}"
+                //     );
+                // }
 
                 if (!$qtyRow) {
-                    throw new \Exception(
-                        "No stock available for item ID {$itemId} in distributor {$warehouseId}"
-                    );
+                    $noStockItems[] = $item_name;
+                    continue;
                 }
 
                 if ($qtyRow->quantity < $decreaseQty) {
-                    throw new \Exception(
-                        "Insufficient stock for item ID {$itemId} in distributor {$warehouseId}"
-                    );
+                    $insufficientItems[] = $item_name;
+                    continue;
                 }
 
                 $qtyRow->update([
                     'quantity' => $qtyRow->quantity - $decreaseQty
                 ]);
             }
+
+                if (!empty($noStockItems)) {
+                    $names = implode(', ', array_unique($noStockItems));
+
+                    throw new \Exception(
+                        "No stock available for items {$names} in distributor {$warehouse_name}"
+                    );
+                }
+
+                if (!empty($insufficientItems)) {
+                    $names = implode(', ', array_unique($insufficientItems));
+
+                    throw new \Exception(
+                        "Insufficient stock for items {$names} in distributor {$warehouse_name}"
+                    );
+                }
 
             $workflow = DB::table('htapp_workflow_assignments')
                 ->where('process_type', 'Ht_Caps_Header')

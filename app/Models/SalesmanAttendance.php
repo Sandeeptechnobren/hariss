@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Models;
+
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\Blames;
 use Illuminate\Database\Eloquent\Model;
@@ -9,7 +10,7 @@ use Illuminate\Support\Str;
 
 class SalesmanAttendance extends Model
 {
-      use SoftDeletes, Blames;
+    use SoftDeletes, Blames;
 
     protected $table = 'salesman_attendance';
 
@@ -34,11 +35,40 @@ class SalesmanAttendance extends Model
         'deleted_user'
 
     ];
-     protected static function boot()
+
+    protected $casts = [
+        'attendance_date' => 'date',
+        'time_in' => 'datetime',
+        'time_out' => 'datetime',
+    ];
+    protected static function boot()
     {
         parent::boot();
         static::creating(function ($model) {
             $model->uuid = Str::uuid();
         });
+    }
+
+    public function salesman()
+    {
+        return $this->belongsTo(Salesman::class, 'salesman_id');
+        // अगर user model है तो:
+        // return $this->belongsTo(User::class, 'salesman_id');
+    }
+
+    /**
+     * 🔗 Route Relation
+     */
+    public function route()
+    {
+        return $this->belongsTo(Route::class, 'route_id');
+    }
+
+    /**
+     * 🔗 Warehouse Relation
+     */
+    public function warehouse()
+    {
+        return $this->belongsTo(Warehouse::class, 'warehouse_id');
     }
 }

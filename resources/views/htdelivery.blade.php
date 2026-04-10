@@ -140,26 +140,49 @@
         </div>
     </header>
 
-<table class="address-table">
-    <tr>
-        <!-- SELLER (LEFT) -->
-        <td class="address-cell">
-            <h4>Seller</h4>
-            <strong>{{ $order->warehouse->warehouse_name ?? ''}}</strong>
-            <br>{{ $order->warehouse->city ?? ''}}<br>
-            Phone: {{ $order->warehouse->owner_number ?? ''}}<br>
-           OSA CODE: {{ $order->warehouse->warehouse_code ?? ''}}
-        </td>
+    <table class="address-table">
+        <tr>
+            {{-- SELLER --}}
+            <td class="address-cell">
+                <h4>Seller</h4>
 
-        <td class="address-cell">
-            <h4>Buyer</h4>
-            <strong>{{ $order->customer->business_name ?? ''}}</strong><br>
-            {{ $order->customer->town ?? '' }}<br> 
-            Phone: {{ $order->customer->contact_number  ?? ''}}<br>
-            OSA Code: {{ $order->customer->osa_code ?? '' }}
-        </td>
-    </tr>
-</table>
+                @if(!empty($order->warehouse_id) && $order->warehouse)
+                    {{-- Seller from Warehouse --}}
+                    <strong>
+                        {{ $order->warehouse->warehouse_code ? $order->warehouse->warehouse_code . ' - ' : '' }}
+                        {{ $order->warehouse->warehouse_name ?? '' }}
+                    </strong><br>
+                    {{ $order->warehouse->city ?? '' }}<br>
+                    Phone: {{ $order->warehouse->owner_number ?? '' }}<br>
+                    TIN: {{ $order->warehouse->tin_no ?? '' }}
+
+                @elseif(!empty($order->company_id) && $order->company)
+                    {{-- Seller from Company --}}
+                    <strong>
+                        {{ $order->company->company_code ? $order->company->company_code . ' - ' : '' }}
+                        {{ $order->company->company_name ?? '' }}
+                    </strong><br>
+                    {{ $order->company->city ?? '' }}<br>
+                    Tin: {{ $order->company->tin_number ?? '' }}<br>
+                    Phone: {{ $order->company->primary_contact ?? '' }}
+
+                @else
+                    <em>No seller information</em>
+                @endif
+            </td>
+
+            {{-- BUYER (UNCHANGED) --}}
+            <td class="address-cell">
+                <h4>Buyer</h4>
+                  <strong>
+                        {{ $order->customer->osa_code ? $order->customer->osa_code . ' - ' : '' }}
+                        {{ $order->customer->business_name ?? '' }}
+                    </strong><br>
+                {{ $order->customer->town ?? '' }}<br> 
+                Phone: {{ $order->customer->contact_number ?? '' }}<br>
+            </td>
+        </tr>
+    </table>
 
     <div class="table-wrapper">
         <table>

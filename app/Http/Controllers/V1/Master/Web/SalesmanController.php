@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\V1\Master\Web;
 
+use App\Exports\SalesTeamAttendanceExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\V1\MasterRequests\Web\BulkUploadRequest;
 use App\Http\Requests\V1\MasterRequests\Web\SalesmanRequest;
@@ -13,7 +14,9 @@ use App\Traits\ApiResponse;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Http\Request;
 use App\Helpers\LogHelper;
+use App\Helpers\CommonLocationFilter;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 /**
  * @OA\Schema(
@@ -61,7 +64,7 @@ class SalesmanController extends Controller
      * )
      */
 
- public function index(Request $request): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         $isDropdown = filter_var($request->get('dropdown', false), FILTER_VALIDATE_BOOLEAN);
         $perPage = (int) $request->get('limit', 50);
@@ -102,26 +105,26 @@ class SalesmanController extends Controller
      *     @OA\Response(response=422, description="Validation error")
      * )
      */
-public function store(SalesmanRequest $request): JsonResponse
-{
-    $validated = $request->validated();
-    $salesman = $this->service->create($validated);
+    public function store(SalesmanRequest $request): JsonResponse
+    {
+        $validated = $request->validated();
+        $salesman = $this->service->create($validated);
 
-    LogHelper::store(
-        'master',               
-        'salesman',           
-        'add',               
-        null,                   
-        $salesman->toArray(),  
-        auth()->id()             
-    );
+        LogHelper::store(
+            'master',
+            'salesman',
+            'add',
+            null,
+            $salesman->toArray(),
+            auth()->id()
+        );
 
-    return response()->json([
-        'status' => 'success',
-        'code'   => 200,
-        'data'   => new SalesmanResource($salesman)
-    ], 201);
-}
+        return response()->json([
+            'status' => 'success',
+            'code'   => 200,
+            'data'   => new SalesmanResource($salesman)
+        ], 201);
+    }
 
     /**
      * @OA\Get(
@@ -158,150 +161,149 @@ public function store(SalesmanRequest $request): JsonResponse
      * )
      */
 
-//   public function update(Request $request, string $uuid): JsonResponse
-//     {
-//         try {
-//             // ✅ Inline validation (only for provided fields)
-//             $validated = $request->validate([
-//                 'osa_code' => [
-//                     'sometimes',
-//                     'string',
-//                     'max:50',
-//                     Rule::unique('salesman', 'osa_code')->ignore($uuid, 'uuid'),
-//                 ],
-//                 'name'            => 'sometimes|string|max:50',
-//                 'type'            => 'sometimes|exists:salesman_types,id',
-//                 'designation'     => 'sometimes|string|max:150',
-//                 'route_id'        => 'sometimes|integer|exists:tbl_route,id',
-//                 'username'        => [
-//                     'sometimes',
-//                     'string',
-//                     'max:55',
-//                     Rule::unique('salesman', 'username')->ignore($uuid, 'uuid'),
-//                 ],
-//                 // 'password'        => 'sometimes|string|max:150',
-//                 'contact_no'      => 'sometimes|string|max:20',
-//                 'warehouse_id'    => 'sometimes|string',
-//                 'email'           => 'sometimes|email|max:100',
-//                 'status'          => 'sometimes|integer|in:0,1',
-//                 'forceful_login'  => 'sometimes|integer|in:0,1',
-//                 'is_block'        => 'sometimes|integer|in:0,1',
-//                 'is_block_reason' => 'sometimes|string|max:250|nullable',
-//                 'block_date_from' => 'sometimes|date|nullable',
-//                 'block_date_to'   => 'sometimes|date|after_or_equal:block_date_from|nullable',
-//             ]);
-//             $dataToUpdate = collect($validated)
-//                 ->filter(fn($value, $key) => $request->has($key))
-//                 ->toArray();
-//             if (empty($dataToUpdate)) {
-//                 return response()->json([
-//                     'status'  => 'error',
-//                     'code'    => 400,
-//                     'message' => 'No valid fields provided for update.'
-//                 ], 400);
-//             }
-//             $updatedSalesman = $this->service->updateByUuid($uuid, $dataToUpdate);
+    //   public function update(Request $request, string $uuid): JsonResponse
+    //     {
+    //         try {
+    //             // ✅ Inline validation (only for provided fields)
+    //             $validated = $request->validate([
+    //                 'osa_code' => [
+    //                     'sometimes',
+    //                     'string',
+    //                     'max:50',
+    //                     Rule::unique('salesman', 'osa_code')->ignore($uuid, 'uuid'),
+    //                 ],
+    //                 'name'            => 'sometimes|string|max:50',
+    //                 'type'            => 'sometimes|exists:salesman_types,id',
+    //                 'designation'     => 'sometimes|string|max:150',
+    //                 'route_id'        => 'sometimes|integer|exists:tbl_route,id',
+    //                 'username'        => [
+    //                     'sometimes',
+    //                     'string',
+    //                     'max:55',
+    //                     Rule::unique('salesman', 'username')->ignore($uuid, 'uuid'),
+    //                 ],
+    //                 // 'password'        => 'sometimes|string|max:150',
+    //                 'contact_no'      => 'sometimes|string|max:20',
+    //                 'warehouse_id'    => 'sometimes|string',
+    //                 'email'           => 'sometimes|email|max:100',
+    //                 'status'          => 'sometimes|integer|in:0,1',
+    //                 'forceful_login'  => 'sometimes|integer|in:0,1',
+    //                 'is_block'        => 'sometimes|integer|in:0,1',
+    //                 'is_block_reason' => 'sometimes|string|max:250|nullable',
+    //                 'block_date_from' => 'sometimes|date|nullable',
+    //                 'block_date_to'   => 'sometimes|date|after_or_equal:block_date_from|nullable',
+    //             ]);
+    //             $dataToUpdate = collect($validated)
+    //                 ->filter(fn($value, $key) => $request->has($key))
+    //                 ->toArray();
+    //             if (empty($dataToUpdate)) {
+    //                 return response()->json([
+    //                     'status'  => 'error',
+    //                     'code'    => 400,
+    //                     'message' => 'No valid fields provided for update.'
+    //                 ], 400);
+    //             }
+    //             $updatedSalesman = $this->service->updateByUuid($uuid, $dataToUpdate);
 
-//             return response()->json([
-//                 'status'  => 'success',
-//                 'code'    => 200,
-//                 'message' => 'Salesman updated successfully.',
-//                 'data'    => new SalesmanResource($updatedSalesman),
-//             ]);
-//         } catch (Exception $e) {
-//             return response()->json([
-//                 'status'  => 'error',
-//                 'code'    => 500,
-//                 'message' => $e->getMessage(),
-//             ], 500);
-//         }
-//     }
+    //             return response()->json([
+    //                 'status'  => 'success',
+    //                 'code'    => 200,
+    //                 'message' => 'Salesman updated successfully.',
+    //                 'data'    => new SalesmanResource($updatedSalesman),
+    //             ]);
+    //         } catch (Exception $e) {
+    //             return response()->json([
+    //                 'status'  => 'error',
+    //                 'code'    => 500,
+    //                 'message' => $e->getMessage(),
+    //             ], 500);
+    //         }
+    //     }
 
-public function update(Request $request, string $uuid)
-{
-    try {
-        $validated = $request->validate([
-            'osa_code' => [
-                'sometimes',
-                'string',
-                'max:50',
-                Rule::unique('salesman', 'osa_code')->ignore($uuid, 'uuid'),
-            ],
-            'name'        => 'sometimes|string|max:50',
-            'type'        => 'sometimes|exists:salesman_types,id',
-            'designation' => 'sometimes|string|max:150',
-            'route_id'    => 'nullable|integer',
-            'password'    => 'nullable|string|max:150',
-            'contact_no'  => 'sometimes|string|max:20',
-            'warehouse_id' => [
-                'sometimes',
-                function ($attribute, $value, $fail) {
-                    if (!is_array($value) && !is_string($value)) { 
-                        $fail($attribute.' must be a string or an array.');
+    public function update(Request $request, string $uuid)
+    {
+        try {
+            $validated = $request->validate([
+                'osa_code' => [
+                    'sometimes',
+                    'string',
+                    'max:50',
+                    Rule::unique('salesman', 'osa_code')->ignore($uuid, 'uuid'),
+                ],
+                'name'        => 'sometimes|string|max:50',
+                'type'        => 'sometimes|exists:salesman_types,id',
+                'designation' => 'sometimes|string|max:150',
+                'route_id'    => 'nullable|integer',
+                'password'    => 'nullable|string|max:150',
+                'contact_no'  => 'sometimes|string|max:20',
+                'warehouse_id' => [
+                    'sometimes',
+                    function ($attribute, $value, $fail) {
+                        if (!is_array($value) && !is_string($value)) {
+                            $fail($attribute . ' must be a string or an array.');
+                        }
                     }
-                }
-            ],
-            'warehouse_id.*' => 'exists:tbl_warehouse,id',
+                ],
+                'warehouse_id.*' => 'exists:tbl_warehouse,id',
 
-            'email'        => 'nullable|email|max:100',
-            'status'        => 'sometimes|integer|in:0,1',
-            'forceful_login'=> 'sometimes|integer|in:0,1',
-            'is_block'      => 'sometimes|integer|in:0,1',
-            'block_date_from' => [
-                'sometimes',
-                'nullable',
-                'date',
-                Rule::requiredIf(fn() => $request->input('is_block') == 1),
-            ],
-            'block_date_to' => [
-                'sometimes',
-                'nullable',
-                'date',
-                'after_or_equal:block_date_from',
-                Rule::requiredIf(fn() => $request->input('is_block') == 1),
-            ],
-            'reason' => [
-                'sometimes',
-                'nullable',
-                'string',
-                'max:250',
-                Rule::requiredIf(fn() => $request->input('invoice_block') == 1),
-            ],
-            'cashier_description_block' => 'sometimes|integer|in:0,1',
-            'invoice_block'             => 'sometimes|integer|in:0,1',
-        ]);
+                'email'        => 'nullable|email|max:100',
+                'status'        => 'sometimes|integer|in:0,1',
+                'forceful_login' => 'sometimes|integer|in:0,1',
+                'is_block'      => 'sometimes|integer|in:0,1',
+                'block_date_from' => [
+                    'sometimes',
+                    'nullable',
+                    'date',
+                    Rule::requiredIf(fn() => $request->input('is_block') == 1),
+                ],
+                'block_date_to' => [
+                    'sometimes',
+                    'nullable',
+                    'date',
+                    'after_or_equal:block_date_from',
+                    Rule::requiredIf(fn() => $request->input('is_block') == 1),
+                ],
+                'reason' => [
+                    'sometimes',
+                    'nullable',
+                    'string',
+                    'max:250',
+                    Rule::requiredIf(fn() => $request->input('invoice_block') == 1),
+                ],
+                'cashier_description_block' => 'sometimes|integer|in:0,1',
+                'invoice_block'             => 'sometimes|integer|in:0,1',
+            ]);
 
-        $dataToUpdate = collect($validated)
-            ->filter(fn($value, $key) => $request->has($key))
-            ->toArray();
+            $dataToUpdate = collect($validated)
+                ->filter(fn($value, $key) => $request->has($key))
+                ->toArray();
 
-        if (empty($dataToUpdate)) {
-            return $this->fail("No valid fields provided for update.", 400);
+            if (empty($dataToUpdate)) {
+                return $this->fail("No valid fields provided for update.", 400);
+            }
+
+            $oldSalesman = $this->service->findByUuid($uuid);
+            $previousData = $oldSalesman ? $oldSalesman->toArray() : null;
+            $updated = $this->service->updateByUuid($uuid, $dataToUpdate);
+            $currentData = $updated ? $updated->toArray() : null;
+            LogHelper::store(
+                'master',
+                'salesman',
+                'update',
+                $previousData,
+                $currentData,
+                auth()->id()
+            );
+
+            return $this->success(
+                new SalesmanResource($updated),
+                "Salesman updated successfully",
+                200
+            );
+        } catch (Exception $e) {
+            return $this->fail($e->getMessage(), 500);
         }
-
-        $oldSalesman = $this->service->findByUuid($uuid);
-        $previousData = $oldSalesman ? $oldSalesman->toArray() : null;
-        $updated = $this->service->updateByUuid($uuid, $dataToUpdate);
-        $currentData = $updated ? $updated->toArray() : null;
-        LogHelper::store(
-            'master',        
-            'salesman',   
-            'update',         
-            $previousData,     
-            $currentData,    
-            auth()->id()        
-        );
-
-        return $this->success(
-            new SalesmanResource($updated),
-            "Salesman updated successfully",
-            200
-        );
-
-    } catch (Exception $e) {
-        return $this->fail($e->getMessage(), 500);
     }
-}
 
     /**
      * @OA\Delete(
@@ -410,23 +412,23 @@ public function update(Request $request, string $uuid)
      *     )
      * )
      */
-public function exportSalesmen(Request $request)
-{
-    $format  = $request->get('format', 'xlsx');
-    $fromDate = $request->get('from_date');
-    $toDate   = $request->get('to_date');
-    $search   = $request->get('search');
-    $filters  = $request->get('filter', []);
-    $columns  = $request->get('columns', []);
-    return $this->service->export(
-        $format,
-        $fromDate,
-        $toDate,
-        $search,
-        $filters,
-        $columns
-    );
-}
+    public function exportSalesmen(Request $request)
+    {
+        $format  = $request->get('format', 'xlsx');
+        $fromDate = $request->get('from_date');
+        $toDate   = $request->get('to_date');
+        $search   = $request->get('search');
+        $filters  = $request->get('filter', []);
+        $columns  = $request->get('columns', []);
+        return $this->service->export(
+            $format,
+            $fromDate,
+            $toDate,
+            $search,
+            $filters,
+            $columns
+        );
+    }
 
 
     /**
@@ -486,7 +488,7 @@ public function exportSalesmen(Request $request)
      * )
      */
 
-public function updateMultipleSalesmanStatus(Request $request)
+    public function updateMultipleSalesmanStatus(Request $request)
     {
         $request->validate([
             'salesman_ids' => 'required|array|min:1',
@@ -607,80 +609,94 @@ public function updateMultipleSalesmanStatus(Request $request)
     }
 
     /**
- * @OA\Get(
- *     path="/api/master/salesmen/global_search",
- *     summary="Search salesmen globally across multiple fields",
- *     tags={"Salesman"},
- *     security={{"bearerAuth":{}}},
- *     @OA\Parameter(
- *         name="query",
- *         in="query",
- *         required=false,
- *         @OA\Schema(type="string"),
- *         description="Search keyword to match across fields like name, osa_code, username, contact_no, email, warehouse, route, etc."
- *     ),
- *     @OA\Parameter(
- *         name="per_page",
- *         in="query",
- *         required=false,
- *         @OA\Schema(type="integer", example=10),
- *         description="Number of records per page"
- *     ),
- *     @OA\Parameter(
- *         name="page",
- *         in="query",
- *         required=false,
- *         @OA\Schema(type="integer", example=1),
- *         description="Page number"
- *     ),
- *     @OA\Response(
- *         response=200,
- *         description="Search results with pagination",
- *         @OA\JsonContent(
- *             type="object",
- *             @OA\Property(property="status", type="string", example="success"),
- *             @OA\Property(property="code", type="integer", example=200),
- *             @OA\Property(property="message", type="string", example="Search results"),
- *             @OA\Property(
- *                 property="data",
- *                 type="array",
- *                 @OA\Items(ref="#/components/schemas/Salesman")
- *             ),
- *             @OA\Property(
- *                 property="pagination",
- *                 type="object",
- *                 @OA\Property(property="current_page", type="integer", example=1),
- *                 @OA\Property(property="last_page", type="integer", example=1),
- *                 @OA\Property(property="per_page", type="integer", example=10),
- *                 @OA\Property(property="total", type="integer", example=50)
- *             )
- *         )
- *     ),
- *     @OA\Response(
- *         response=401,
- *         description="Unauthorized",
- *         @OA\JsonContent(ref="#/components/schemas/ApiResponseError")
- *     ),
- *     @OA\Response(
- *         response=500,
- *         description="Server Error",
- *         @OA\JsonContent(ref="#/components/schemas/ApiResponseError")
- *     )
- * )
- */
-public function global_search(Request $request): JsonResponse
-{
-    try {
-        $perPage = (int) ($request->get('per_page', $request->get('perPage', 50)));
-        $keyword = trim($request->get('query', ''));
-        if (empty($keyword)) {
-            $filters = $request->except(['per_page', 'perPage', 'page', 'query']);
-            $salesmen = $this->service->all($perPage, $filters, false);
+     * @OA\Get(
+     *     path="/api/master/salesmen/global_search",
+     *     summary="Search salesmen globally across multiple fields",
+     *     tags={"Salesman"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="query",
+     *         in="query",
+     *         required=false,
+     *         @OA\Schema(type="string"),
+     *         description="Search keyword to match across fields like name, osa_code, username, contact_no, email, warehouse, route, etc."
+     *     ),
+     *     @OA\Parameter(
+     *         name="per_page",
+     *         in="query",
+     *         required=false,
+     *         @OA\Schema(type="integer", example=10),
+     *         description="Number of records per page"
+     *     ),
+     *     @OA\Parameter(
+     *         name="page",
+     *         in="query",
+     *         required=false,
+     *         @OA\Schema(type="integer", example=1),
+     *         description="Page number"
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Search results with pagination",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="status", type="string", example="success"),
+     *             @OA\Property(property="code", type="integer", example=200),
+     *             @OA\Property(property="message", type="string", example="Search results"),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="array",
+     *                 @OA\Items(ref="#/components/schemas/Salesman")
+     *             ),
+     *             @OA\Property(
+     *                 property="pagination",
+     *                 type="object",
+     *                 @OA\Property(property="current_page", type="integer", example=1),
+     *                 @OA\Property(property="last_page", type="integer", example=1),
+     *                 @OA\Property(property="per_page", type="integer", example=10),
+     *                 @OA\Property(property="total", type="integer", example=50)
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthorized",
+     *         @OA\JsonContent(ref="#/components/schemas/ApiResponseError")
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Server Error",
+     *         @OA\JsonContent(ref="#/components/schemas/ApiResponseError")
+     *     )
+     * )
+     */
+    public function global_search(Request $request): JsonResponse
+    {
+        try {
+            $perPage = (int) ($request->get('per_page', $request->get('perPage', 50)));
+            $keyword = trim($request->get('query', ''));
+            if (empty($keyword)) {
+                $filters = $request->except(['per_page', 'perPage', 'page', 'query']);
+                $salesmen = $this->service->all($perPage, $filters, false);
+                return response()->json([
+                    'status' => 'success',
+                    'code' => 200,
+                    'message' => 'Salesmen fetched successfully (no search query provided)',
+                    'data' => SalesmanResource::collection($salesmen),
+                    'pagination' => [
+                        'page' => $salesmen->currentPage(),
+                        'limit' => $salesmen->perPage(),
+                        'totalPages' => $salesmen->lastPage(),
+                        'totalRecords' => $salesmen->total(),
+                    ],
+                ]);
+            }
+            $salesmen = $this->service->globalSearch($perPage, $keyword);
             return response()->json([
                 'status' => 'success',
                 'code' => 200,
-                'message' => 'Salesmen fetched successfully (no search query provided)',
-                'data' => SalesmanResource::collection($salesmen),
+                'message' => 'Search results',
+                'data' => SalesmanResource::collection($salesmen->items()),
                 'pagination' => [
                     'page' => $salesmen->currentPage(),
                     'limit' => $salesmen->perPage(),
@@ -688,167 +704,152 @@ public function global_search(Request $request): JsonResponse
                     'totalRecords' => $salesmen->total(),
                 ],
             ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'code' => 500,
+                'message' => $e->getMessage(),
+            ], 500);
         }
-        $salesmen = $this->service->globalSearch($perPage, $keyword);
-        return response()->json([
-            'status' => 'success',
-            'code' => 200,
-            'message' => 'Search results',
-            'data' => SalesmanResource::collection($salesmen->items()),
-            'pagination' => [
-                'page' => $salesmen->currentPage(),
-                'limit' => $salesmen->perPage(),
-                'totalPages' => $salesmen->lastPage(),
-                'totalRecords' => $salesmen->total(),
-            ],
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'status' => 'error',
-            'code' => 500,
-            'message' => $e->getMessage(),
-        ], 500);
     }
-}
 
-// public function salespersalesman(Request $request, string $uuid): JsonResponse
-//     {
-//         try {
-//             $perPage = (int) $request->get('limit', 50);
-//             $isDropdown = filter_var($request->get('dropdown', false), FILTER_VALIDATE_BOOLEAN);
-//             $salesList = $this->service->salespersalesman($uuid, $perPage, $isDropdown);
-//             if ($isDropdown) {
-//                 return response()->json([
-//                     'status' => 'success',
-//                     'code' => 200,
-//                     'message' => 'Sales dropdown fetched successfully',
-//                     'data' => $salesList,
-//                 ]);
-//             }
-//             return response()->json([
-//                 'status' => 'success',
-//                 'code' => 200,
-//                 'message' => 'Sales details fetched successfully',
-//                 'data' => $salesList->items(),
-//                 'pagination' => [
-//                     'page' => $salesList->currentPage(),
-//                     'limit' => $salesList->perPage(),
-//                     'totalPages' => $salesList->lastPage(),
-//                     'totalRecords' => $salesList->total(),
-//                 ],
-//             ]);
-//         } catch (\Exception $e) {
-//             return response()->json([
-//                 'status' => 'error',
-//                 'code' => 500,
-//                 'message' => $e->getMessage(),
-//             ], 500);
-//         }
-//     }
-// public function salespersalesman(Request $request, string $uuid): JsonResponse
-// {
-//     try {
-//         $perPage = (int) $request->get('limit', 50);
-//         $isDropdown = filter_var($request->get('dropdown', false), FILTER_VALIDATE_BOOLEAN);
-//         $from = $request->get('from');
-//         $to = $request->get('to');
-//         $salesList = $this->service->salespersalesman($uuid, $perPage, $isDropdown, $from, $to);
-//         if ($isDropdown) {
-//             return response()->json([
-//                 'status' => 'success',
-//                 'code' => 200,
-//                 'message' => 'Sales dropdown fetched successfully',
-//                 'data' => $salesList,
-//             ]);
-//         }
-//         return response()->json([
-//             'status' => 'success',
-//             'code' => 200,
-//             'message' => 'Sales details fetched successfully',
-//             'data' => $salesList->items(),
-//             // 'data'    =>$salesList,
-//             'pagination' => [
-//                 'page' => $salesList->currentPage(),
-//                 'limit' => $salesList->perPage(),
-//                 'totalPages' => $salesList->lastPage(),
-//                 'totalRecords' => $salesList->total(),
-//             ],
-//         ]);
-//     } catch (\Exception $e) {
-//         return response()->json([
-//             'status' => 'error',
-//             'code' => 500,
-//             'message' => $e->getMessage(),
-//         ], 500);
-//     }
-// }
-public function salespersalesman(Request $request, string $uuid): JsonResponse
-{
-    try {
-        $perPage = (int) $request->get('limit', 50);
-        $isDropdown = filter_var($request->get('dropdown', false), FILTER_VALIDATE_BOOLEAN);
+    // public function salespersalesman(Request $request, string $uuid): JsonResponse
+    //     {
+    //         try {
+    //             $perPage = (int) $request->get('limit', 50);
+    //             $isDropdown = filter_var($request->get('dropdown', false), FILTER_VALIDATE_BOOLEAN);
+    //             $salesList = $this->service->salespersalesman($uuid, $perPage, $isDropdown);
+    //             if ($isDropdown) {
+    //                 return response()->json([
+    //                     'status' => 'success',
+    //                     'code' => 200,
+    //                     'message' => 'Sales dropdown fetched successfully',
+    //                     'data' => $salesList,
+    //                 ]);
+    //             }
+    //             return response()->json([
+    //                 'status' => 'success',
+    //                 'code' => 200,
+    //                 'message' => 'Sales details fetched successfully',
+    //                 'data' => $salesList->items(),
+    //                 'pagination' => [
+    //                     'page' => $salesList->currentPage(),
+    //                     'limit' => $salesList->perPage(),
+    //                     'totalPages' => $salesList->lastPage(),
+    //                     'totalRecords' => $salesList->total(),
+    //                 ],
+    //             ]);
+    //         } catch (\Exception $e) {
+    //             return response()->json([
+    //                 'status' => 'error',
+    //                 'code' => 500,
+    //                 'message' => $e->getMessage(),
+    //             ], 500);
+    //         }
+    //     }
+    // public function salespersalesman(Request $request, string $uuid): JsonResponse
+    // {
+    //     try {
+    //         $perPage = (int) $request->get('limit', 50);
+    //         $isDropdown = filter_var($request->get('dropdown', false), FILTER_VALIDATE_BOOLEAN);
+    //         $from = $request->get('from');
+    //         $to = $request->get('to');
+    //         $salesList = $this->service->salespersalesman($uuid, $perPage, $isDropdown, $from, $to);
+    //         if ($isDropdown) {
+    //             return response()->json([
+    //                 'status' => 'success',
+    //                 'code' => 200,
+    //                 'message' => 'Sales dropdown fetched successfully',
+    //                 'data' => $salesList,
+    //             ]);
+    //         }
+    //         return response()->json([
+    //             'status' => 'success',
+    //             'code' => 200,
+    //             'message' => 'Sales details fetched successfully',
+    //             'data' => $salesList->items(),
+    //             // 'data'    =>$salesList,
+    //             'pagination' => [
+    //                 'page' => $salesList->currentPage(),
+    //                 'limit' => $salesList->perPage(),
+    //                 'totalPages' => $salesList->lastPage(),
+    //                 'totalRecords' => $salesList->total(),
+    //             ],
+    //         ]);
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'status' => 'error',
+    //             'code' => 500,
+    //             'message' => $e->getMessage(),
+    //         ], 500);
+    //     }
+    // }
+    public function salespersalesman(Request $request, string $uuid): JsonResponse
+    {
+        try {
+            $perPage = (int) $request->get('limit', 50);
+            $isDropdown = filter_var($request->get('dropdown', false), FILTER_VALIDATE_BOOLEAN);
 
-        $fromDate = $request->get('from_date');
-        $toDate = $request->get('to_date');
+            $fromDate = $request->get('from_date');
+            $toDate = $request->get('to_date');
 
-        $salesList = $this->service->salespersalesman(
-            $uuid,
-            $perPage,
-            $isDropdown,
-            $fromDate,
-            $toDate
-        );
+            $salesList = $this->service->salespersalesman(
+                $uuid,
+                $perPage,
+                $isDropdown,
+                $fromDate,
+                $toDate
+            );
 
-        if ($isDropdown) {
+            if ($isDropdown) {
+                return response()->json([
+                    'status' => 'success',
+                    'code' => 200,
+                    'message' => 'Sales dropdown fetched successfully',
+                    'data' => $salesList,
+                ]);
+            }
+
             return response()->json([
                 'status' => 'success',
                 'code' => 200,
-                'message' => 'Sales dropdown fetched successfully',
-                'data' => $salesList,
+                'message' => 'Sales details fetched successfully',
+                'data' => $salesList->items(),
+                'pagination' => [
+                    'page' => $salesList->currentPage(),
+                    'limit' => $salesList->perPage(),
+                    'totalPages' => $salesList->lastPage(),
+                    'totalRecords' => $salesList->total(),
+                ],
             ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'code' => 500,
+                'message' => $e->getMessage(),
+            ], 500);
         }
-
-        return response()->json([
-            'status' => 'success',
-            'code' => 200,
-            'message' => 'Sales details fetched successfully',
-            'data' => $salesList->items(),
-            'pagination' => [
-                'page' => $salesList->currentPage(),
-                'limit' => $salesList->perPage(),
-                'totalPages' => $salesList->lastPage(),
-                'totalRecords' => $salesList->total(),
-            ],
-        ]);
-
-    } catch (\Exception $e) {
-        return response()->json([
-            'status' => 'error',
-            'code' => 500,
-            'message' => $e->getMessage(),
-        ], 500);
     }
-}
 
-// public function exportSalesmanInvoices(Request $request, string $uuid)
-// {
-//     try {
-//         $format = $request->get('format', 'xlsx');
-//         if (!in_array($format, ['csv', 'xlsx'])) {
-//             return $this->fail('Invalid export format. Allowed formats: csv, xlsx', 422);
-//         }
-//         return $this->service->exportInvoicesBySalesman($uuid, $format);
-//     } catch (\Exception $e) {
-//         return $this->fail('Export failed: ' . $e->getMessage(), 500);
-//     }
-// }
+    // public function exportSalesmanInvoices(Request $request, string $uuid)
+    // {
+    //     try {
+    //         $format = $request->get('format', 'xlsx');
+    //         if (!in_array($format, ['csv', 'xlsx'])) {
+    //             return $this->fail('Invalid export format. Allowed formats: csv, xlsx', 422);
+    //         }
+    //         return $this->service->exportInvoicesBySalesman($uuid, $format);
+    //     } catch (\Exception $e) {
+    //         return $this->fail('Export failed: ' . $e->getMessage(), 500);
+    //     }
+    // }
 
 
- public function exportSalesmanInvoices(Request $request, string $uuid)
+    public function exportSalesmanInvoices(Request $request, string $uuid)
     {
         try {
             $format = strtolower($request->get('format', 'csv'));
-            
+
             if (!in_array($format, ['csv', 'xlsx'])) {
                 return $this->fail('Invalid export format. Allowed formats: csv, xlsx', 422);
             }
@@ -860,271 +861,308 @@ public function salespersalesman(Request $request, string $uuid): JsonResponse
     }
 
 
-// public function salesmanOrder(Request $request, string $uuid)
-// {
-//     try {
-//         $perPage = (int) $request->get('limit', 50);
-//         $isDropdown = filter_var($request->get('dropdown', false), FILTER_VALIDATE_BOOLEAN);
-//         $orderList = $this->service->salesmanOrder($uuid, $perPage, $isDropdown);
+    // public function salesmanOrder(Request $request, string $uuid)
+    // {
+    //     try {
+    //         $perPage = (int) $request->get('limit', 50);
+    //         $isDropdown = filter_var($request->get('dropdown', false), FILTER_VALIDATE_BOOLEAN);
+    //         $orderList = $this->service->salesmanOrder($uuid, $perPage, $isDropdown);
 
-//         if ($isDropdown) {
-//             return response()->json([
-//                 'status' => 'success',
-//                 'code' => 200,
-//                 'message' => 'Order dropdown fetched successfully',
-//                 'data' => $orderList,
-//             ]);
-//         }
-//         return response()->json([
-//             'status' => 'success',
-//             'code' => 200,
-//             'message' => 'Salesman orders fetched successfully',
-//             'data' => $orderList->items(),
-//             'pagination' => [
-//                 'page' => $orderList->currentPage(),
-//                 'limit' => $orderList->perPage(),
-//                 'totalPages' => $orderList->lastPage(),
-//                 'totalRecords' => $orderList->total(),
-//             ],
-//         ]);
-//     } catch (\Exception $e) {
-//         return response()->json([
-//             'status' => 'error',
-//             'code' => 500,
-//             'message' => $e->getMessage(),
-//         ], 500);
-//     }
-// }
-public function salesmanOrder(Request $request, string $uuid)
-{
-    try {
-        $perPage = (int) $request->get('limit', 50);
-        $isDropdown = filter_var($request->get('dropdown', false), FILTER_VALIDATE_BOOLEAN);
-        $from = $request->get('from');
-        $to = $request->get('to');
-        $orderList = $this->service->salesmanOrder($uuid, $perPage, $isDropdown, $from, $to);
-        if ($isDropdown) {
+    //         if ($isDropdown) {
+    //             return response()->json([
+    //                 'status' => 'success',
+    //                 'code' => 200,
+    //                 'message' => 'Order dropdown fetched successfully',
+    //                 'data' => $orderList,
+    //             ]);
+    //         }
+    //         return response()->json([
+    //             'status' => 'success',
+    //             'code' => 200,
+    //             'message' => 'Salesman orders fetched successfully',
+    //             'data' => $orderList->items(),
+    //             'pagination' => [
+    //                 'page' => $orderList->currentPage(),
+    //                 'limit' => $orderList->perPage(),
+    //                 'totalPages' => $orderList->lastPage(),
+    //                 'totalRecords' => $orderList->total(),
+    //             ],
+    //         ]);
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'status' => 'error',
+    //             'code' => 500,
+    //             'message' => $e->getMessage(),
+    //         ], 500);
+    //     }
+    // }
+    public function salesmanOrder(Request $request, string $uuid)
+    {
+        try {
+            $perPage = (int) $request->get('limit', 50);
+            $isDropdown = filter_var($request->get('dropdown', false), FILTER_VALIDATE_BOOLEAN);
+            $from = $request->get('from');
+            $to = $request->get('to');
+            $orderList = $this->service->salesmanOrder($uuid, $perPage, $isDropdown, $from, $to);
+            if ($isDropdown) {
+                return response()->json([
+                    'status' => 'success',
+                    'code' => 200,
+                    'message' => 'Order dropdown fetched successfully',
+                    'data' => $orderList,
+                ]);
+            }
             return response()->json([
                 'status' => 'success',
                 'code' => 200,
-                'message' => 'Order dropdown fetched successfully',
-                'data' => $orderList,
+                'message' => 'Salesman orders fetched successfully',
+                'data' => $orderList->items(),
+                'pagination' => [
+                    'page' => $orderList->currentPage(),
+                    'limit' => $orderList->perPage(),
+                    'totalPages' => $orderList->lastPage(),
+                    'totalRecords' => $orderList->total(),
+                ],
             ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'code' => 500,
+                'message' => $e->getMessage(),
+            ], 500);
         }
-        return response()->json([
-            'status' => 'success',
-            'code' => 200,
-            'message' => 'Salesman orders fetched successfully',
-            'data' => $orderList->items(),
-            'pagination' => [
-                'page' => $orderList->currentPage(),
-                'limit' => $orderList->perPage(),
-                'totalPages' => $orderList->lastPage(),
-                'totalRecords' => $orderList->total(),
-            ],
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'status' => 'error',
-            'code' => 500,
-            'message' => $e->getMessage(),
-        ], 500);
     }
-}
 
-public function report(Request $request)
-{
-    $request->validate([
-        'salesman_uuid' => 'required|string',
-        'from_date'   => 'nullable|date',
-        'to_date'     => 'nullable|date|after_or_equal:from_date',
-        'limit'       => 'nullable|integer|min:1'
-    ]);
+    public function report(Request $request)
+    {
+        $request->validate([
+            'salesman_uuid' => 'required|string',
+            'from_date'   => 'nullable|date',
+            'to_date'     => 'nullable|date|after_or_equal:from_date',
+            'limit'       => 'nullable|integer|min:1'
+        ]);
 
-    $salesmanUuid = $request->salesman_uuid;
-    $fromDate   = $request->from_date;
-    $toDate     = $request->to_date;
-    $perPage    = $request->input('limit', 10);
+        $salesmanUuid = $request->salesman_uuid;
+        $fromDate   = $request->from_date;
+        $toDate     = $request->to_date;
+        $perPage    = $request->input('limit', 10);
+        $currect = Carbon::now();
+        // dd($currect);
+        $query = DB::table('salesman_attendance as sa')
+            ->leftJoin('tbl_route as r', 'r.id', '=', 'sa.route_id')
+            ->leftJoin('tbl_warehouse as w', 'w.id', '=', 'sa.warehouse_id')
+            ->leftJoin('salesman as s', 's.id', '=', 'sa.salesman_id')
+            ->leftJoin('salesman_types as st', 'st.id', '=', 's.type')
+            ->leftJoin('project_list as pl', function ($join) {
+                $join->on('pl.id', '=', DB::raw('CAST(s.sub_type AS INTEGER)'));
+            })
 
-    $query = DB::table('salesman_attendance as sa')
-        ->leftJoin('tbl_route as r', 'r.id', '=', 'sa.route_id')
-        ->leftJoin('tbl_warehouse as w', 'w.id', '=', 'sa.warehouse_id')
-        ->leftJoin('salesman as s', 's.id', '=', 'sa.salesman_id')
-        ->leftJoin('salesman_types as st', 'st.id', '=', 's.type')
-        ->leftJoin('project_list as pl', function ($join) {
-            $join->on('pl.id', '=', DB::raw('CAST(s.sub_type AS INTEGER)'));
-        })
-
-        ->where('s.uuid', $salesmanUuid)
-        ->orderBy('sa.attendance_date', 'asc')
-        ->select([
-            'sa.id',
-            'sa.attendance_date', 
-             DB::raw("
+            ->where('s.uuid', $salesmanUuid)
+            ->orderBy('sa.attendance_date', 'asc')
+            ->select([
+                'sa.id',
+                'sa.attendance_date',
+                DB::raw("
                 CASE 
                     WHEN s.type = 6 THEN pl.name
                     ELSE st.salesman_type_name
                 END AS salesman_type
             "),
-              DB::raw("
+                DB::raw("
                 COALESCE(NULLIF(s.sap_id, ''), s.osa_code) AS salesman_code
             "),
-            's.name as salesman_name',
-            'r.route_name',
-            'r.route_code',
-            'w.warehouse_name',
-            'w.warehouse_code',
-            'w.latitude as warehouse_latitude',
-            'w.longitude as warehouse_longitude',
-            'sa.time_in',
-            'sa.in_img',
-            'sa.latitude_in as attendance_latitude_in',
-            'sa.longitude_in as attendance_longitude_in',
-            'sa.time_out',
-            'sa.out_img',
-            'sa.latitude_out as attendance_latitude_out',
-            'sa.longitude_out as attendance_longitude_out',
-        ]);
+                's.name as salesman_name',
+                'r.route_name',
+                'r.route_code',
+                'w.warehouse_name',
+                'w.warehouse_code',
+                'w.latitude as warehouse_latitude',
+                'w.longitude as warehouse_longitude',
+                'sa.time_in',
+                'sa.in_img',
+                'sa.latitude_in as attendance_latitude_in',
+                'sa.longitude_in as attendance_longitude_in',
+                'sa.time_out',
+                'sa.out_img',
+                'sa.latitude_out as attendance_latitude_out',
+                'sa.longitude_out as attendance_longitude_out',
+            ]);
 
-    if ($fromDate && $toDate) {
-        $query->whereBetween('sa.attendance_date', [$fromDate, $toDate]);
+        if ($fromDate && $toDate) {
+            $query->whereBetween('sa.attendance_date', [$fromDate, $toDate]);
+        } else {
+            $query->where('sa.attendance_date', Carbon::now());
+        }
+
+        $data = $query->paginate($perPage);
+
+        return response()->json([
+            'status'     => 'success',
+            'code'       => 200,
+            'message'    => 'Salesman attendance report fetched successfully',
+            'data'       => $data->items(),
+            'pagination' => [
+                'current_page' => $data->currentPage(),
+                'last_page'    => $data->lastPage(),
+                'per_page'     => $data->perPage(),
+                'total'        => $data->total(),
+            ],
+        ]);
+    }
+    /**
+     * @OA\Get(
+     *     path="/api/master/salesmen/orders-export/{salesman_uuid}",
+     *     tags={"Salesman"},
+     *     security={{"bearerAuth":{}}},
+     *     summary="Export salesman orders in Excel",
+     *     description="Exports order header and order details in Excel format based on salesman UUID. Excel file contains expandable/collapsible order details.",
+     *
+     *     @OA\Parameter(
+     *         name="salesman_uuid",
+     *         in="path", 
+     *         required=true,
+     *         description="UUID of the salesman",
+     *         @OA\Schema(
+     *             type="string",
+     *             format="uuid",
+     *             example="9f1b2c3d-1234-4567-890a-bcdef1234567"
+     *         )
+     *     ),
+     *
+     *     @OA\Response(
+     *         response=200,
+     *         description="Excel exported successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Excel exported successfully"),
+     *             @OA\Property(
+     *                 property="file_path",
+     *                 type="string",
+     *                 example="https://yourdomain.com/storage/salesman_order/salesman_orders_X8Y2.xlsx"
+     *             )
+     *         )
+     *     ),
+     *
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error"
+     *     ),
+     *
+     *     @OA\Response(
+     *         response=404,
+     *         description="Salesman not found"
+     *     )
+     * )
+     */
+    public function export(string $salesman_uuid)
+    {
+        validator(
+            ['salesman_uuid' => $salesman_uuid],
+            ['salesman_uuid' => 'required|uuid']
+        )->validate();
+
+        $filePath = app(SalesmanService::class)
+            ->exportBySalesmanUuid($salesman_uuid);
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Excel exported successfully',
+            'file_path' => $filePath
+        ]);
+    }
+    /**
+     * @OA\Get(
+     *     path="/api/master/salesmen/po-export/{salesman_uuid}",
+     *     tags={"Salesman"},
+     *     security={{"bearerAuth":{}}},
+     *     summary="Export salesman orders in Excel",
+     *     description="Exports order header and order details in Excel format based on salesman UUID. Excel file contains expandable/collapsible order details.",
+     *
+     *     @OA\Parameter(
+     *         name="salesman_uuid",
+     *         in="path", 
+     *         required=true,
+     *         description="UUID of the salesman",
+     *         @OA\Schema(
+     *             type="string",
+     *             format="uuid",
+     *             example="9f1b2c3d-1234-4567-890a-bcdef1234567"
+     *         )
+     *     ),
+     *
+     *     @OA\Response(
+     *         response=200,
+     *         description="Excel exported successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Excel exported successfully"),
+     *             @OA\Property(
+     *                 property="file_path",
+     *                 type="string",
+     *                 example="https://yourdomain.com/storage/salesman_order/salesman_orders_X8Y2.xlsx"
+     *             )
+     *         )
+     *     ),
+     *
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error"
+     *     ),
+     *
+     *     @OA\Response(
+     *         response=404,
+     *         description="Salesman not found"
+     *     )
+     * )
+     */
+    public function po_export(string $salesman_uuid)
+    {
+        validator(
+            ['salesman_uuid' => $salesman_uuid],
+            ['salesman_uuid' => 'required|uuid']
+        )->validate();
+
+        $filePath = app(SalesmanService::class)
+            ->export_po($salesman_uuid);
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Excel exported successfully',
+            'file_path' => $filePath
+        ]);
     }
 
-    $data = $query->paginate($perPage);
+    public function exportAttendance(Request $request)
+    {
+        $format    = strtolower($request->input('format', 'xlsx'));
+        $extension = $format === 'csv' ? 'csv' : 'xlsx';
 
-    return response()->json([
-        'status'     => 'success',
-        'code'       => 200,
-        'message'    => 'Salesman attendance report fetched successfully',
-        'data'       => $data->items(),
-        'pagination' => [
-            'current_page' => $data->currentPage(),
-            'last_page'    => $data->lastPage(),
-            'per_page'     => $data->perPage(),
-            'total'        => $data->total(),
-        ],
-    ]);
-}
-/**
- * @OA\Get(
- *     path="/api/master/salesmen/orders-export/{salesman_uuid}",
- *     tags={"Salesman"},
- *     security={{"bearerAuth":{}}},
- *     summary="Export salesman orders in Excel",
- *     description="Exports order header and order details in Excel format based on salesman UUID. Excel file contains expandable/collapsible order details.",
- *
- *     @OA\Parameter(
- *         name="salesman_uuid",
- *         in="path", 
- *         required=true,
- *         description="UUID of the salesman",
- *         @OA\Schema(
- *             type="string",
- *             format="uuid",
- *             example="9f1b2c3d-1234-4567-890a-bcdef1234567"
- *         )
- *     ),
- *
- *     @OA\Response(
- *         response=200,
- *         description="Excel exported successfully",
- *         @OA\JsonContent(
- *             @OA\Property(property="status", type="boolean", example=true),
- *             @OA\Property(property="message", type="string", example="Excel exported successfully"),
- *             @OA\Property(
- *                 property="file_path",
- *                 type="string",
- *                 example="https://yourdomain.com/storage/salesman_order/salesman_orders_X8Y2.xlsx"
- *             )
- *         )
- *     ),
- *
- *     @OA\Response(
- *         response=422,
- *         description="Validation error"
- *     ),
- *
- *     @OA\Response(
- *         response=404,
- *         description="Salesman not found"
- *     )
- * )
- */
-public function export(string $salesman_uuid)
-{
-    validator(
-        ['salesman_uuid' => $salesman_uuid],
-        ['salesman_uuid' => 'required|uuid']
-    )->validate();
+        $filename = 'SalesTeam_Attendance.' . $extension;
+        $path     = 'salesteamAttendance/' . $filename;
 
-    $filePath = app(SalesmanService::class)
-        ->exportBySalesmanUuid($salesman_uuid);
+        $filters = $request->input('filter', []);
+        // dd($filters);
+        $fromDate = $filters['from_date'] ?? null;
+        $toDate   = $filters['to_date'] ?? null;
+        $salesman_id   = $filters['salesman_id'] ?? null;
 
-    return response()->json([
-        'status' => true,
-        'message' => 'Excel exported successfully',
-        'file_path' => $filePath
-    ]);
-}
-/**
- * @OA\Get(
- *     path="/api/master/salesmen/po-export/{salesman_uuid}",
- *     tags={"Salesman"},
- *     security={{"bearerAuth":{}}},
- *     summary="Export salesman orders in Excel",
- *     description="Exports order header and order details in Excel format based on salesman UUID. Excel file contains expandable/collapsible order details.",
- *
- *     @OA\Parameter(
- *         name="salesman_uuid",
- *         in="path", 
- *         required=true,
- *         description="UUID of the salesman",
- *         @OA\Schema(
- *             type="string",
- *             format="uuid",
- *             example="9f1b2c3d-1234-4567-890a-bcdef1234567"
- *         )
- *     ),
- *
- *     @OA\Response(
- *         response=200,
- *         description="Excel exported successfully",
- *         @OA\JsonContent(
- *             @OA\Property(property="status", type="boolean", example=true),
- *             @OA\Property(property="message", type="string", example="Excel exported successfully"),
- *             @OA\Property(
- *                 property="file_path",
- *                 type="string",
- *                 example="https://yourdomain.com/storage/salesman_order/salesman_orders_X8Y2.xlsx"
- *             )
- *         )
- *     ),
- *
- *     @OA\Response(
- *         response=422,
- *         description="Validation error"
- *     ),
- *
- *     @OA\Response(
- *         response=404,
- *         description="Salesman not found"
- *     )
- * )
- */
-public function po_export(string $salesman_uuid)
-{
-    validator(
-        ['salesman_uuid' => $salesman_uuid],
-        ['salesman_uuid' => 'required|uuid']
-    )->validate();
+        $export = new SalesTeamAttendanceExport(
+            $fromDate,
+            $toDate,
+            $salesman_id
+        );
 
-    $filePath = app(SalesmanService::class)
-        ->export_po($salesman_uuid);
+        if ($format === 'csv') {
+            Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
+        } else {
+            Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
+        }
 
-    return response()->json([
-        'status' => true,
-        'message' => 'Excel exported successfully',
-        'file_path' => $filePath
-    ]);
-}
+        $fullUrl = rtrim(config('app.url'), '/') . '/storage/app/public/' . $path;
+
+        return response()->json([
+            'status' => 'success',
+            'download_url' => $fullUrl,
+        ]);
+    }
 }

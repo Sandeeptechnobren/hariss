@@ -22,16 +22,20 @@ class HtReturnHeaderResource extends JsonResource
             'company_id'          => $this->company_id,
             'company_code'        => $this->company->company_code ?? null,
             'company_name'        => $this->company->company_name ?? null,
+            'company_contact' => $this->company->primary_contact ?? null,
+            'company_address' => $this->company->address ?? null,
 
             'warehouse_id'        => $this->warehouse_id,
             'warehouse_code'      => $this->warehouse->warehouse_code ?? null,
             'warehouse_name'      => $this->warehouse->warehouse_name ?? null,
+            'warehouse_contact' => $this->warehouse->warehouse_manager_contact ?? null,
+            'warehouse_town' => $this->warehouse->town_village ?? null,
 
             'driver_id'           => $this->driver_id,
             'driver_name'         => $this->driver->driver_name ?? null,
             'driver_code'         => $this->driver->osa_code ?? null,
             'driver_contactno'    => $this->driver->contactno ?? null,
- 
+
             'vat'           => $this->vat,
             'net'           => $this->net,
             'amount'        => $this->total,

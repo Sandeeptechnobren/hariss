@@ -118,7 +118,7 @@ class POHeaderResource extends JsonResource
                     ->where('request_step_id', $current->id)
                     ->where(function ($q) use ($user) {
                         $q->where('user_id', $user->id)
-                          ->orWhere('role', $user->role);
+                            ->orWhere('role', $user->role);
                     })
                     ->where('has_approved', false)
                     ->exists();
@@ -145,10 +145,15 @@ class POHeaderResource extends JsonResource
             'company_code'  => $this->company->company_code ?? null,
             'company_name'  => $this->company->company_name ?? null,
             'company_email' => $this->company->email ?? null,
+            'company_contact' => $this->company->primary_contact ?? null,
+            'company_address' => $this->company->address ?? null,
+            'company_tinno'   => $this->company->	tin_number ?? null,
 
             'warehouse_id'   => $this->warehouse_id,
             'warehouse_code' => $this->warehouse->warehouse_code ?? null,
             'warehouse_name' => $this->warehouse->warehouse_name ?? null,
+            'warehouse_contact' => $this->warehouse->warehouse_manager_contact ?? null,
+            'warehouse_town' => $this->warehouse->town_village ?? null,
 
             'delivery_date' => $this->delivery_date,
             'comment'       => $this->comment,
@@ -183,5 +188,3 @@ class POHeaderResource extends JsonResource
         ];
     }
 }
-
-

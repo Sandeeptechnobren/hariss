@@ -78,6 +78,12 @@ class PlanogramPostController extends Controller
  *                     type="string",
  *                     format="binary",
  *                     description="(Optional) After image of the shelf"
+ *                 ),
+  *                 @OA\Property(
+ *                     property="feedback",
+ *                     type="string",
+ *                     example="shelf was empty, needs restocking",
+ *                     description="(Optional) Feedback about the shelf"
  *                 )
  *             )
  *         )
@@ -118,23 +124,33 @@ class PlanogramPostController extends Controller
  *     )
  * )
  */
-
-
-
     public function create(PlanogramPostRequest $request)
-    {
+{
+    try {
         $data = $request->validated();
         if ($request->hasFile('before_image')) {
             $data['before_image'] = $request->file('before_image');
         }
-
         if ($request->hasFile('after_image')) {
             $data['after_image'] = $request->file('after_image');
         }
         $planogramPost = $this->service->store($data);
-
-        return new PlanogramPostResource($planogramPost);
+        return response()->json([
+            'status'  => true,
+            'code'    => 200,
+            'message' => 'Planogram post created successfully',
+            'data'    => new PlanogramPostResource($planogramPost)
+        ], 200);
+    } catch (\Exception $e) {
+        \Log::error('Planogram Post Create Error: ' . $e->getMessage());
+        return response()->json([
+            'status'  => false,
+            'code'    => 500,
+            'message' => 'Something went wrong while creating planogram post',
+            'error'   => $e->getMessage()
+        ], 500);
     }
+}
 
  /**
  * @OA\Get(

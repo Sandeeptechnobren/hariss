@@ -68,40 +68,40 @@ class ExchangeHeaderExport implements FromCollection, WithHeadings, ShouldAutoSi
                 $q->whereIn('warehouse_id', $this->warehouseIds)
             );
 
-            $query = DataAccessHelper::filterAgentTransaction($query, Auth::user());
-            $headers = $query->get();
+        $query = DataAccessHelper::filterAgentTransaction($query, Auth::user());
+        $headers = $query->get();
 
         foreach ($headers as $header) {
             $rows[] = [
-                'Exchange'   => (string) $header->exchange_code,
+                'Exchange No'   => (string) $header->exchange_code,
                 'Date' => $header->created_at
                     ? Carbon::parse($header->created_at)->format('d M Y')
                     : '',
                 'Warehouse' => trim(
-                    ($header->warehouse->warehouse_code ?? '') . '-' .
+                    ($header->warehouse->warehouse_code ?? '') . ' - ' .
                         ($header->warehouse->warehouse_name ?? '')
                 ),
 
                 'Route' => trim(
-                    ($header->route->route_code ?? '') . '-' .
+                    ($header->route->route_code ?? '') . ' - ' .
                         ($header->route->route_name ?? '')
                 ),
 
                 'Customer' => trim(
-                    ($header->customer->osa_code ?? '') . '-' .
+                    ($header->customer->osa_code ?? '') . ' - ' .
                         ($header->customer->name ?? '')
                 ),
 
                 'Salesman' => trim(
-                    ($header->salesman->osa_code ?? '') . '-' .
+                    ($header->salesman->osa_code ?? '') . ' - ' .
                         ($header->salesman->name ?? '')
                 ),
 
-                'Gross Total'     => (float) $header->gross_total,
-                'VAT'             => (float) $header->vat,
-                'Net Amount'      => (float) $header->net_amount,
+                // 'Gross Total'     => (float) $header->gross_total,
+                // 'VAT'             => (float) $header->vat,
+                // 'Net Amount'      => (float) $header->net_amount,
                 'Total'           => (float) $header->total,
-                'Discount'        => (float) $header->discount,
+                // 'Discount'        => (float) $header->discount,
                 // 'Status'          => $header->status == 1 ? 'Active' : 'Inactive',
             ];
         }
@@ -112,17 +112,17 @@ class ExchangeHeaderExport implements FromCollection, WithHeadings, ShouldAutoSi
     public function headings(): array
     {
         return [
-            'Exchange',
+            'Exchange No',
             'Date',
-            'Warehouse',
+            'Distributors',
             'Route',
             'Customer',
             'Salesman',
-            'Gross Total',
-            'VAT',
-            'Net Amount',
+            // 'Gross Total',
+            // 'VAT',
+            // 'Net Amount',
             'Total',
-            'Discount',
+            // 'Discount',
             // 'Status',
         ];
     }

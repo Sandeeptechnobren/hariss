@@ -12,6 +12,7 @@ use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
+use Carbon\Carbon;
 
 class NewCustomerFullExport implements FromCollection, WithHeadings, ShouldAutoSize, WithEvents
 {
@@ -20,14 +21,16 @@ class NewCustomerFullExport implements FromCollection, WithHeadings, ShouldAutoS
     protected $warehouseIds;
     protected $routeIds;
     protected $approval_status;
+    protected $salesmanIds;
 
-    public function __construct($fromDate, $toDate, $warehouseIds = [], $routeIds = [], $approval_status = [])
+    public function __construct($fromDate, $toDate, $warehouseIds = [], $routeIds = [], $approval_status = [], $salesmanIds = [])
     {
         $this->fromDate     = $fromDate;
         $this->toDate       = $toDate;
         $this->warehouseIds = $warehouseIds;
         $this->routeIds     = $routeIds;
-        $this->approval_status     = $approval_status;
+        $this->approval_status   = $approval_status;
+        $this->salesmanIds   = $salesmanIds;
     }
 
     public function collection()
@@ -43,14 +46,6 @@ class NewCustomerFullExport implements FromCollection, WithHeadings, ShouldAutoS
             'getWarehouse'
         ]);
 
-        if ($this->fromDate) {
-            $query->whereDate('created_at', '>=', $this->fromDate);
-        }
-
-        if ($this->toDate) {
-            $query->whereDate('created_at', '<=', $this->toDate);
-        }
-
         if (!empty($this->warehouseIds)) {
             $query->whereIn('warehouse', $this->warehouseIds);
         }
@@ -58,29 +53,48 @@ class NewCustomerFullExport implements FromCollection, WithHeadings, ShouldAutoS
         if (!empty($this->routeIds)) {
             $query->whereIn('route_id', $this->routeIds);
         }
+
+        if (!empty($this->salesmanIds)) {
+            $query->whereIn('salesman_id', $this->salesmanIds);
+        }
+
         if (!empty($this->approval_status)) {
             $query->whereIn('approval_status', $this->approval_status);
         }
-        // dd($query->getWarehouse);
+
+        // ✅ DATE SAME LOGIC
+        if (!empty($this->fromDate) || !empty($this->toDate)) {
+
+            if (!empty($this->fromDate)) {
+                $query->whereDate('created_at', '>=', $this->fromDate);
+            }
+
+            if (!empty($this->toDate)) {
+                $query->whereDate('created_at', '<=', $this->toDate);
+            }
+        } else {
+            $query->whereMonth('created_at', now()->month)
+                ->whereYear('created_at', now()->year);
+        }
+        // dd($query->count());
         $customers = $query->get();
-        // dd($customers->first()->route, $customers->first()->getWarehouse);
         foreach ($customers as $customer) {
             $rows[] = [
                 'Code' => (string) $customer->osa_code,
                 'Customer Type' => (string) ($customer->customertype->name ?? ''),
                 'Outlet' => (string) $customer->name,
                 'Owner' => (string) $customer->owner_name,
-                
+
                 'Warehouse' => (string) (
                     ($customer->getWarehouse->warehouse_code ?? '') .
                     ' - ' .
                     ($customer->getWarehouse->warehouse_name ?? '')
                 ),
-                'Customer' => (string) (
-                    ($customer->customer->osa_code ?? '') .
-                    ' - ' .
-                    ($customer->customer->name ?? '')
-                ),
+                // 'Customer' => (string) (
+                //     ($customer->customer->osa_code ?? '') .
+                //     ' - ' .
+                //     ($customer->customer->name ?? '')
+                // ),
 
                 'Route' => (string) (
                     optional($customer->route)->route_code .
@@ -140,8 +154,8 @@ class NewCustomerFullExport implements FromCollection, WithHeadings, ShouldAutoS
             'Customer Type',
             'Outlet',
             'Owner',
-            'Warehouse',
-            'Customer',
+            'Distributors',
+            // 'Customer',
             // 'Customer Type Code',
             'Route',
             'Outlet Channel',

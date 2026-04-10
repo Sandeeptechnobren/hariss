@@ -45,7 +45,8 @@ class DeliveryFulllExport implements FromCollection, WithHeadings, ShouldAutoSiz
                 'Discount'       => (float)($header->discount ?? 0),
                 'Net Amount'     => (float)($header->net_amount ?? 0),
                 'Total'          => (float)($header->total ?? 0),
-                'Delivery Date'  => (string)($header->delivery_date ?? ''),
+                // 'Delivery Date'  => (string)($header->delivery_date ?? ''),
+                'Delivery Date'  => (string)optional($header->delivery_date)->format('d-M-Y'),
                 'Comment'        => (string)($header->comment ?? ''),
                 'Status'         => (string)($header->status == 1 ? 'Active' : 'Inactive'),
 

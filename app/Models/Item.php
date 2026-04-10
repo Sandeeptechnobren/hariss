@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Item extends Model
 {
+    protected $connection = 'pgsql';
     use SoftDeletes;
 
     protected $fillable = [
@@ -24,6 +25,7 @@ class Item extends Model
         'item_weight',
         'shelf_life',
         'volume',
+        'discount_status',
         'is_promotional',
         'is_taxable',
         'has_excies',
@@ -77,6 +79,7 @@ class Item extends Model
     {
         return $this->hasMany(ItemUOM::class, 'item_id')->with('uom:id,name');
     }
+
     public function warehouse_stocks()
     {
         return $this->hasMany(WarehouseStock::class, 'item_id', 'id');
@@ -90,13 +93,19 @@ class Item extends Model
     {
         return $this->belongsTo(Brand::class, 'brand');
     }
-        public function pricing_details()
+    public function pricing_details()
     {
         return $this->hasOne(PricingDetail::class, 'item_id', 'id');
     }
-        public function latestPricing(): HasOne
+    public function latestPricing(): HasOne
     {
         return $this->hasOne(PricingDetail::class, 'item_id')
-                    ->latestOfMany(); 
+            ->latestOfMany();
+    }
+
+
+    public function uoms()
+    {
+        return $this->hasMany(ItemUOM::class, 'item_id');
     }
 }

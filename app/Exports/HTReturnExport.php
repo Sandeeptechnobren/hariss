@@ -74,7 +74,7 @@ class HTReturnExport implements FromCollection, WithHeadings, ShouldAutoSize, Wi
             'Customer',
             'Company',
 
-            'Warehouse',
+            'Distributors',
             'Driver',
             'Turnman',
 

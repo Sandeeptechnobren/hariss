@@ -85,13 +85,13 @@ class SalesmanService
                     continue;
                 }
                 if ($field === 'route_id') {
-                $routeIds = is_string($value) && str_contains($value, ',')
-                    ? array_map('intval', explode(',', $value))
-                    : (array) $value;
+                    $routeIds = is_string($value) && str_contains($value, ',')
+                        ? array_map('intval', explode(',', $value))
+                        : (array) $value;
 
-                $query->whereIn('route_id', array_filter($routeIds));
-                continue;
-            }
+                    $query->whereIn('route_id', array_filter($routeIds));
+                    continue;
+                }
 
                 if (in_array($field, ['osa_code', 'name', 'designation', 'username'])) {
                     $query->whereRaw(
@@ -426,56 +426,47 @@ class SalesmanService
     //         throw new \Exception("Failed to fetch sales for salesman: " . $e->getMessage());
     //     }
     // }
-public function salespersalesman(
-    string $uuid,
-    int $perPage = 50,
-    bool $dropdown = false,
-    ?string $fromDate = null,
-    ?string $toDate = null
-) {
-    try {
-        $salesmanId = Salesman::where('uuid', $uuid)->value('id');
+    public function salespersalesman(
+        string $uuid,
+        int $perPage = 50,
+        bool $dropdown = false,
+        ?string $fromDate = null,
+        ?string $toDate = null
+    ) {
+        try {
+            $salesmanId = Salesman::where('uuid', $uuid)->value('id');
 
-        if (!$salesmanId) {
-            throw new \Exception("Salesman not found for given UUID.");
-        }
+            if (!$salesmanId) {
+                throw new \Exception("Salesman not found for given UUID.");
+            }
 
-        $monthStart = now()->startOfMonth();
-        $monthEnd = now()->endOfMonth();
-
-        $query = InvoiceHeader::with([
-            'warehouse:id,warehouse_code,warehouse_name',
-            'customer:id,osa_code,name',
-            'route:id,route_code,route_name',
-            'details.item:id,erp_code,name',
-            'details.uoms:id,name,osa_code'
-        ])
-        ->where('salesman_id', $salesmanId)
-        ->whereBetween('created_at', [$monthStart, $monthEnd])
-        ->latest();
-
-        if ($fromDate || $toDate) {
             $from = $fromDate
-                ? max($monthStart, now()->parse($fromDate)->startOfDay())
-                : $monthStart;
+                ? now()->parse($fromDate)->startOfDay()
+                : now()->startOfMonth();
 
             $to = $toDate
-                ? min($monthEnd, now()->parse($toDate)->endOfDay())
-                : $monthEnd;
+                ? now()->parse($toDate)->endOfDay()
+                : now()->endOfMonth();
+            $query = InvoiceHeader::with([
+                'warehouse:id,warehouse_code,warehouse_name',
+                'customer:id,osa_code,name',
+                'route:id,route_code,route_name',
+                'details.item:id,erp_code,name',
+                'details.uoms:id,name,osa_code'
+            ])
+                ->where('salesman_id', $salesmanId)
+                ->whereBetween('invoice_date', [$from, $to])
+                ->latest();
 
-            $query->whereBetween('created_at', [$from, $to]);
+            if ($dropdown) {
+                return $query->select(['id', 'invoice_number'])->get();
+            }
+
+            return $query->paginate($perPage);
+        } catch (\Exception $e) {
+            throw new \Exception("Failed to fetch sales for salesman: " . $e->getMessage());
         }
-
-        if ($dropdown) {
-            return $query->select(['id', 'invoice_number'])->get();
-        }
-
-        return $query->paginate($perPage);
-
-    } catch (\Exception $e) {
-        throw new \Exception("Failed to fetch sales for salesman: " . $e->getMessage());
     }
-}
 
 
     public function exportInvoicesBySalesman(string $uuid, string $format = 'csv')

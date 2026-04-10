@@ -5,10 +5,16 @@ namespace App\Exports;
 use App\Models\ServiceVisit;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Events\AfterSheet;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 
-class ServiceVisitExport implements FromCollection, WithHeadings, ShouldAutoSize
+class ServiceVisitExport implements FromCollection, WithHeadings, ShouldAutoSize, WithEvents
 {
     protected array $filters;
 
@@ -159,4 +165,58 @@ class ServiceVisitExport implements FromCollection, WithHeadings, ShouldAutoSize
             'Created Date',
         ];
     }
+
+//     public function styles(Worksheet $sheet)
+// {
+//     return [
+//         1 => [ // row 1 = header
+//             'font' => [
+//                 'bold' => true,
+//                 'color' => ['argb' => 'FFFFFFFF'],
+//             ],
+//             'fill' => [
+//                 'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+//                 'startColor' => ['argb' => 'FFDC3545'],
+//             ],
+//         ],
+//     ];
+// }
+
+public function registerEvents(): array
+{
+    return [
+        AfterSheet::class => function (AfterSheet $event) {
+
+            $sheet = $event->sheet->getDelegate();
+            $lastColumn = $sheet->getHighestColumn();
+
+            $sheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
+                'font' => [
+                    'bold' => true,
+                    'color' => ['argb' => 'FFFFFFFF'], // white text
+                    'size' => 12,
+                ],
+                'alignment' => [
+                    'horizontal' => Alignment::HORIZONTAL_CENTER,
+                    'vertical'   => Alignment::VERTICAL_CENTER,
+                ],
+                'fill' => [
+                    'fillType' => Fill::FILL_SOLID,
+                    'startColor' => [
+                        'argb' => 'FFDC3545', // 🔥 proper red (same as your image)
+                    ],
+                ],
+                'borders' => [
+                    'allBorders' => [
+                        'borderStyle' => Border::BORDER_THIN,
+                        'color' => ['argb' => 'FF000000'],
+                    ],
+                ],
+            ]);
+
+            // Row height
+            $sheet->getRowDimension(1)->setRowHeight(25);
+        },
+    ];
+}
 }

@@ -15,6 +15,7 @@ use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Response;
 use Maatwebsite\Excel\Excel as ExcelFormat;
+use App\Exports\ShelvesExport;
 use InvalidArgumentException;
 use App\Helpers\ResponseHelper;
 use Illuminate\Support\Str;
@@ -589,9 +590,7 @@ public function update(UpdateShelveRequest $request, $uuid)
         try {
             $perPage = $request->get('per_page', 10);
             $searchTerm = $request->get('search');
-
             $details = $this->service->globalSearch($perPage, $searchTerm);
-
             $message = $details->isEmpty() ? 'Shelves not found' : 'Shelves retrieved successfully';
 
             return response()->json([
@@ -874,92 +873,137 @@ public function import(Request $request)
  *     )
  * )
  */
+// public function exportShelves(Request $request)
+// {
+//     $request->validate([
+//         'format'     => 'required|in:csv,xlsx',
+//         'valid_from' => 'nullable|date',
+//         'valid_to'   => 'nullable|date|after_or_equal:valid_from',
+//     ]);
+//     $shelves = $this->service->getFilteredShelves(
+//         $request->valid_from,
+//         $request->valid_to
+//     );
+//     if ($shelves->isEmpty()) {
+//         return response()->json([
+//             'status'  => 'error',
+//             'message' => 'No shelves found for the given date range.'
+//         ], 404);
+//     }
+//     $allCustomerIds = $shelves
+//         ->pluck('customer_ids')
+//         ->map(fn ($ids) => is_array($ids) ? $ids : explode(',', $ids))
+//         ->flatten()
+//         ->unique()
+//         ->filter()
+//         ->values();
+//     $customerMap = CompanyCustomer::whereIn('id', $allCustomerIds)
+//         ->pluck('business_name', 'id');
+//     $allMerchandiserIds = $shelves
+//         ->pluck('merchendiser_ids')
+//         ->map(fn ($ids) => is_array($ids) ? $ids : explode(',', $ids))
+//         ->flatten()
+//         ->unique()
+//         ->filter()
+//         ->values();
+//     $merchandiserMap = Salesman::whereIn('id', $allMerchandiserIds)
+//         ->pluck('name', 'id');   
+//     $data = $shelves->map(function ($item) use ($customerMap, $merchandiserMap) {
+//     $customerIds = is_array($item->customer_ids)
+//         ? $item->customer_ids
+//         : explode(',', $item->customer_ids);
+//     $customerNames = collect($customerIds)
+//         ->map(fn ($id) => $customerMap[$id] ?? null)
+//         ->filter()
+//         ->implode(', ');
+//     $merchandiserIds = is_array($item->merchendiser_ids)
+//         ? $item->merchendiser_ids
+//         : explode(',', $item->merchendiser_ids);
+//     $merchandiserNames = collect($merchandiserIds)
+//         ->map(fn ($id) => $merchandiserMap[$id] ?? null)
+//         ->filter()
+//         ->implode(', ');     
+//         return [
+//             'Shelf Name'   => $item->shelf_name,
+//             'Code'         => $item->code,
+//             'Height (cm)'  => $item->height,
+//             'Width (cm)'   => $item->width,
+//             'Depth (cm)'   => $item->depth,
+//             'Valid From'   => $item->valid_from,
+//             'Valid To'     => $item->valid_to,
+//             'Customers'    => $customerNames,
+//             'Merchandisers'=> $merchandiserNames,
+//         ];
+//     });
+//     $fileName = 'shelves_list_' . now()->format('Y_m_d_H_i_s');
+//     if ($request->format === 'csv') {
+//         $fileName .= '.csv';
+//         $headers = [
+//             'Content-Type' => 'text/csv',
+//             'Content-Disposition' => "attachment; filename=\"$fileName\"",
+//         ];
+//         $callback = function() use ($data) {
+//             $file = fopen('php://output', 'w');
+//             fputcsv($file, array_keys($data->first()));
+//             foreach ($data as $row) {
+//                 fputcsv($file, $row);
+//             }
+//             fclose($file);
+//         };
+//         return Response::stream($callback, 200, $headers);
+//     } else {
+//         $fileName .= '.xlsx';
+//         return Excel::download(new class($data) implements \Maatwebsite\Excel\Concerns\FromCollection, \Maatwebsite\Excel\Concerns\WithHeadings {
+//             private $data;
+//             public function __construct($data) { $this->data = $data; }
+//             public function collection() { return $this->data; }
+//             public function headings(): array { return array_keys($this->data->first()); }
+//         }, $fileName, ExcelFormat::XLSX);
+//     }
+// }
+// public function exportShelves(Request $request)
+// {
+//     $format = strtolower($request->input('format', 'xlsx'));
+//     $extension = $format === 'csv' ? 'csv' : 'xlsx';
+
+//     $filename = 'Shelves_' . now()->format('Ymd_His') . '.' . $extension;
+//     $path = 'shelvesexports/' . $filename;
+
+//     $export = new ShelvesExport();
+
+//     if ($format === 'csv') {
+//         Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
+//     } else {
+//         Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
+//     }
+
+//     $appUrl = rtrim(config('app.url'), '/');
+//     $fullUrl = $appUrl . '/storage/app/public/' . $path;
+
+//     return response()->json([
+//         'download_url' => $fullUrl,
+//     ],200);
+//     // return $this->success([
+//     //     'download_url' => $fullUrl,
+//     // ], 'Shelves exported successfully');
+// }
 public function exportShelves(Request $request)
 {
-    $request->validate([
-        'format'     => 'required|in:csv,xlsx',
-        'valid_from' => 'nullable|date',
-        'valid_to'   => 'nullable|date|after_or_equal:valid_from',
-    ]);
-    $shelves = $this->service->getFilteredShelves(
-        $request->valid_from,
-        $request->valid_to
-    );
-    if ($shelves->isEmpty()) {
-        return response()->json([
-            'status'  => 'error',
-            'message' => 'No shelves found for the given date range.'
-        ], 404);
-    }
-    $allCustomerIds = $shelves
-        ->pluck('customer_ids')
-        ->map(fn ($ids) => is_array($ids) ? $ids : explode(',', $ids))
-        ->flatten()
-        ->unique()
-        ->filter()
-        ->values();
-    $customerMap = CompanyCustomer::whereIn('id', $allCustomerIds)
-        ->pluck('business_name', 'id');
-    $allMerchandiserIds = $shelves
-        ->pluck('merchendiser_ids')
-        ->map(fn ($ids) => is_array($ids) ? $ids : explode(',', $ids))
-        ->flatten()
-        ->unique()
-        ->filter()
-        ->values();
-    $merchandiserMap = Salesman::whereIn('id', $allMerchandiserIds)
-        ->pluck('name', 'id');   
-    $data = $shelves->map(function ($item) use ($customerMap, $merchandiserMap) {
-    $customerIds = is_array($item->customer_ids)
-        ? $item->customer_ids
-        : explode(',', $item->customer_ids);
-    $customerNames = collect($customerIds)
-        ->map(fn ($id) => $customerMap[$id] ?? null)
-        ->filter()
-        ->implode(', ');
-    $merchandiserIds = is_array($item->merchendiser_ids)
-        ? $item->merchendiser_ids
-        : explode(',', $item->merchendiser_ids);
-    $merchandiserNames = collect($merchandiserIds)
-        ->map(fn ($id) => $merchandiserMap[$id] ?? null)
-        ->filter()
-        ->implode(', ');     
-        return [
-            'Shelf Name'   => $item->shelf_name,
-            'Code'         => $item->code,
-            'Height (cm)'  => $item->height,
-            'Width (cm)'   => $item->width,
-            'Depth (cm)'   => $item->depth,
-            'Valid From'   => $item->valid_from,
-            'Valid To'     => $item->valid_to,
-            'Customers'    => $customerNames,
-            'Merchandisers'=> $merchandiserNames,
-        ];
-    });
-    $fileName = 'shelves_list_' . now()->format('Y_m_d_H_i_s');
-    if ($request->format === 'csv') {
-        $fileName .= '.csv';
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => "attachment; filename=\"$fileName\"",
-        ];
-        $callback = function() use ($data) {
-            $file = fopen('php://output', 'w');
-            fputcsv($file, array_keys($data->first()));
-            foreach ($data as $row) {
-                fputcsv($file, $row);
-            }
-            fclose($file);
-        };
-        return Response::stream($callback, 200, $headers);
+    $format = strtolower($request->input('format', 'xlsx'));
+    $searchTerm = $request->input('search');
+    $extension = $format === 'csv' ? 'csv' : 'xlsx';
+    $filename = 'Shelves_' . now()->format('Ymd_His') . '.' . $extension;
+    $path = 'shelvesexports/' . $filename;
+    $export = new ShelvesExport($searchTerm);
+    if ($format === 'csv') {
+        Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
     } else {
-        $fileName .= '.xlsx';
-        return Excel::download(new class($data) implements \Maatwebsite\Excel\Concerns\FromCollection, \Maatwebsite\Excel\Concerns\WithHeadings {
-            private $data;
-            public function __construct($data) { $this->data = $data; }
-            public function collection() { return $this->data; }
-            public function headings(): array { return array_keys($this->data->first()); }
-        }, $fileName, ExcelFormat::XLSX);
+        Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
     }
+    $appUrl = rtrim(config('app.url'), '/');
+    $fullUrl = $appUrl . '/storage/app/public/' . $path;
+    return response()->json([
+        'download_url' => $fullUrl,
+    ], 200);
 }
 }

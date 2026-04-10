@@ -56,8 +56,8 @@ class InvoiceAgentCustomerExport implements
             'details.promotion',
         ])
             ->where('customer_id', $customer->id)
-            ->when($this->from, fn ($q) => $q->whereDate('invoice_date', '>=', $this->from))
-            ->when($this->to, fn ($q) => $q->whereDate('invoice_date', '<=', $this->to))
+            ->when($this->from, fn($q) => $q->whereDate('invoice_date', '>=', $this->from))
+            ->when($this->to, fn($q) => $q->whereDate('invoice_date', '<=', $this->to))
             ->get();
 
         foreach ($headers as $header) {
@@ -73,14 +73,26 @@ class InvoiceAgentCustomerExport implements
                 trim(($header->customer->osa_code ?? '') . ' - ' . ($header->customer->name ?? '')),
                 trim(($header->salesman->osa_code ?? '') . ' - ' . ($header->salesman->name ?? '')),
                 $itemCount,
-                '', '', '', '', '', '', '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
             ];
 
             $rowIndex++;
             $detailRowIndexes = [];
             foreach ($details as $d) {
                 $rows[] = [
-                    '', '', '', '', '', '', '', 
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
                     trim(($d->item->erp_code ?? '') . ' - ' . ($d->item->name ?? '')),
                     $d->uoms->name ?? '',
                     (float) $d->quantity,
@@ -113,7 +125,7 @@ class InvoiceAgentCustomerExport implements
         return [
             'Invoice Code',
             'Invoice Date',
-            'Warehouse',
+            'Distributor',
             'Route',
             'Customer',
             'Salesman',

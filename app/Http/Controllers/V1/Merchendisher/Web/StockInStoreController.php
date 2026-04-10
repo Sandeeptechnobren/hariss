@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\V1\Merchendisher\Web\StoreStockInStoreRequest;
 use App\Http\Requests\V1\Merchendisher\Web\BulkStoreStockRequest;
 use App\Http\Requests\V1\Merchendisher\Web\UpdateStockInStoreRequest;
+use App\Http\Requests\V1\Merchendisher\Mob\StockPostRequest;
 use App\Http\Resources\V1\Merchendisher\Web\StockInStoreResource;
 use App\Http\Resources\V1\Merchendisher\Web\StockInStorePostResource;
+use App\Http\Resources\V1\Merchendisher\Mob\StockResource;
 use App\Services\V1\Merchendisher\Web\StockInStoreService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\JsonResponse;
@@ -17,6 +19,13 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Imports\StocksImport;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use App\Exports\StockInStoreExport;
+use App\Models\StockInStore;
+use Carbon\Carbon;
+
 /**
  * @OA\Tag(
  *     name="StockInStore",
@@ -676,4 +685,220 @@ public function postsByStockUuid(string $uuid)
         $posts
       );
     }
+   /**
+ * @OA\Post(
+ *     path="/mob/merchendisher_mob/stock-post/create",
+ *     tags={"Stock Post"},
+ *     summary="Create multiple Stock Posts",
+ *
+ *     @OA\RequestBody(
+ *         required=true,
+ *         @OA\JsonContent(
+ *             required={"stocks"},
+ *             @OA\Property(
+ *                 property="stocks",
+ *                 type="array",
+ *                 @OA\Items(
+ *                     type="object",
+ *                     @OA\Property(property="stock_id", type="integer", example=1),
+ *                     @OA\Property(property="date", type="string", format="date", example="2026-03-30"),
+ *                     @OA\Property(property="salesman_id", type="integer", example=1),
+ *                     @OA\Property(property="customer_id", type="integer", example=2),
+ *                     @OA\Property(property="item_id", type="integer", example=5),
+ *                     @OA\Property(property="refill_qty", type="integer", example=10),
+ *                     @OA\Property(property="out_of_stock", type="boolean", example=false),
+ *                     @OA\Property(property="fill_qty", type="integer", example=8),
+ *                     @OA\Property(property="good_salabale", type="integer", example=7)
+ *                 )
+ *             )
+ *         )
+ *     ),
+ *
+ *     @OA\Response(
+ *         response=201,
+ *         description="Stocks created successfully"
+ *     )
+ * )
+ */
+ public function storepost(StockPostRequest $request)
+    {
+        try {
+            $stock = $this->service->createStockpost($request->validated());
+            return response()->json([
+                'status'  => true,
+                'message' => 'Stock created successfully',
+                'data'    => $stock
+            ], 201);
+        } catch (Exception $e) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Failed to create stock',
+                'error'   => $e->getMessage()
+            ], 500);
+        }
+    }
+    /**
+ * @OA\Post(
+ *     path="/mob/merchendisher_mob/stock-post/stock-list",
+ *     tags={"Stock Post"},
+ *     summary="Get Stock by Merchandiser",
+ *     description="Fetch stock data based on merchandiser_id by mapping customers and assigned stock",
+ *     operationId="getStockByMerchandiser",
+ *
+ *     @OA\RequestBody(
+ *         required=true,
+ *         @OA\JsonContent(
+ *             required={"merchandiser_id"},
+ *
+ *             @OA\Property(
+ *                 property="merchandiser_id",
+ *                 type="integer",
+ *                 example=6
+ *             )
+ *         )
+ *     ),
+ *
+ *     @OA\Response(
+ *         response=200,
+ *         description="Stock fetched successfully",
+ *         @OA\JsonContent(
+ *             @OA\Property(property="status", type="boolean", example=true),
+ *             @OA\Property(property="message", type="string", example="Stock fetched successfully"),
+ *             @OA\Property(
+ *                 property="data",
+ *                 type="array",
+ *
+ *                 @OA\Items(
+ *                     type="object",
+ *                     @OA\Property(property="id", type="integer", example=1),
+ *                     @OA\Property(property="item_id", type="integer", example=10),
+ *                     @OA\Property(property="assign_customers", type="array",
+ *                         @OA\Items(type="integer", example=393209)
+ *                     ),
+ *                     @OA\Property(property="stock_qty", type="integer", example=50),
+ *                     @OA\Property(property="created_at", type="string", example="2026-03-30 10:00:00"),
+ *                     @OA\Property(property="updated_at", type="string", example="2026-03-30 10:00:00")
+ *                 )
+ *             )
+ *         )
+ *     ),
+ *
+ *     @OA\Response(
+ *         response=422,
+ *         description="Validation error",
+ *         @OA\JsonContent(
+ *             @OA\Property(property="status", type="boolean", example=false),
+ *             @OA\Property(property="message", type="string", example="Validation error"),
+ *             @OA\Property(
+ *                 property="errors",
+ *                 type="object",
+ *                 example={"merchandiser_id": {"The merchandiser id field is required."}}
+ *             )
+ *         )
+ *     ),
+ *
+ *     @OA\Response(
+ *         response=500,
+ *         description="Failed to fetch stock",
+ *         @OA\JsonContent(
+ *             @OA\Property(property="status", type="boolean", example=false),
+ *             @OA\Property(property="message", type="string", example="Failed to fetch stock"),
+ *             @OA\Property(property="error", type="string", example="Something went wrong")
+ *         )
+ *     )
+ * )
+ */
+public function getStockByMerchandiser(Request $request)
+{
+    try {
+        $validator = Validator::make($request->all(), [
+            'merchandiser_id' => 'required|integer'
+        ]);
+        if ($validator->fails()) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Validation error',
+                'errors'  => $validator->errors()
+            ], 422);
+        }
+        $stocks = $this->service->getStockByMerchandiser(
+            $request->merchandiser_id
+        );
+        $formattedData = StockResource::collection($stocks)->toArray($request);
+        $content = json_encode($formattedData, JSON_PRETTY_PRINT);
+        $fileName = 'stock_' . Str::uuid() . '.txt';
+        Storage::disk('public')->put($fileName, $content);
+        return response()->json([
+            'status'    => true,
+            'message'   => 'Stock exported successfully',
+            'file_url' => 'storage/' . $fileName
+        ]);
+
+    } catch (Exception $e) {
+        return response()->json([
+            'status'  => false,
+            'message' => 'Failed to fetch stock',
+            'error'   => $e->getMessage()
+        ], 500);
+    }
+}
+
+public function export(Request $request)
+{
+    $request->validate([
+        'start_date' => 'nullable|date_format:Y-m-d',
+        'end_date'   => 'nullable|date_format:Y-m-d|after_or_equal:start_date',
+        'format'     => 'nullable|in:csv,xlsx',
+        'file_type'  => 'nullable|in:csv,xlsx',
+        'search'     => 'nullable|string|max:255',
+    ]);
+
+    $format     = $request->input('file_type') ?? $request->input('format', 'xlsx');
+    $startDate  = $request->input('start_date');
+    $endDate    = $request->input('end_date');
+    $searchTerm = $request->input('search');
+
+    // Check data exists before generating file
+    $hasData = StockInStore::when($startDate && $endDate, fn($q) =>
+                    $q->whereBetween('created_at', [
+                        Carbon::parse($startDate)->startOfDay(),
+                        Carbon::parse($endDate)->endOfDay(),
+                    ])
+                )
+                ->when(!empty($searchTerm), function ($q) use ($searchTerm) {
+                    $like = '%' . strtolower($searchTerm) . '%';
+                    $q->where(function ($inner) use ($like) {
+                        $inner->orWhereRaw('LOWER(code) LIKE ?', [$like])
+                              ->orWhereRaw('LOWER(activity_name) LIKE ?', [$like])
+                              ->orWhereRaw('CAST(date_from AS TEXT) LIKE ?', [$like])
+                              ->orWhereRaw('CAST(date_to AS TEXT) LIKE ?', [$like]);
+                    });
+                })
+                ->exists();
+
+    if (!$hasData) {
+        return response()->json([
+            'status'  => 'error',
+            'message' => 'No data found for the given filters.',
+        ], 404);
+    }
+
+    $export   = new StockInStoreExport($startDate, $endDate, $searchTerm);
+    $fileName = 'stock_in_store_' . now()->format('Ymd_His') . '.' . $format;
+    $path     = 'stock_in_store_exports/' . $fileName;
+
+    if ($format === 'csv') {
+        Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
+    } else {
+        Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
+    }
+
+    $downloadUrl = rtrim(config('app.url'), '/') . '/storage/app/public/' . $path;
+
+    return response()->json([
+        'status'       => 'success',
+        'message'      => 'Export file generated successfully',
+        'download_url' => $downloadUrl,
+    ]);
+}
 }

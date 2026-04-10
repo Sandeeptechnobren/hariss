@@ -113,7 +113,7 @@ class InvoiceService
                 'purchaser_name'      => $data['purchaser_name'] ?? null,
                 'purchaser_contact'   => $data['purchaser_contact'] ?? null,
             ]);
-// dd($data);
+            // dd($data);
             if (!empty($data['details']) && is_array($data['details'])) {
 
                 $grouped = [];
@@ -148,7 +148,7 @@ class InvoiceService
                     ->keyBy(function ($row) {
                         return $row->item_id . '_' . $row->uom_id;
                     });
-// dd($itemUoms);
+                // dd($itemUoms);
                 $stocks = WarehouseStock::where('warehouse_id', $data['warehouse_id'])
                     ->whereIn('item_id', $itemIds)
                     ->lockForUpdate()
@@ -388,7 +388,7 @@ class InvoiceService
     //         throw $e;
     //     }
     // }
-   
+
     private function valueOrZero(array $data, string $key)
     {
         return array_key_exists($key, $data) && $data[$key] !== null
@@ -587,7 +587,6 @@ class InvoiceService
     {
         $user = auth()->user();
 
-        // 🔑 Read everything from filter object
         $filter = $filters['filter'] ?? [];
         if (!empty($filters['current_page'])) {
             Paginator::currentPageResolver(function () use ($filters) {
@@ -601,10 +600,8 @@ class InvoiceService
             'details:item_id,header_id,uom,quantity,itemvalue,vat,pre_vat,net_total,item_total,promotion_id,parent,status',
         ])->latest();
 
-        // ✅ Agent-based access
         $query = DataAccessHelper::filterAgentTransaction($query, $user);
 
-        // ✅ Location-based filter (company / region / area / warehouse / route)
         if (!empty($filter)) {
 
             $warehouseIds = CommonLocationFilter::resolveWarehouseIds([
@@ -620,7 +617,6 @@ class InvoiceService
             }
         }
 
-        // ✅ Warehouse filter (inside filter)
         if (!empty($filter['warehouse_id'])) {
             $warehouseIds = is_array($filter['warehouse_id'])
                 ? $filter['warehouse_id']
@@ -629,7 +625,6 @@ class InvoiceService
             $query->whereIn('warehouse_id', array_map('intval', $warehouseIds));
         }
 
-        // ✅ Salesman filter (inside filter)
         if (!empty($filter['salesman_id'])) {
             $salesmanIds = is_array($filter['salesman_id'])
                 ? $filter['salesman_id']
@@ -638,7 +633,6 @@ class InvoiceService
             $query->whereIn('salesman_id', array_map('intval', $salesmanIds));
         }
 
-        // ✅ Date range (inside filter)
         if (!empty($filter['from_date'])) {
             $query->whereDate('invoice_date', '>=', $filter['from_date']);
         }
@@ -780,5 +774,12 @@ class InvoiceService
     {
         return InvoiceHeader::whereIn('uuid', $invoiceUuids)
             ->update(['status' => $status]) > 0;
+    }
+
+    public function getInvoicesByPromotion($promotionId, $perPage = 10)
+    {
+        return InvoiceHeader::with('details')
+            ->where('promotion_id', $promotionId)
+            ->paginate($perPage);
     }
 }

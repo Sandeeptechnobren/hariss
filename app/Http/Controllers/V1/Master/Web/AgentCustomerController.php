@@ -133,12 +133,12 @@ class AgentCustomerController extends Controller
             'category_id',
             'category_name',
             'subcategory_id',
+            'warehouse_id',
             'subcategory_name',
             'region_id',
             'status',
             'customer_type'
         ]);
-
         foreach (
             [
                 'subcategory_id',
@@ -517,7 +517,11 @@ class AgentCustomerController extends Controller
                 'agent_customers.name',
                 'agent_customers.owner_name',
                 'customer_types.name as customer_type',
+                //'tbl_route.route_name',
+                //'tbl_warehouse.warehouse_name',
+                'tbl_route.route_code',
                 'tbl_route.route_name',
+                'tbl_warehouse.warehouse_code',
                 'tbl_warehouse.warehouse_name',
                 'outlet_channel.outlet_channel',
                 'customer_categories.customer_category_name as category',

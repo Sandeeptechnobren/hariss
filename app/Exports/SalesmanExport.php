@@ -97,7 +97,7 @@ class SalesmanExport implements FromCollection, WithHeadings, WithMapping
             'Is Block' => $salesman->is_block ? 'Yes' : 'No',
             'Reason' => $salesman->reason,
             'Cashier Description Block' => $salesman->cashier_description_block,
-            'Invoice Block' => $salesman->invoice_block,
+            'Invoice Block' => $salesman->invoice_block === null  ? '' : ($salesman->invoice_block == 1 ? 'Yes' : 'No'),
             'Status' => $salesman->status == 1 ? 'Active' : 'Inactive',
         ];
     }

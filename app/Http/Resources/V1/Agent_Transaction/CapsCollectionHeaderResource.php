@@ -31,7 +31,9 @@ class CapsCollectionHeaderResource extends JsonResource
             'contact_no'     => $this->contact_no,
 
             'status'         => $this->status,
-            'created_at'         => $this->created_at,
+            'itemtotal'      => $this->itemtotal ?? 0,
+            'created_at'     => $this->created_at,
+             
             'details'        => CapsCollectionDetailResource::collection($this->whenLoaded('details')),
         ];
     }

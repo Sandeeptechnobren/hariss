@@ -4,22 +4,17 @@ namespace App\Exports;
 
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Concerns\WithEvents;
 
-class CompiledClaimExport implements FromArray, WithHeadings
+use Maatwebsite\Excel\Events\AfterSheet;
+
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+
+class CompiledClaimExport implements FromArray, WithHeadings, WithEvents
 {
     protected $data;
-
-    private $statusMap = [
-        1 => 'Waiting for Agent Approval',
-        2 => 'Rejected By Agent',
-        3 => 'Waiting for Area Supervisor Approval',
-        4 => 'Rejected By Area Supervisor',
-        5 => 'Waiting For Regional Manager Approval',
-        6 => 'Rejected By Regional Manager',
-        7 => 'Awaiting Data Analyst Verification',
-        8 => 'Completed',
-        9 => 'Rejected',
-    ];
 
     public function __construct($data)
     {
@@ -29,15 +24,14 @@ class CompiledClaimExport implements FromArray, WithHeadings
     public function headings(): array
     {
         return [
-            // "Code",
             "Claim Period",
             "Warehouse",
             "Approved Qty (CSE)",
             "Approved Claim Amount",
             "Rejected Qty (CSE)",
             "Rejected Amount",
-            "ASM Name",
-            "RSM Name",
+            "ASM",
+            "RSM",
             "Status",
         ];
     }
@@ -50,18 +44,17 @@ class CompiledClaimExport implements FromArray, WithHeadings
 
             if (!empty($item->warehouse)) {
                 $warehouse = trim(
-                    ($item->warehouse->warehouse_code ?? '') .
-                        ' - ' .
+                    ($item->warehouse->warehouse_code ?? '') . ' - ' .
                         ($item->warehouse->warehouse_name ?? ''),
                     ' -'
                 );
             }
+
             $monthRange = \Carbon\Carbon::parse($item->start_date)->format('j') . '-' .
                 \Carbon\Carbon::parse($item->end_date)->format('j') .
                 \Carbon\Carbon::parse($item->start_date)->format('F');
 
             return [
-                // $item->osa_code ?? '',
                 $monthRange,
                 $warehouse,
                 $item->approved_qty_cse ?? 0,
@@ -69,10 +62,46 @@ class CompiledClaimExport implements FromArray, WithHeadings
                 $item->rejected_qty_cse ?? 0,
                 $item->rejected_amount ?? 0,
                 $item->asm_name ?? '',
-
                 $item->rsm_name ?? '',
-                $this->statusMap[$item->status] ?? 'Unknown',
+                $item->approval_status ?? '', // ✅ added (no change in flow)
             ];
         })->toArray();
+    }
+
+    // 🎨 HEADER STYLE
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => function (AfterSheet $event) {
+
+                $sheet = $event->sheet->getDelegate();
+                $lastColumn = $sheet->getHighestColumn();
+
+                $sheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
+                    'font' => [
+                        'bold' => true,
+                        'color' => ['rgb' => 'FFFFFF'],
+                        'size' => 12,
+                    ],
+                    'alignment' => [
+                        'horizontal' => Alignment::HORIZONTAL_CENTER,
+                        'vertical' => Alignment::VERTICAL_CENTER,
+                    ],
+                    'fill' => [
+                        'fillType' => Fill::FILL_SOLID,
+                        'startColor' => ['rgb' => '993442'], // 🔥 better green
+                    ],
+                    'borders' => [
+                        'allBorders' => [
+                            'borderStyle' => Border::BORDER_THIN,
+                            'color' => ['rgb' => '000000'],
+                        ],
+                    ],
+                ]);
+
+                // row height
+                $sheet->getRowDimension(1)->setRowHeight(25);
+            },
+        ];
     }
 }

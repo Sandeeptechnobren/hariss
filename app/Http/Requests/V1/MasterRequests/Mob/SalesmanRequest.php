@@ -17,7 +17,7 @@ class SalesmanRequest extends FormRequest
             'salesman_id'   => 'required|integer',
             'route_id'      => 'required|integer',
             'warehouse_id'  => 'required|integer',
-            'manager_id'    => 'required|integer',
+            'manager_id'    => 'nullable|integer',
             'requested_time'=> 'required|string',
             'requested_date'=> 'required|date',
         ];

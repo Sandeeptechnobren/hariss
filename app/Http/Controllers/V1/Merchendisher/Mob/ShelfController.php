@@ -3,9 +3,7 @@
 namespace App\Http\Controllers\V1\Merchendisher\Mob;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\V1\Merchendisher\Mob\DamageRequest;
-use App\Http\Requests\V1\Merchendisher\Mob\ExpiryRequest;
-use App\Http\Requests\V1\Merchendisher\Mob\ViewStockPostRequest;
+use App\Http\Requests\V1\Merchendisher\Mob\ShelfStoreRequest;
 use App\Services\V1\Merchendisher\Mob\ShelfService;
 use App\Http\Resources\V1\Merchendisher\Mob\ShelveResource;
 use App\Http\Resources\V1\Merchendisher\Mob\PlanogramResource;
@@ -21,185 +19,119 @@ class ShelfController extends Controller
     {
         $this->Service = $Service;
     }
- /**
+/**
  * @OA\Post(
- *     path="/mob/merchendisher_mob/shelf/damage-create",
+ *     path="/mob/merchendisher_mob/shelf/store_all",
  *     tags={"Shelf Mob"},
- *     summary="Create damage stock entry",
- *     description="Creates a new damage stock record",
+ *     summary="Store damage, expiry and view stock together",
+ *     description="Creates damage, expiry and view stock in single API (bulk supported)",
+ *     operationId="storeShelfData",
  *
  *     @OA\RequestBody(
  *         required=true,
  *         @OA\JsonContent(
- *             required={
- *                 "date",
- *                 "merchandisher_id",
- *                 "customer_id",
- *                 "item_id",
- *                 "shelf_id"
- *             },
- *             @OA\Property(property="date", type="string", format="date", example="2025-01-10"),
- *             @OA\Property(property="merchandisher_id", type="integer", example=1),
- *             @OA\Property(property="customer_id", type="integer", example=5),
- *             @OA\Property(property="item_id", type="integer", example=20),
- *             @OA\Property(property="damage_qty", type="integer", example=2),
- *             @OA\Property(property="expiry_qty", type="integer", example=1),
- *             @OA\Property(property="salable_qty", type="integer", example=10),
- *             @OA\Property(property="shelf_id", type="integer", example=3)
+ *             type="object",
+ *
+ *             @OA\Property(
+ *                 property="damage",
+ *                 type="array",
+ *                 @OA\Items(
+ *                     type="object",
+ *                     required={"merchandisher_id","customer_id","item_id","shelf_id"},
+ *                     @OA\Property(property="date", type="string", format="date", example="2025-01-10"),
+ *                     @OA\Property(property="merchandisher_id", type="integer", example=1),
+ *                     @OA\Property(property="customer_id", type="integer", example=5),
+ *                     @OA\Property(property="item_id", type="integer", example=20),
+ *                     @OA\Property(property="damage_qty", type="integer", example=2),
+ *                     @OA\Property(property="expiry_qty", type="integer", example=1),
+ *                     @OA\Property(property="salable_qty", type="integer", example=10),
+ *                     @OA\Property(property="shelf_id", type="integer", example=3)
+ *                 )
+ *             ),
+ *
+ *             @OA\Property(
+ *                 property="expiry",
+ *                 type="array",
+ *                 @OA\Items(
+ *                     type="object",
+ *                     required={"merchandisher_id","customer_id","item_id","shelf_id"},
+ *                     @OA\Property(property="date", type="string", format="date", example="2025-01-10"),
+ *                     @OA\Property(property="merchandisher_id", type="integer", example=1),
+ *                     @OA\Property(property="customer_id", type="integer", example=5),
+ *                     @OA\Property(property="item_id", type="integer", example=20),
+ *                     @OA\Property(property="qty", type="integer", example=2),
+ *                     @OA\Property(property="expiry_date", type="string", format="date", example="2025-02-01"),
+ *                     @OA\Property(property="shelf_id", type="integer", example=3)
+ *                 )
+ *             ),
+ *
+ *             @OA\Property(
+ *                 property="view_stock",
+ *                 type="array",
+ *                 @OA\Items(
+ *                     type="object",
+ *                     required={"merchandisher_id","customer_id","item_id","shelf_id"},
+ *                     @OA\Property(property="date", type="string", format="date", example="2025-01-10"),
+ *                     @OA\Property(property="merchandisher_id", type="integer", example=1),
+ *                     @OA\Property(property="customer_id", type="integer", example=5),
+ *                     @OA\Property(property="item_id", type="integer", example=20),
+ *                     @OA\Property(property="capacity", type="integer", example=12),
+ *                     @OA\Property(property="good_salable", type="integer", example=5),
+ *                     @OA\Property(property="out_of_stock", type="boolean", example=false),
+ *                     @OA\Property(property="shelf_id", type="integer", example=3)
+ *                 )
+ *             )
  *         )
  *     ),
  *
  *     @OA\Response(
  *         response=201,
- *         description="Damage stock created successfully",
+ *         description="Stock created successfully",
  *         @OA\JsonContent(
+ *             type="object",
  *             @OA\Property(property="status", type="boolean", example=true),
- *             @OA\Property(property="message", type="string", example="Damage stock created successfully"),
- *             @OA\Property(property="data", type="object")
+ *             @OA\Property(property="message", type="string", example="Stock created successfully"),
+ *             @OA\Property(
+ *                 property="data",
+ *                 type="object",
+ *                 example={
+ *                     "damage": {
+ *                         {"id": 1, "item_id": 20},
+ *                         {"id": 2, "item_id": 21}
+ *                     },
+ *                     "expiry": {
+ *                         {"id": 3, "item_id": 20}
+ *                     },
+ *                     "view_stock": {
+ *                         {"id": 4, "item_id": 20}
+ *                     }
+ *                 }
+ *             )
  *         )
  *     ),
  *
  *     @OA\Response(
  *         response=422,
  *         description="Validation error"
+ *     ),
+ *
+ *     @OA\Response(
+ *         response=500,
+ *         description="Internal server error"
  *     )
  * )
  */
-public function damagestore(DamageRequest $request): JsonResponse
+public function storeAll(ShelfStoreRequest $request): JsonResponse
 {
     try {
         $data = $request->validated();
-        $damageStock = $this->Service->create($data);
+
+        $result = $this->Service->storeAll($data);
 
         return response()->json([
             'status'  => true,
-            'message' => 'Damage stock created successfully',
-            'data'    => $damageStock
-        ], 201);
-
-    } catch (\Exception $e) {
-        return response()->json([
-            'status'  => false,
-            'message' => $e->getMessage()
-        ], 500);
-    }
-}
- /**
- * @OA\Post(
- *     path="/mob/merchendisher_mob/shelf/expiry-create",
- *     tags={"Shelf Mob"},
- *     summary="Create expiry stock entry",
- *     description="Creates a new expiry stock record",
- *
- *     @OA\RequestBody(
- *         required=true,
- *         @OA\JsonContent(
- *             required={
- *                 "date",
- *                 "merchandisher_id",
- *                 "customer_id",
- *                 "item_id",
- *                 "shelf_id"
- *             },
- *             @OA\Property(property="date", type="string", format="date", example="2025-01-10"),
- *             @OA\Property(property="merchandisher_id", type="integer", example=1),
- *             @OA\Property(property="customer_id", type="integer", example=5),
- *             @OA\Property(property="item_id", type="integer", example=20),
- *             @OA\Property(property="qty", type="numeric", example=2),
- *             @OA\Property(property="expiry_date", type="string", format="date", example="2025-01-10"),
- *             @OA\Property(property="shelf_id", type="integer", example=3)
- *         )
- *     ),
- *
- *     @OA\Response(
- *         response=201,
- *         description="Damage stock created successfully",
- *         @OA\JsonContent(
- *             @OA\Property(property="status", type="boolean", example=true),
- *             @OA\Property(property="message", type="string", example="Damage stock created successfully"),
- *             @OA\Property(property="data", type="object")
- *         )
- *     ),
- *
- *     @OA\Response(
- *         response=422,
- *         description="Validation error"
- *     )
- * )
- */
-public function expirystore(ExpiryRequest $request): JsonResponse
-{
-    try {
-        $data = $request->validated();
-        $expiryStock = $this->Service->expirycreate($data);
-
-        return response()->json([
-            'status'  => true,
-            'message' => 'Expiry stock created successfully',
-            'data'    => $expiryStock
-        ], 201);
-
-    } catch (\Exception $e) {
-        return response()->json([
-            'status'  => false,
-            'message' => $e->getMessage()
-        ], 500);
-    }
-}
- /**
- * @OA\Post(
- *     path="/mob/merchendisher_mob/shelf/view-stock",
- *     tags={"Shelf Mob"},
- *     summary="Create view stock entry",
- *     description="Creates a new view stock record",
- *
- *     @OA\RequestBody(
- *         required=true,
- *         @OA\JsonContent(
- *             required={
- *                 "date",
- *                 "merchandisher_id",
- *                 "customer_id",
- *                 "item_id",
- *                 "shelf_id"
- *             },
- *             @OA\Property(property="date", type="string", format="date", example="2025-01-10"),
- *             @OA\Property(property="merchandisher_id", type="integer", example=1),
- *             @OA\Property(property="customer_id", type="integer", example=5),
- *             @OA\Property(property="item_id", type="integer", example=20),
- *            @OA\Property(property="capacity", type="numeric", example=12),
- *             @OA\Property(property="good_salable", type="numeric", example=2),
- *             @OA\Property(property="out_of_stock", type="boolean", example=0),
- *             @OA\Property(property="shelf_id", type="integer", example=3)
- *         )
- *     ),
- *
- *     @OA\Response(
- *         response=201,
- *         description="Damage stock created successfully",
- *         @OA\JsonContent(
- *             @OA\Property(property="status", type="boolean", example=true),
- *             @OA\Property(property="message", type="string", example="Damage stock created successfully"),
- *             @OA\Property(property="data", type="object")
- *         )
- *     ),
- *
- *     @OA\Response(
- *         response=422,
- *         description="Validation error"
- *     )
- * )
- */
-public function viewstock(ViewStockPostRequest $request): JsonResponse
-{
-    try {
-        $data = $request->validated();
-        $viewStock = $this->Service->viewstock($data);
-
-        return response()->json([
-            'status'  => true,
-            'message' => 'View stock created successfully',
-            'data'    => $viewStock
+            'message' => 'Stock created successfully',
+            'data'    => $result
         ], 201);
 
     } catch (\Exception $e) {

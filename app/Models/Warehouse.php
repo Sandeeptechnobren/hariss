@@ -11,12 +11,12 @@ class Warehouse extends Model
     use HasFactory, SoftDeletes;
 
     protected $table = 'tbl_warehouse';
-    
+
     const CREATED_AT = 'created_date';
     const UPDATED_AT = 'updated_date';
 
     protected $fillable = [
-        'warehouse_code',   
+        'warehouse_code',
         'warehouse_type',
         'warehouse_name',
         'owner_name',
@@ -40,16 +40,15 @@ class Warehouse extends Model
         'landmark',
         'is_efris',
         'p12_file',
+        'device_no',
         'password',
         'is_branch',
         'branch_id',
         'status',
         'created_user',
         'updated_user',
-
-
-         'tin_no',
-        // 'company_customer_id',
+        'tin_no',
+        'company_customer_id',
         // 'registation_no',
         // 'business_type',
         // 'warehouse_type',
@@ -71,14 +70,14 @@ class Warehouse extends Model
         'updated_user' => 'integer',
     ];
 
-    const DELETED_AT = 'deleted_date';  
+    const DELETED_AT = 'deleted_date';
 
     protected $dates = ['deleted_date'];
 
     // Relationships
     public function region()
     {
-        return $this->belongsTo(Region::class,'region_id');
+        return $this->belongsTo(Region::class, 'region_id');
     }
 
     public function Area()
@@ -104,19 +103,21 @@ class Warehouse extends Model
     {
         return $query->where('warehouse_type', $type);
     }
-    public function getCompanyCustomer(){
-        return $this->belongsTo(CompanyCustomer::class,'agent_customer');
+    public function getCompanyCustomer()
+    {
+        return $this->belongsTo(CompanyCustomer::class, 'company_customer_id');
     }
-    public function getCompany(){
-        return $this->belongsTo(Company::class,'company');
+    public function getCompany()
+    {
+        return $this->belongsTo(Company::class, 'company');
     }
-      public function salesmen()
+    public function salesmen()
     {
         return $this->hasMany(Salesman::class, 'warehouse_id', 'id');
     }
     public function locationRelation()
     {
-    return $this->belongsTo(Location::class,'location', 'id');
+        return $this->belongsTo(Location::class, 'location', 'id');
     }
     public function companyRelation()
     {

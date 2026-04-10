@@ -4,6 +4,7 @@ namespace App\Services\V1\Agent_transaction\Mob;
 
 use App\Models\Agent_Transaction\InvoiceHeader;
 use App\Models\Agent_Transaction\InvoiceDetail;
+use App\Models\Agent_Transaction\AgentDeliveryHeaders;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Exception;
@@ -27,8 +28,8 @@ class InvoiceService
                 'warehouse_id'        => $data['warehouse_id'],
                 'company_id'          => $warehouse_data->company,
                 'currency_name'       => $company_data->selling_currency ?? null,
-                'order_number'        => $data['order_id'] ?? null,
-                'delivery_number'     => $data['delivery_id'] ?? null,
+                'order_id'            => $data['order_id'] ?? null,
+                'delivery_id'         => $data['delivery_id'] ?? null,
                 'customer_id'         => $data['customer_id'],
                 'route_id'            => $route_id,
                 'salesman_id'         => $data['salesman_id'] ?? null,
@@ -55,6 +56,10 @@ class InvoiceService
                 'purchaser_name'      => $data['purchaser_name'] ?? null,
                 'purchaser_contact'   => $data['purchaser_contact'] ?? null,
             ]);
+            if (!empty($data['delivery_id'])) {
+                AgentDeliveryHeaders::where('id', $data['delivery_id'])
+                    ->update(['status' => 2]);
+                    }
             if (!empty($data['details']) && is_array($data['details'])) {
                 foreach ($data['details'] as $detail) {
                     InvoiceDetail::create([

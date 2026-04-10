@@ -14,6 +14,7 @@ class VisitPlan extends Model
 
     protected $fillable = [
         'uuid',
+        'osa_code',
         'salesman_id',
         'customer_id',
         'warehouse_id',
@@ -31,6 +32,7 @@ class VisitPlan extends Model
 
     protected $casts = [
         'uuid' => 'string',
+        'osa_code' => 'string',
         'latitude' => 'float',
         'longitude' => 'float',
         'visit_start_time' => 'datetime',

@@ -29,9 +29,23 @@ class InvoiceHeaderExport implements FromQuery, WithMapping, WithHeadings, WithE
         $today = now()->toDateString();
         $this->fromDate = $fromDate ?: $today;
         $this->toDate   = $toDate   ?: $today;
-        $this->warehouseIds = $warehouseIds;
-        $this->routeIds     = $routeIds;
-        $this->salesmanIds  = $salesmanIds;
+        $this->warehouseIds = $this->parseIds($warehouseIds);
+        $this->routeIds     = $this->parseIds($routeIds);
+        $this->salesmanIds  = $this->parseIds($salesmanIds);
+    }
+    private function parseIds($ids)
+    {
+        if (empty($ids)) {
+            return [];
+        }
+
+        // string → explode
+        if (is_string($ids)) {
+            return array_filter(array_map('trim', explode(',', $ids)));
+        }
+
+        // already array
+        return $ids;
     }
 
 
@@ -45,29 +59,29 @@ class InvoiceHeaderExport implements FromQuery, WithMapping, WithHeadings, WithE
             'customer',
             'salesman',
         ])
-        ->when(
-            $this->fromDate,
-            fn($q) => $q->whereDate('invoice_date', '>=', $this->fromDate)
-        )
-        ->when(
-            $this->toDate,
-            fn($q) => $q->whereDate('invoice_date', '<=', $this->toDate)
-        )
-        ->when(
-            !empty($this->warehouseIds),
-            fn($q) => $q->whereIn('warehouse_id', $this->warehouseIds)
-        )
-        ->when(
-            !empty($this->routeIds),
-            fn($q) => $q->whereIn('route_id', $this->routeIds)
-        )
-        ->when(
-            !empty($this->salesmanIds),
-            fn($q) => $q->whereIn('salesman_id', $this->salesmanIds)
-        );
+            ->when(
+                $this->fromDate,
+                fn($q) => $q->whereDate('invoice_date', '>=', $this->fromDate)
+            )
+            ->when(
+                $this->toDate,
+                fn($q) => $q->whereDate('invoice_date', '<=', $this->toDate)
+            )
+            ->when(
+                !empty($this->warehouseIds),
+                fn($q) => $q->whereIn('warehouse_id', $this->warehouseIds)
+            )
+            ->when(
+                !empty($this->salesmanIds),
+                fn($q) => $q->whereIn('salesman_id', $this->salesmanIds)
+            );
 
         $query = DataAccessHelper::filterAgentTransaction($query, Auth::user());
-
+        // dd([
+        //     'warehouseIds' => $this->warehouseIds,
+        //     'routeIds' => $this->salesmanIds,
+        //     'count' => $query->count()
+        // ]);
         return $query;
     }
 
@@ -106,12 +120,14 @@ class InvoiceHeaderExport implements FromQuery, WithMapping, WithHeadings, WithE
                     ($header->salesman->name ?? '')
             ),
 
-
-            (float) $header->vat,
-            (float) $header->net_total,
-            (float) $header->gross_total,
-            (float) $header->discount,
-            (float) $header->total_amount,
+            number_format($header->vat, 2, '.', ''),
+            number_format($header->net_total, 2, '.', ''),
+            number_format($header->total_amount, 2, '.', ''),
+            // (float) $header->vat,
+            // (float) $header->net_total,
+            // // (float) $header->gross_total,
+            // // (float) $header->discount,
+            // (float) $header->total_amount,
             // $header->status_flag,
         ];
     }
@@ -125,14 +141,14 @@ class InvoiceHeaderExport implements FromQuery, WithMapping, WithHeadings, WithE
             // 'Currency Name',
             // 'Order Code',
             'Delivery Code',
-            'Warehouse',
+            'Distributor',
             'Route',
             'Customer',
             'Salesman',
             'VAT',
             'Net Total',
-            'Gross Total',
-            'Discount',
+            // 'Gross Total',
+            // 'Discount',
             'Total Amount',
             // 'Status',
         ];

@@ -3,8 +3,14 @@
 namespace App\Services\V1\Merchendisher\Mob;
 
 use App\Models\SurveyHeader;
+use App\Models\SurveyDetail;
 use App\Models\Survey;
+use App\Models\Salesman;
+use App\Models\SalesmanWarehouseHistory;
+use App\Models\AgentCustomer;
+use App\Models\AcFridgeStatus;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str; 
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Storage;
@@ -36,18 +42,34 @@ public function all($perPage = 10, $search = null)
 public function getBySurveyUuid(string $surveyUuid)
     {
         $survey = Survey::where('uuid', $surveyUuid)->firstOrFail();
-        return SurveyHeader::with(['survey', 'merchandiser', 'surveyDetails'])
+        return SurveyHeader::with(['survey', 'merchandiser', 'surveyDetails','surveyDetails.question'])
             ->where('survey_id', $survey->id)
             ->get();
     }
-      public function create(array $data): SurveyHeader
+public function createSurvey(array $data)
     {
-        // Add system fields
-        $data['created_user'] = Auth::id();
-        $data['updated_user'] = Auth::id();
-        $data['uuid'] = (string) Str::uuid();
-
-        return SurveyHeader::create($data);
+        return DB::transaction(function () use ($data) {
+            $header = SurveyHeader::create([
+                'uuid'             => Str::uuid(),
+                'merchandiser_id'  => $data['merchandiser_id'],
+                'date'             => $data['date'],
+                'answerer_name'    => $data['answerer_name'] ?? null,
+                'address'          => $data['address'] ?? null,
+                'phone'            => $data['phone'] ?? null,
+                'survey_id'        => $data['survey_id'],
+            ]);
+            $detailsData = [];
+            foreach ($data['details'] as $item) {
+                $detailsData[] = [
+                    'uuid'        => Str::uuid(),
+                    'header_id'   => $header->id,
+                    'question_id' => $item['question_id'],
+                    'answer'      => $item['answer'] ?? null,
+                ];
+            }
+            SurveyDetail::insert($detailsData);
+            return $header->load('details');
+        });
     }
 
     public function update($id, array $data)
@@ -69,16 +91,10 @@ public function getBySurveyUuid(string $surveyUuid)
   public function exportSurveyDataForAuthenticatedMerchandiser(): string
 {
     $userId = Auth::id();
-
-    // Step 1: Get all survey IDs from SurveyHeader for this merchandiser
     $surveyIds = SurveyHeader::where('merchandiser_id', $userId)
         ->pluck('survey_id')
         ->toArray();
-
-    // Step 2: Get full survey records from surveys table
     $existingSurveys = Survey::whereIn('id', $surveyIds)->get()->keyBy('id');
-
-    // Step 3: Build final plain text content
     $lines = [];
 
     foreach ($surveyIds as $id) {
@@ -114,5 +130,73 @@ public function getBySurveyUuid(string $surveyUuid)
 
     // Step 6: Return public file URL
     return asset('storage/' . $fileName);
+}
+public function getBySalesman($salesmanId)
+{
+    $today = now()->toDateString();
+    $salesman = Salesman::find($salesmanId);
+    if (!$salesman) {
+        return collect();
+    }
+    $baseQuery = Survey::query()
+        ->whereIn('survey_type', [1, 2, 3])
+        ->whereDate('end_date', '>=', $today);
+    $fridgeIds = collect();
+    if ($salesman->type == 6) {
+        $warehouseId = SalesmanWarehouseHistory::where('salesman_id', $salesmanId)
+            ->whereDate('requested_date', $today)
+            ->value('warehouse_id');
+        if ($warehouseId) {
+            $customerIds = AgentCustomer::where('warehouse', $warehouseId)
+                ->where('fridge', 1)
+                ->pluck('id');
+            if ($customerIds->isNotEmpty()) {
+                $fridgeIds = AcFridgeStatus::whereIn('customer_id', $customerIds)
+                    ->whereNull('remove_date')
+                    ->pluck('fridge_id');
+            }
+        }
+        if ($salesman->sub_type == 6) {
+            $merchSurveys = (clone $baseQuery)
+                ->where('survey_type', 1)
+                ->whereRaw(
+                    "',' || merchandisher_id || ',' LIKE ?",
+                    ['%,' . $salesmanId . ',%']
+                )
+                ->get();
+            $assetSurveys = collect();
+            if ($fridgeIds->isNotEmpty()) {
+                $assetSurveys = (clone $baseQuery)
+                    ->where('survey_type', 3)
+                    ->whereIn('asset_id', $fridgeIds)
+                    ->get();
+            }
+            $defaultSurveys = (clone $baseQuery)
+                ->where('survey_type', 2)
+                ->get();
+            return $merchSurveys
+                ->merge($assetSurveys)
+                ->merge($defaultSurveys)
+                ->unique('id')
+                ->values();
+        }
+        else {
+            $assetSurveys = collect();
+            if ($fridgeIds->isNotEmpty()) {
+                $assetSurveys = (clone $baseQuery)
+                    ->where('survey_type', 3)
+                    ->whereIn('asset_id', $fridgeIds)
+                    ->get();
+            }
+            $defaultSurveys = (clone $baseQuery)
+                ->where('survey_type', 2)
+                ->get();
+            return $assetSurveys
+                ->merge($defaultSurveys)
+                ->unique('id')
+                ->values();
+        }
+    }
+    return $baseQuery->latest()->get();
 }
 }

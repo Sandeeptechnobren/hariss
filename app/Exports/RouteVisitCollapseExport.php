@@ -47,144 +47,279 @@ class RouteVisitCollapseExport implements
         $this->routes     = Route::all()->keyBy('id');
     }
 
+    // public function collection()
+    // {
+    //     $rows = [];
+    //     $rowIndex = 2;
+
+    //     $query = RouteVisitHeader::with([
+    //             'routeVisits' => function ($q) {
+    //                 DataAccessHelper::filterRouteVisit($q, Auth::user());
+    //             },
+    //             'routeVisits.agentCustomer'
+    //         ])
+    //         ->when($this->uuid, fn($q) => $q->where('uuid', $this->uuid))
+    //         ->whereHas('routeVisits', function ($q) {
+    //             DataAccessHelper::filterRouteVisit($q, Auth::user());
+    //         })
+    //         ->orderBy('id', 'desc');
+    //         $query->chunk(200, function ($headers) use (&$rows, &$rowIndex) {
+
+    //             foreach ($headers as $header) {
+
+    //                 $visits = $header->routeVisits ?? collect();
+    //                 if ($visits->isEmpty()) continue;
+
+    //                 $firstVisit = $visits->first();
+    //                 $headerRow = $rowIndex;
+
+    //                 // ========= COMMON DATA ========= 
+
+    //                 $regions = collect($firstVisit->region_ids)
+    //                     ->map(function ($id) {
+    //                         $r = $this->regions[$id] ?? null;
+    //                         return $r
+    //                             ? $r->region_code . ' - ' . $r->region_name
+    //                             : null;
+    //                     })
+    //                     ->filter()
+    //                     ->implode(', ');
+
+    //                 $areas = collect($firstVisit->area_ids)
+    //                     ->map(function ($id) {
+    //                         $a = $this->areas[$id] ?? null;
+    //                         return $a
+    //                             ? $a->area_code . ' - ' . $a->area_name
+    //                             : null;
+    //                     })
+    //                     ->filter()
+    //                     ->implode(', ');
+
+    //                 $warehouses = collect($firstVisit->warehouse_ids)
+    //                     ->map(function ($id) {
+    //                         $w = $this->warehouses[$id] ?? null;
+    //                         return $w
+    //                             ? $w->warehouse_code . ' - ' . $w->warehouse_name
+    //                             : null;
+    //                     })
+    //                     ->filter()
+    //                     ->implode(', ');
+
+    //                 $routes = collect($firstVisit->route_ids)
+    //                     ->map(function ($id) {
+    //                         $r = $this->routes[$id] ?? null;
+    //                         return $r
+    //                             ? $r->route_code . ' - ' . $r->route_name
+    //                             : null;
+    //                     })
+    //                     ->filter()
+    //                     ->implode(', ');
+
+    //                 // ========= HEADER ROW =========
+
+    //                 $rows[] = [
+    //                     $header->osa_code,
+    //                     optional($header->created_at)->format('d M Y'),
+    //                     $regions,
+    //                     $areas,
+    //                     $warehouses,
+    //                     $routes,
+    //                     $visits->count(),
+    //                 ];
+    //                 $rowIndex++;
+
+    //                 // ========= DETAIL HEADING =========
+
+    //                 $detailHeadingRow = $rowIndex;
+
+    //                 $rows[] = [
+    //                     '',
+    //                     'Customer',
+    //                     'Customer Type',
+    //                     'Days',
+    //                     'From Date',
+    //                     'To Date',
+    //                     '',
+    //                 ];
+    //                 $rowIndex++;
+
+    //                 // ========= DETAIL ROWS =========
+
+    //                 foreach ($visits as $visit) {
+
+    //                     $customer = optional($visit->agentCustomer);
+
+    //                     $customerText = trim(
+    //                         ($customer->osa_code ?? '') .
+    //                         ' - ' .
+    //                         ($customer->name ?? '')
+    //                     );
+
+    //                     $rows[] = [
+    //                         '',
+    //                         $customerText,
+    //                         $visit->customer_type == 1
+    //                             ? 'Field Customer'
+    //                             : 'Merchandiser Customer',
+    //                         implode(', ', $visit->days_list),
+    //                         optional($visit->from_date)->format('d M Y'),
+    //                         optional($visit->to_date)->format('d M Y'),
+    //                         '',
+    //                     ];
+
+    //                     $rowIndex++;
+    //                 }
+
+    //                 if ($detailHeadingRow + 1 < $rowIndex) {
+    //                     $this->groupIndexes[] = [
+    //                         'header_row' => $headerRow,
+    //                         'start' => $detailHeadingRow,
+    //                         'end' => $rowIndex - 1,
+    //                     ];
+    //                 }
+
+    //                 $rows[] = array_fill(0, 7, '');
+    //                 $rowIndex++;
+    //             }
+    //         });
+
+    //     return new Collection($rows);
+    // }
     public function collection()
-    {
-        $rows = [];
-        $rowIndex = 2;
+{
+    $rows = [];
+    $rowIndex = 2;
 
-        $query = RouteVisitHeader::with([
-                'routeVisits' => function ($q) {
-                    DataAccessHelper::filterRouteVisit($q, Auth::user());
-                },
-                'routeVisits.agentCustomer'
-            ])
-            ->when($this->uuid, fn($q) => $q->where('uuid', $this->uuid))
-            ->whereHas('routeVisits', function ($q) {
-                DataAccessHelper::filterRouteVisit($q, Auth::user());
-            })
-            ->orderBy('id', 'desc');
-            $query->chunk(200, function ($headers) use (&$rows, &$rowIndex) {
+    $query = RouteVisitHeader::with([
+            'routeVisits.agentCustomer' // ✅ no filter here
+        ])
+        ->when($this->uuid, fn($q) => $q->where('uuid', $this->uuid))
+        ->orderBy('id', 'desc'); // ✅ no whereHas filter
 
-                foreach ($headers as $header) {
+    $query->chunk(200, function ($headers) use (&$rows, &$rowIndex) {
 
-                    $visits = $header->routeVisits ?? collect();
-                    if ($visits->isEmpty()) continue;
+        foreach ($headers as $header) {
 
-                    $firstVisit = $visits->first();
-                    $headerRow = $rowIndex;
+            $visits = $header->routeVisits ?? collect();
 
-                    // ========= COMMON DATA ========= 
+            // ❗ remove skip if empty (optional)
+            if ($visits->isEmpty()) continue;
 
-                    $regions = collect($firstVisit->region_ids)
-                        ->map(function ($id) {
-                            $r = $this->regions[$id] ?? null;
-                            return $r
-                                ? $r->region_code . ' - ' . $r->region_name
-                                : null;
-                        })
-                        ->filter()
-                        ->implode(', ');
+            $firstVisit = $visits->first();
+            $headerRow = $rowIndex;
 
-                    $areas = collect($firstVisit->area_ids)
-                        ->map(function ($id) {
-                            $a = $this->areas[$id] ?? null;
-                            return $a
-                                ? $a->area_code . ' - ' . $a->area_name
-                                : null;
-                        })
-                        ->filter()
-                        ->implode(', ');
+            // ========= COMMON DATA ========= 
 
-                    $warehouses = collect($firstVisit->warehouse_ids)
-                        ->map(function ($id) {
-                            $w = $this->warehouses[$id] ?? null;
-                            return $w
-                                ? $w->warehouse_code . ' - ' . $w->warehouse_name
-                                : null;
-                        })
-                        ->filter()
-                        ->implode(', ');
+            $regions = collect($firstVisit->region_ids)
+                ->map(function ($id) {
+                    $r = $this->regions[$id] ?? null;
+                    return $r
+                        ? $r->region_code . ' - ' . $r->region_name
+                        : null;
+                })
+                ->filter()
+                ->implode(', ');
 
-                    $routes = collect($firstVisit->route_ids)
-                        ->map(function ($id) {
-                            $r = $this->routes[$id] ?? null;
-                            return $r
-                                ? $r->route_code . ' - ' . $r->route_name
-                                : null;
-                        })
-                        ->filter()
-                        ->implode(', ');
+            $areas = collect($firstVisit->area_ids)
+                ->map(function ($id) {
+                    $a = $this->areas[$id] ?? null;
+                    return $a
+                        ? $a->area_code . ' - ' . $a->area_name
+                        : null;
+                })
+                ->filter()
+                ->implode(', ');
 
-                    // ========= HEADER ROW =========
+            $warehouses = collect($firstVisit->warehouse_ids)
+                ->map(function ($id) {
+                    $w = $this->warehouses[$id] ?? null;
+                    return $w
+                        ? $w->warehouse_code . ' - ' . $w->warehouse_name
+                        : null;
+                })
+                ->filter()
+                ->implode(', ');
 
-                    $rows[] = [
-                        $header->osa_code,
-                        optional($header->created_at)->format('d M Y'),
-                        $regions,
-                        $areas,
-                        $warehouses,
-                        $routes,
-                        $visits->count(),
-                    ];
-                    $rowIndex++;
+            $routes = collect($firstVisit->route_ids)
+                ->map(function ($id) {
+                    $r = $this->routes[$id] ?? null;
+                    return $r
+                        ? $r->route_code . ' - ' . $r->route_name
+                        : null;
+                })
+                ->filter()
+                ->implode(', ');
 
-                    // ========= DETAIL HEADING =========
+            // ========= HEADER ROW =========
 
-                    $detailHeadingRow = $rowIndex;
+            $rows[] = [
+                $header->osa_code,
+                optional($header->created_at)->format('d M Y'),
+                $regions,
+                $areas,
+                $warehouses,
+                $routes,
+                $visits->count(),
+            ];
+            $rowIndex++;
 
-                    $rows[] = [
-                        '',
-                        'Customer',
-                        'Customer Type',
-                        'Days',
-                        'From Date',
-                        'To Date',
-                        '',
-                    ];
-                    $rowIndex++;
+            // ========= DETAIL HEADING =========
 
-                    // ========= DETAIL ROWS =========
+            $detailHeadingRow = $rowIndex;
 
-                    foreach ($visits as $visit) {
+            $rows[] = [
+                '',
+                'Customer',
+                'Customer Type',
+                'Days',
+                'From Date',
+                'To Date',
+                '',
+            ];
+            $rowIndex++;
 
-                        $customer = optional($visit->agentCustomer);
+            // ========= DETAIL ROWS =========
 
-                        $customerText = trim(
-                            ($customer->osa_code ?? '') .
-                            ' - ' .
-                            ($customer->name ?? '')
-                        );
+            foreach ($visits as $visit) {
 
-                        $rows[] = [
-                            '',
-                            $customerText,
-                            $visit->customer_type == 1
-                                ? 'Field Customer'
-                                : 'Merchandiser Customer',
-                            implode(', ', $visit->days_list),
-                            optional($visit->from_date)->format('d M Y'),
-                            optional($visit->to_date)->format('d M Y'),
-                            '',
-                        ];
+                $customer = optional($visit->agentCustomer);
 
-                        $rowIndex++;
-                    }
+                $customerText = trim(
+                    ($customer->osa_code ?? '') .
+                    ' - ' .
+                    ($customer->name ?? '')
+                );
 
-                    if ($detailHeadingRow + 1 < $rowIndex) {
-                        $this->groupIndexes[] = [
-                            'header_row' => $headerRow,
-                            'start' => $detailHeadingRow,
-                            'end' => $rowIndex - 1,
-                        ];
-                    }
+                $rows[] = [
+                    '',
+                    $customerText,
+                    $visit->customer_type == 1
+                        ? 'Field Customer'
+                        : 'Merchandiser Customer',
+                    implode(', ', $visit->days_list),
+                    optional($visit->from_date)->format('d M Y'),
+                    optional($visit->to_date)->format('d M Y'),
+                    '',
+                ];
 
-                    $rows[] = array_fill(0, 7, '');
-                    $rowIndex++;
-                }
-            });
+                $rowIndex++;
+            }
 
-        return new Collection($rows);
-    }
+            if ($detailHeadingRow + 1 < $rowIndex) {
+                $this->groupIndexes[] = [
+                    'header_row' => $headerRow,
+                    'start' => $detailHeadingRow,
+                    'end' => $rowIndex - 1,
+                ];
+            }
+
+            $rows[] = array_fill(0, 7, '');
+            $rowIndex++;
+        }
+    });
+
+    return new Collection($rows);
+}
 
     public function headings(): array
     {

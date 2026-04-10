@@ -106,7 +106,7 @@ class SalesmanWarehouseHistoryService
                 ? $filter['salesman_id']
                 : explode(',', $filter['salesman_id']);
 
-            $query->whereIn('salesman_id', array_map('intval', $salesmanIds));
+            $query->whereIn('manager_id', array_map('intval', $salesmanIds));
         }
 
         if (!empty($filter['manager_id'])) {

@@ -34,7 +34,8 @@ class HtOrderFullExport implements FromCollection, WithHeadings, ShouldAutoSize,
 
         $query = HTOrderHeader::with([
             'customer:id,osa_code,business_name',
-            'salesman:id,osa_code,name'
+            'salesman:id,osa_code,name',
+            'warehouse:id,warehouse_code,warehouse_name'
         ]);
 
         if ($this->from_date && $this->to_date) {
@@ -59,19 +60,24 @@ class HtOrderFullExport implements FromCollection, WithHeadings, ShouldAutoSize,
 
                 'Code' => (string) $h->order_code,
 
-                'Order Date' => (string) ($h->order_date?->format('Y-m-d') ?? ''),
-                'Delivery Date' => (string) ($h->delivery_date?->format('Y-m-d') ?? ''),
+                'Order Date' => (string) ($h->order_date?->format('d M Y') ?? ''),
+                'Delivery Date' => (string) ($h->delivery_date?->format('d M Y') ?? ''),
 
                 'Customer' => trim(
                     ($h->customer->osa_code ?? '') .
-                    ' - ' .
-                    ($h->customer->business_name ?? '')
+                        ' - ' .
+                        ($h->customer->business_name ?? '')
+                ),
+                'Warehouse' => trim(
+                    ($h->warehouse->warehouse_code ?? '') .
+                        ' - ' .
+                        ($h->warehouse->warehouse_name ?? '')
                 ),
 
                 'Salesman' => trim(
                     ($h->salesman->osa_code ?? '') .
-                    ' - ' .
-                    ($h->salesman->name ?? '')
+                        ' - ' .
+                        ($h->salesman->name ?? '')
                 ),
 
 
@@ -81,11 +87,11 @@ class HtOrderFullExport implements FromCollection, WithHeadings, ShouldAutoSize,
 
                 'Comment' => (string) ($h->comment ?? ''),
 
-                'Net Amount' => number_format((float)$h->net_amount, 2, '.', ','),
+                'VAT' => number_format((float)$h->vat, 2, '.', ','),
 
                 'Excise' => number_format((float)$h->excise, 2, '.', ','),
 
-                'VAT' => number_format((float)$h->vat, 2, '.', ','),
+                'Net Amount' => number_format((float)$h->net_amount, 2, '.', ','),
 
                 'Total' => number_format((float)$h->total, 2, '.', ','),
 
@@ -102,13 +108,14 @@ class HtOrderFullExport implements FromCollection, WithHeadings, ShouldAutoSize,
             'Order Date',
             'Delivery Date',
             'Customer',
+            'Warehouse',
             'Salesman',
             'SAP ID',
             'SAP MSG',
             'Comment',
-            'Net Amount',
-            'Excise',
             'VAT',
+            'Excise',
+            'Net Amount',
             'Total',
         ];
     }

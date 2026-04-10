@@ -7,9 +7,17 @@ use App\Models\Warehouse;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\FromQuery;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use Maatwebsite\Excel\Events\AfterSheet;
+use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithMapping;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 
-class WarehousesExport implements FromQuery, WithHeadings, WithMapping
+
+class WarehousesExport implements FromQuery, WithHeadings, WithMapping, WithEvents
 {
     protected $query;
 
@@ -27,7 +35,7 @@ class WarehousesExport implements FromQuery, WithHeadings, WithMapping
     {
         return [
             $warehouse->warehouse_code,
-            $warehouse->warehouse_type,
+            $warehouse->warehouse_type == 1 ? 'Company Outlet' : 'Distributor',
             $warehouse->warehouse_name,
             $warehouse->owner_name,
             $warehouse->owner_number,
@@ -57,20 +65,20 @@ class WarehousesExport implements FromQuery, WithHeadings, WithMapping
     public function headings(): array
     {
         return [
-            'Warehouse Code',
-            'Warehouse Type',
-            'Warehouse Name',
+            'Distributor Code',
+            'Distributor Type',
+            'Distributor Name',
             'Owner Name',
             'Owner Number',
             'Owner Email',
             'Agreed Stock Capital',
             'Location',
             'City',
-            'Warehouse Manager',
+            'Distributor Manager',
             'Manager Contact',
             'TIN No',
             'Company Name',
-            'Warehouse Email',
+            'Distributor Email',
             'Region Name',
             'Area Name',
             'Latitude',
@@ -84,4 +92,42 @@ class WarehousesExport implements FromQuery, WithHeadings, WithMapping
             'Status',
         ];
     }
+
+    public function registerEvents(): array
+{
+    return [
+        AfterSheet::class => function (AfterSheet $event) {
+
+            $sheet = $event->sheet->getDelegate();
+            $lastColumn = $sheet->getHighestColumn();
+
+            $sheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
+                'font' => [
+                    'bold' => true,
+                    'color' => ['argb' => 'FFFFFFFF'], // white text
+                    'size' => 12,
+                ],
+                'alignment' => [
+                    'horizontal' => Alignment::HORIZONTAL_CENTER,
+                    'vertical'   => Alignment::VERTICAL_CENTER,
+                ],
+                'fill' => [
+                    'fillType' => Fill::FILL_SOLID,
+                    'startColor' => [
+                        'argb' => 'FFDC3545', // 🔥 proper red (same as your image)
+                    ],
+                ],
+                'borders' => [
+                    'allBorders' => [
+                        'borderStyle' => Border::BORDER_THIN,
+                        'color' => ['argb' => 'FF000000'],
+                    ],
+                ],
+            ]);
+
+            // Row height
+            $sheet->getRowDimension(1)->setRowHeight(25);
+        },
+    ];
+}
 }

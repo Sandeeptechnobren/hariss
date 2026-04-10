@@ -121,6 +121,8 @@ class ReturnHeaderResource extends JsonResource
             'warehouse_id'   => $this->warehouse_id,
             'warehouse_code' => $this->warehouse->warehouse_code ?? null,
             'warehouse_name' => $this->warehouse->warehouse_name ?? null,
+            'warehouse_contact' => $this->warehouse->owner_number ?? null,
+            'warehouse_tin' => $this->warehouse->tin_no ?? null,
 
             'route_id'      => $this->route_id,
             'route_code'    => $this->route->route_code ?? null,
@@ -129,6 +131,7 @@ class ReturnHeaderResource extends JsonResource
             'customer_id'   => $this->customer_id,
             'customer_code' => $this->customer->osa_code ?? null,
             'customer_name' => $this->customer->name ?? null,
+            'customer_contact' => $this->customer->contact_no ?? null,
 
             'salesman_id'   => $this->salesman_id,
             'salesman_code' => $this->salesman->osa_code ?? null,

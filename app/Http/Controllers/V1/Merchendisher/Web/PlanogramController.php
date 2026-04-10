@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Exports\PlanogramExport;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Collection;
+use App\Exports\PlanogramExportxl;
 use Maatwebsite\Excel\Excel as ExcelFormat;
 use Illuminate\Support\Facades\Response;
 
@@ -556,81 +557,125 @@ public function update(PlanogramUpdateRequest $request, string $uuid): JsonRespo
  * )
  */
 
-     public function export(Request $request)
-{
-    $request->validate([
-        'format'     => 'required|in:csv,xlsx',
-        'valid_from' => 'nullable|date',
-        'valid_to'   => 'nullable|date|after_or_equal:valid_from',
-    ]);
-    $planograms = Planogram::all();
-    if ($planograms->isEmpty()) {
-        return response()->json([
-            'status'  => 'error',
-            'message' => 'No data found'
-        ], 404);
-    }
-    $data = $planograms->map(function ($item) {
-        $merchIds = is_array($item->merchendisher_id)
-            ? $item->merchendisher_id
-            : explode(',', $item->merchendisher_id);
-        $custIds = is_array($item->customer_id)
-            ? $item->customer_id
-            : explode(',', $item->customer_id);
-        $merchNames = Salesman::whereIn('id', $merchIds)
-            ->pluck('name')->implode(', ');
-        $customerNames = CompanyCustomer::whereIn('id', $custIds)
-            ->pluck('business_name')->implode(', ');
-        $imageList = $item->images
-            ? collect(explode(',', $item->images))->implode(' | ')
-            : 'N/A';
-        return [
-            'Code'           => $item->code,
-            'Name'           => $item->name,
-            'Valid From'     => $item->valid_from,
-            'Valid To'       => $item->valid_to,
-            'Merchendisher'  => $merchNames ?: 'N/A',
-            'Customer'       => $customerNames ?: 'N/A',
-            'Images'         => $imageList,
-        ];
-    });
-    $filePath = 'exports/planogram_list_' . now()->format('Y_m_d_H_i_s') . '.' . $request->format;
-    if ($request->format === 'csv') {
-        $csv = fopen('php://temp', 'r+');
-        fputcsv($csv, array_keys($data->first()));
-        foreach ($data as $row) {
-            fputcsv($csv, $row);
+// public function export(Request $request)
+//     {
+//         $request->validate([
+//             'format'     => 'required|in:csv,xlsx',
+//             'valid_from' => 'nullable|date',
+//             'valid_to'   => 'nullable|date|after_or_equal:valid_from',
+//         ]);
+//         $planograms = Planogram::all();
+//         if ($planograms->isEmpty()) {
+//             return response()->json([
+//                 'status'  => 'error',
+//                 'message' => 'No data found'
+//             ], 404);
+//         }
+//         $data = $planograms->map(function ($item) {
+//             $merchIds = is_array($item->merchendisher_id)
+//                 ? $item->merchendisher_id
+//                 : explode(',', $item->merchendisher_id);
+//             $custIds = is_array($item->customer_id)
+//                 ? $item->customer_id
+//                 : explode(',', $item->customer_id);
+//             $merchNames = Salesman::whereIn('id', $merchIds)
+//                 ->pluck('name')->implode(', ');
+//             $customerNames = CompanyCustomer::whereIn('id', $custIds)
+//                 ->pluck('business_name')->implode(', ');
+//             $imageList = $item->images
+//                 ? collect(explode(',', $item->images))->implode(' | ')
+//                 : 'N/A';
+//             return [
+//                 'Code'           => $item->code,
+//                 'Name'           => $item->name,
+//                 'Valid From'     => $item->valid_from,
+//                 'Valid To'       => $item->valid_to,
+//                 // 'Merchendisher'  => $merchNames ?: 'N/A',
+//                 // 'Customer'       => $customerNames ?: 'N/A',
+//                 // 'Images'         => $imageList,
+//             ];
+//         });
+//         $filePath = 'exports/planogram_list_' . now()->format('Y_m_d_H_i_s') . '.' . $request->format;
+//         if ($request->format === 'csv') {
+//             $csv = fopen('php://temp', 'r+');
+//             fputcsv($csv, array_keys($data->first()));
+//             foreach ($data as $row) {
+//                 fputcsv($csv, $row);
+//             }
+//             rewind($csv);
+//             Storage::disk('public')->put($filePath, stream_get_contents($csv));
+//             fclose($csv);
+//         }
+//         else {
+//             Excel::store(
+//                 new class($data) implements
+//                     \Maatwebsite\Excel\Concerns\FromCollection,
+//                     \Maatwebsite\Excel\Concerns\WithHeadings {
+
+//                     private $data;
+//                     public function __construct($data) { $this->data = $data; }
+//                     public function collection() { return $this->data; }
+//                     public function headings(): array { return array_keys($this->data->first()); }
+//                 },
+//                 $filePath,
+//                 'public',
+//                 ExcelFormat::XLSX
+//             );
+//         }
+//         $appUrl = rtrim(config('app.url'), '/');
+//         $downloadUrl = $appUrl . '/public/storage/' . $filePath;
+//         return response()->json([
+//             'status'       => 'success',
+//             'message'      => 'Export file generated successfully',
+//             'download_url' => $downloadUrl,
+//         ]);
+//     }
+
+
+public function export(Request $request)
+    {
+        $request->validate([
+            'format'      => 'required|in:csv,xlsx',
+            'valid_from'  => 'nullable|date',
+            'valid_to'    => 'nullable|date|after_or_equal:valid_from',
+            'search' => 'nullable|string|max:255',
+        ]);
+        $searchTerm = $request->input('search');
+        $format     = strtolower($request->input('format'));
+        $filePath   = 'exports/planogram_list_' . now()->format('Y_m_d_H_i_s') . '.' . $format;
+        $export = new PlanogramExportxl($searchTerm);
+        $hasData = Planogram::when(!empty($searchTerm), function ($q) use ($searchTerm) {
+            $s = strtolower($searchTerm);
+            $q->where(function ($inner) use ($s) {
+                $inner->orWhereRaw("LOWER(CAST(id AS TEXT)) LIKE ?", ["%{$s}%"])
+                    ->orWhereRaw("LOWER(name) LIKE ?", ["%{$s}%"])
+                    ->orWhereRaw("LOWER(CAST(valid_from AS TEXT)) LIKE ?", ["%{$s}%"])
+                    ->orWhereRaw("LOWER(CAST(valid_to AS TEXT)) LIKE ?", ["%{$s}%"]);
+            });
+        })->exists();
+
+        if (!$hasData) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'No data found',
+            ], 404);
         }
-        rewind($csv);
-        Storage::disk('public')->put($filePath, stream_get_contents($csv));
-        fclose($csv);
-    }
-    else {
-        Excel::store(
-            new class($data) implements
-                \Maatwebsite\Excel\Concerns\FromCollection,
-                \Maatwebsite\Excel\Concerns\WithHeadings {
 
-                private $data;
-                public function __construct($data) { $this->data = $data; }
-                public function collection() { return $this->data; }
-                public function headings(): array { return array_keys($this->data->first()); }
-            },
-            $filePath,
-            'public',
-            ExcelFormat::XLSX
-        );
-    }
-    $appUrl = rtrim(config('app.url'), '/');
-    $downloadUrl = $appUrl . '/public/storage/' . $filePath;
-    return response()->json([
-        'status'       => 'success',
-        'message'      => 'Export file generated successfully',
-        'download_url' => $downloadUrl,
-    ]);
-}
+        if ($format === 'csv') {
+            Excel::store($export, $filePath, 'public', \Maatwebsite\Excel\Excel::CSV);
+        } else {
+            Excel::store($export, $filePath, 'public', \Maatwebsite\Excel\Excel::XLSX);
+        }
 
-    
+        $downloadUrl = rtrim(config('app.url'), '/') . '/storage/app/public/' . $filePath;
+
+        return response()->json([
+            'status'       => 'success',
+            'message'      => 'Export file generated successfully',
+            'download_url' => $downloadUrl,
+        ]);
+    }
+        
     /**
      * @OA\Get(
      *     path="/api/merchendisher/planogram/merchendisher-list",

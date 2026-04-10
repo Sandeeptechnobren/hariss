@@ -17,33 +17,30 @@ public function createOrder(array $data)
 {
     try {
         DB::beginTransaction();
-        $customer = CompanyCustomer::findOrFail($data['customer_id']);
+        $customer = null;
         $warehouseId = null;
         $companyId   = null;
-        if ($customer->customer_type == 2) {
-            $warehouse = Warehouse::where(
-                'company_customer_id',
-                $customer->id
-            )->first();
-            if (!$warehouse) {
-                throw new \Exception('Warehouse not found for this customer');
+       if (!empty($data['customer_id'])) {
+            $customer = CompanyCustomer::findOrFail($data['customer_id']);
+            if ($customer->customer_type == 2) {
+                $warehouse = Warehouse::where('id',$customer->id)->first();
+                if (!$warehouse) {
+                    throw new \Exception('Warehouse not found for this customer');
+                }
+                $warehouseId = $warehouse->id;
             }
-            $warehouseId = $warehouse->id;
-        }
-        if ($customer->customer_type == 4) {
-
-            $region = Region::find($customer->region_id);
-
-            if (!$region) {
-                throw new \Exception('Region not found for this customer');
+            if ($customer->customer_type == 4) {
+                $region = Region::find($customer->region_id);
+                if (!$region) {
+                    throw new \Exception('Region not found for this customer');
+                }
+                $companyId = $region->company_id;
             }
-
-            $companyId = $region->company_id;
         }
         $header = PoOrderHeader::create([
             'sap_id'        => $data['sap_id'] ?? null,
             'sap_msg'       => $data['sap_msg'] ?? null,
-            'customer_id'   => $customer->id,
+            'customer_id'   => $customer ? $customer->id : null,
             'warehouse_id'  => $warehouseId,
             'company_id'    => $companyId,
             'delivery_date' => $data['delivery_date'] ?? null,
@@ -77,16 +74,12 @@ public function createOrder(array $data)
                 'total'      => $detail['total'] ?? 0,
             ]);
         }
-
         DB::commit();
-
         return $header->load('details');
-
     } catch (\Throwable $e) {
         DB::rollBack();
         Log::error('PO Order create failed', ['error' => $e->getMessage()]);
         throw $e;
     }
 }
-
 }

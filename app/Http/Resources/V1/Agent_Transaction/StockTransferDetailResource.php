@@ -13,6 +13,8 @@ class StockTransferDetailResource extends JsonResource
             'item_name' => $this->item->name ?? null,
             'erp_code'  => $this->item->erp_code ?? null,
             'qty'       => $this->transfer_qty,
+            'uom_id'    => $this->uom_id,
+            'uom_name'  => $this->Uom->name ?? null,
         ];
     }
 }

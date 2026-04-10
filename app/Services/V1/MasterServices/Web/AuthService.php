@@ -16,63 +16,132 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Http;
 
 class AuthService
 {
-    public function register(array $payload): array
-    {
-        $user_id = Auth::user()->id;
-        $existing = User::where('email', $payload['email'])
-            ->orWhere('username', $payload['email'])
-            ->orWhere('email', $payload['username'])
-            ->orWhere('username', $payload['username'])
-            ->first();
-        if ($existing) {
-            throw ValidationException::withMessages([
-                'email' => ['Email or Username already exists.'],
-                'username' => ['Email or Username already exists.'],
-            ]);
-        }
-        foreach (['company', 'warehouse', 'route', 'region', 'area', 'outlet_channel'] as $field) {
-            if (!isset($payload[$field]) || is_null($payload[$field]) || $payload[$field] === '' || $payload[$field] === '?') {
-                $payload[$field] = null;
-            } else {
-                $payload[$field] = is_array($payload[$field]) ? $payload[$field] : [$payload[$field]];
-            }
-        }
-        $user = User::create([
-            'name'            => $payload['name'] ?? null,
-            'email'           => $payload['email'] ?? null,
-            'username'        => $payload['username'] ?? null,
-            'contact_number'  => $payload['contact_number'],
-            'password'        => Hash::make($payload['password']),
-            'profile_picture' => $payload['profile_picture'] ?? null,
-            'role'            => $payload['role'] ?? 0,
-            'status'          => $payload['status'] ?? 1,
-            'street'          => $payload['street'] ?? null,
-            'city'            => $payload['city'] ?? null,
-            'zip'             => $payload['zip'] ?? null,
-            'dob'             => $payload['dob'] ?? null,
-            'country_id'      => $payload['country_id'] ?? null,
-            'company'         => $payload['company'] ?? null,
-            'warehouse'       => $payload['warehouse'] ?? null,
-            'route'           => $payload['route'] ?? null,
-            'salesman'        => $payload['salesman'] ?? null,
-            'region'          => $payload['region'] ?? null,
-            'area'            => $payload['area'] ?? null,
-            'outlet_channel'  => $payload['outlet_channel'] ?? null,
-            'created_by'      => $user_id,
-            'updated_user'    => $payload['updated_user'] ?? 0,
-            'Created_Date'    => $payload['Created_Date'] ?? now(),
+// public function register(array $payload): array
+//     {
+//         $user_id = Auth::user()->id;
+//         $existing = User::where('email', $payload['email'])->orWhere('username', $payload['email'])->orWhere('email', $payload['username'])->orWhere('username', $payload['username'])->first();
+//         if ($existing) {
+//             throw ValidationException::withMessages([
+//                 'email' => ['Email or Username already exists.'],
+//                 'username' => ['Email or Username already exists.'],
+//             ]);
+//         }
+//         foreach (['company', 'warehouse', 'route', 'region', 'area', 'outlet_channel'] as $field) {
+//             if (!isset($payload[$field]) || is_null($payload[$field]) || $payload[$field] === '' || $payload[$field] === '?') {
+//                 $payload[$field] = null;
+//             } else {
+//                 $payload[$field] = is_array($payload[$field]) ? $payload[$field] : [$payload[$field]];
+//             }
+//         }
+//         $user = User::create([
+//             'name'            => $payload['name'] ?? null,
+//             'email'           => $payload['email'] ?? null,
+//             'username'        => $payload['username'] ?? null,
+//             'contact_number'  => $payload['contact_number'],
+//             'password'        => Hash::make($payload['password']),
+//             'profile_picture' => $payload['profile_picture'] ?? null,
+//             'role'            => $payload['role'] ?? 0,
+//             'status'          => $payload['status'] ?? 1,
+//             'street'          => $payload['street'] ?? null,
+//             'city'            => $payload['city'] ?? null,
+//             'zip'             => $payload['zip'] ?? null,
+//             'dob'             => $payload['dob'] ?? null,
+//             'country_id'      => $payload['country_id'] ?? null,
+//             'company'         => $payload['company'] ?? null,
+//             'warehouse'       => $payload['warehouse'] ?? null,
+//             'route'           => $payload['route'] ?? null,
+//             'salesman'        => $payload['salesman'] ?? null,
+//             'region'          => $payload['region'] ?? null,
+//             'area'            => $payload['area'] ?? null,
+//             'outlet_channel'  => $payload['outlet_channel'] ?? null,
+//             'created_by'      => $user_id,
+//             'updated_user'    => $payload['updated_user'] ?? 0,
+//             'Created_Date'    => $payload['Created_Date'] ?? now(),
+//         ]);
+//         $tokenResult = $user->createToken('api-token');
+//         return [
+//             'user'         => new UserResource($user),
+//             'token_type'   => 'Bearer',
+//             'access_token' => $tokenResult->accessToken,
+//         ];
+//     }
+
+public function register(array $payload): array
+{
+    $user_id = Auth::user()->id;
+    $token = request()->bearerToken();
+    
+    $existing = User::where('email', $payload['email'])->orWhere('username', $payload['email'])->orWhere('email', $payload['username'])->orWhere('username', $payload['username'])->first();
+    if ($existing) {
+        throw ValidationException::withMessages([
+            'email' => ['Email or Username already exists.'],
+            'username' => ['Email or Username already exists.'],
         ]);
-        $tokenResult = $user->createToken('api-token');
-        return [
-            'user'         => new UserResource($user),
-            'token_type'   => 'Bearer',
-            'access_token' => $tokenResult->accessToken,
-        ];
     }
-    public function login(array $payload): array
+    foreach (['company', 'warehouse', 'route', 'region', 'area', 'outlet_channel'] as $field) {
+        if (!isset($payload[$field]) || is_null($payload[$field]) || $payload[$field] === '' || $payload[$field] === '?') {
+            $payload[$field] = null;
+        } else {
+            $payload[$field] = is_array($payload[$field]) ? $payload[$field] : [$payload[$field]];
+        }
+    }
+    $reserveResponse = Http::withToken($token)
+        ->acceptJson()
+        ->post('https://api.coreexl.com/osa_developmentV2/public/api/codes/reserve', [
+            'model_name' => 'users'
+        ]);
+    if (!$reserveResponse->successful()) {
+        throw new \Exception('Unable to reserve user code');
+    }
+    $reservedCode = $reserveResponse->json()['code'] ?? null;
+    if (!$reservedCode) {
+        throw new \Exception('Invalid code response');
+    }
+
+    $user = User::create([
+        'name'            => $payload['name'] ?? null,
+        'email'           => $payload['email'] ?? null,
+        'username'        => $payload['username'] ?? null,
+        'contact_number'  => $payload['contact_number'],
+        'password'        => Hash::make($payload['password']),
+        'profile_picture' => $payload['profile_picture'] ?? null,
+        'role'            => $payload['role'] ?? 0,
+        'status'          => $payload['status'] ?? 1,
+        'street'          => $payload['street'] ?? null,
+        'city'            => $payload['city'] ?? null,
+        'zip'             => $payload['zip'] ?? null,
+        'dob'             => $payload['dob'] ?? null,
+        'country_id'      => $payload['country_id'] ?? null,
+        'company'         => $payload['company'] ?? null,
+        'warehouse'       => $payload['warehouse'] ?? null,
+        'route'           => $payload['route'] ?? null,
+        'salesman'        => $payload['salesman'] ?? null,
+        'region'          => $payload['region'] ?? null,
+        'area'            => $payload['area'] ?? null,
+        'outlet_channel'  => $payload['outlet_channel'] ?? null,
+        'user_code'       => $reservedCode, 
+        'created_by'      => $user_id,
+        'updated_user'    => $payload['updated_user'] ?? 0,
+        'Created_Date'    => $payload['Created_Date'] ?? now(),
+    ]);
+    Http::withToken($token)
+        ->acceptJson()
+        ->post('https://api.coreexl.com/osa_developmentV2/public/api/codes/finalize', [
+            'code'       => $reservedCode,
+            'model_name' => 'users'
+        ]);
+    $tokenResult = $user->createToken('api-token');
+    return [
+        'user'         => new UserResource($user),
+        'token_type'   => 'Bearer',
+        'access_token' => $tokenResult->accessToken,
+    ];
+}
+public function login(array $payload): array
     {
         DB::beginTransaction();
         try {
@@ -125,7 +194,7 @@ class AuthService
             ->where('token_id', $token->id)
             ->exists();
     }
-    public function getUserList(int $perPage = 50)
+public function getUserList(int $perPage = 50)
     {
         $user_id = Auth::user()->id;
 
@@ -133,12 +202,10 @@ class AuthService
         //     // ->where('created_by',$user_id)
         //     ->orderBy('created_at', 'desc')
         //     ->paginate($perPage);   // ✅ Only this line changed
-        $users = User::with(
+        $users = User::select('id','name','user_code','email','contact_number','status','role','uuid')->with(
             'roleDetails:id,name'
             // 'getCompanyDetails:id,company_code,company_name'
-        )
-            ->orderBy('created_at', 'desc')
-            ->paginate($perPage);
+        )->orderBy('created_at', 'desc')->paginate($perPage);
 
         return $users;
     }
@@ -276,6 +343,7 @@ class AuthService
             ? 'email'
             : 'username';
         $user = User::where($loginField, $payload['email'])->first();
+
         if ($user && $user->is_block) {
             throw ValidationException::withMessages([
                 'email' => ['Please contact to Admin.']

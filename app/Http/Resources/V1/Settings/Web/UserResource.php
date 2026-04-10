@@ -12,20 +12,17 @@ class UserResource extends JsonResource
         return [
             'id' => $this->id,
             'uuid' => $this->uuid,
+            
             'name' => $this->name,
             'email' => $this->email,
             'username' => $this->username,
             'contact_number' => $this->contact_number,
             'profile_picture' => $this->profile_picture,
             'status' => $this->status,
-
-            // ✅ Nested role object
             'role' => [
                 'id' => $this->role,
                 'name' => $this->roleData?->name,
             ],
-
-            // ✅ Rest of the fields
             'company' => $this->company,
             'warehouse' => $this->warehouse,
             'route' => $this->route,

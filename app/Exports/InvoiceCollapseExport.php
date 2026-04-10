@@ -55,19 +55,19 @@ class InvoiceCollapseExport implements
         $rowIndex = 2;
 
         $query = InvoiceHeader::select([
-                'id',
-                'invoice_code',
-                'invoice_date',
-                'invoice_time',
-                'delivery_id',
-                'warehouse_id',
-                'route_id',
-                'customer_id',
-                'salesman_id',
-                'vat',
-                'net_total',
-                'total_amount'
-            ])
+            'id',
+            'invoice_code',
+            'invoice_date',
+            'invoice_time',
+            'delivery_id',
+            'warehouse_id',
+            'route_id',
+            'customer_id',
+            'salesman_id',
+            'vat',
+            'net_total',
+            'total_amount'
+        ])
             ->with([
                 'delivery:id,delivery_code',
                 'warehouse:id,warehouse_code,warehouse_name',
@@ -76,7 +76,7 @@ class InvoiceCollapseExport implements
                 'salesman:id,osa_code,name',
                 'details:id,header_id,item_id,uom,quantity,itemvalue,vat,net_total,item_total',
                 'details.item:id,erp_code,name',
-                'details.uoms:id,name', 
+                'details.uoms:id,name',
             ])
             ->when(
                 $this->from && $this->to,
@@ -87,49 +87,103 @@ class InvoiceCollapseExport implements
                 fn($q) => $q->whereIn('salesman_id', $this->salesmanIds)
             )
             ->when(
-                empty($this->salesmanIds) && !empty($this->routeIds),
+                !empty($this->warehouseIds),
+                fn($q) => $q->whereIn('warehouse_id', $this->warehouseIds)
+            )
+            ->when(
+                !empty($this->routeIds),
                 fn($q) => $q->whereIn('route_id', $this->routeIds)
             )
             ->when(
-                empty($this->salesmanIds) && empty($this->routeIds) && !empty($this->warehouseIds),
-                fn($q) => $q->whereIn('warehouse_id', $this->warehouseIds)
+                !empty($this->salesmanIds),
+                fn($q) => $q->whereIn('salesman_id', $this->salesmanIds)
             )
             ->orderBy('invoice_date', 'desc');
 
 
-            $query = DataAccessHelper::filterAgentTransaction($query, Auth::user());
-            $query->chunk(200, function ($headers) use (&$rows, &$rowIndex) {
+        $query = DataAccessHelper::filterAgentTransaction($query, Auth::user());
+        $query->chunk(200, function ($headers) use (&$rows, &$rowIndex) {
 
-                foreach ($headers as $header) {
+            foreach ($headers as $header) {
 
-                    $details   = $header->details ?? collect();
-                    $itemCount = $details->count();
-                    $headerRow = $rowIndex;
+                $details   = $header->details ?? collect();
+                $itemCount = $details->count();
+                $headerRow = $rowIndex;
+                $rows[] = [
+                    $this->excelSafe($header->invoice_code),
+                    $header->invoice_date
+                        ? \Carbon\Carbon::parse($header->invoice_date)->format('d M Y')
+                        : '',
+                    $header->invoice_time
+                        ? \Carbon\Carbon::parse($header->invoice_time)->format('h:i A')
+                        : '',
+                    $this->excelSafe($header->delivery->delivery_code ?? ''),
+                    $this->excelSafe(
+                        trim(($header->warehouse->warehouse_code ?? '') . ' - ' . ($header->warehouse->warehouse_name ?? ''))
+                    ),
+                    $this->excelSafe(
+                        trim(($header->route->route_code ?? '') . ' - ' . ($header->route->route_name ?? ''))
+                    ),
+                    $this->excelSafe(
+                        trim(($header->customer->osa_code ?? '') . ' - ' . ($header->customer->name ?? ''))
+                    ),
+                    $this->excelSafe(
+                        trim(($header->salesman->osa_code ?? '') . ' - ' . ($header->salesman->name ?? ''))
+                    ),
+                    number_format($header->vat, 2, '.', ''),
+                    number_format($header->net_total, 2, '.', ''),
+                    number_format($header->total_amount, 2, '.', ''),
+                    $itemCount,
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                ];
+                $rowIndex++;
+                $detailHeadingRow = $rowIndex;
+                $rows[] = [
+                    '',
+                    'Item',
+                    'UOM',
+                    'Quantity',
+                    'Price',
+                    'VAT',
+                    'Net Total',
+                    'Item Total',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                ];
+                $rowIndex++;
+                foreach ($details as $d) {
                     $rows[] = [
-                        $this->excelSafe($header->invoice_code),
-                        $header->invoice_date
-                            ? \Carbon\Carbon::parse($header->invoice_date)->format('d M Y')
-                            : '',
-                        $header->invoice_time
-                            ? \Carbon\Carbon::parse($header->invoice_time)->format('h:i A')
-                            : '',
-                        $this->excelSafe($header->delivery->delivery_code ?? ''),
+                        '',
                         $this->excelSafe(
-                            trim(($header->warehouse->warehouse_code ?? '') . ' - ' . ($header->warehouse->warehouse_name ?? ''))
+                            trim(($d->item->erp_code ?? '') . ' - ' . ($d->item->name ?? ''))
                         ),
-                        $this->excelSafe(
-                            trim(($header->route->route_code ?? '') . ' - ' . ($header->route->route_name ?? ''))
-                        ),
-                        $this->excelSafe(
-                            trim(($header->customer->osa_code ?? '') . ' - ' . ($header->customer->name ?? ''))
-                        ),
-                        $this->excelSafe(
-                            trim(($header->salesman->osa_code ?? '') . ' - ' . ($header->salesman->name ?? ''))
-                        ),
-                        (float) $header->vat,
-                        (float) $header->net_total,
-                        (float) $header->total_amount,
-                        $itemCount,
+                        $d->uoms->name ?? '',
+                        number_format($d->quantity, 2, '.', ''),
+                        number_format($d->itemvalue, 2, '.', ''),
+                        number_format($d->vat, 2, '.', ''),
+                        number_format($d->net_total, 2, '.', ''),
+                        number_format($d->item_total, 2, '.', ''),
+                        '',
+                        '',
+                        '',
+                        '',
+                        '',
                         '',
                         '',
                         '',
@@ -138,69 +192,19 @@ class InvoiceCollapseExport implements
                         '',
                         '',
                     ];
-                    $rowIndex++;
-                    $detailHeadingRow = $rowIndex;
-                    $rows[] = [
-                        '',
-                        'Item',
-                        'UOM',
-                        'Quantity',
-                        'Item Value',
-                        'VAT',
-                        'Net Total',
-                        'Item Total',
-                        '',
-                        '',
-                        '',
-                        '',
-                        '',
-                        '',
-                        '',
-                        '',
-                        '',
-                        '',
-                        '',
-                        '',
-                    ];
-                    $rowIndex++;
-                    foreach ($details as $d) {
-                        $rows[] = [
-                            '',
-                            $this->excelSafe(
-                                trim(($d->item->erp_code ?? '') . ' - ' . ($d->item->name ?? ''))
-                            ),
-                            $d->uoms->name ?? '',
-                            (float) $d->quantity,
-                            (float) $d->item_value,
-                            (float) $d->vat,
-                            (float) $d->net_total,
-                            (float) $d->item_total,
-                            '',
-                            '',
-                            '',
-                            '',
-                            '',
-                            '',
-                            '',
-                            '',
-                            '',
-                            '',
-                            '',
-                            '',
-                        ];
-                        $rowIndex++;
-                    }
-                    if ($detailHeadingRow + 1 < $rowIndex) {
-                        $this->groupIndexes[] = [
-                            'header_row' => $headerRow,
-                            'start'      => $detailHeadingRow,
-                            'end'        => $rowIndex - 1,
-                        ];
-                    }
-                    $rows[] = array_fill(0, 20, '');
                     $rowIndex++;
                 }
-            });
+                if ($detailHeadingRow + 1 < $rowIndex) {
+                    $this->groupIndexes[] = [
+                        'header_row' => $headerRow,
+                        'start'      => $detailHeadingRow,
+                        'end'        => $rowIndex - 1,
+                    ];
+                }
+                $rows[] = array_fill(0, 20, '');
+                $rowIndex++;
+            }
+        });
 
         return new Collection($rows);
     }
@@ -211,14 +215,14 @@ class InvoiceCollapseExport implements
             'Invoice Date',
             'Invoice Time',
             'Delivery Code',
-            'Warehouse',
+            'Distributors',
             'Route',
             'Customer',
             'Salesman',
             'VAT',
             'Net Total',
             'Total Amount',
-            'Item Count',
+            'Total Item',
         ];
     }
 

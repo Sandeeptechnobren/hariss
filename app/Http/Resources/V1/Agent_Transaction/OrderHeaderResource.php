@@ -103,7 +103,7 @@ class OrderHeaderResource extends JsonResource
 
         if ($workflowRequest) {
             $current = HtappWorkflowRequestStep::where('workflow_request_id', $workflowRequest->id)
-                ->whereIn('status', ['PENDING', 'IN_PROGRESS','RETURNED'])
+                ->whereIn('status', ['PENDING', 'IN_PROGRESS', 'RETURNED'])
                 ->orderBy('step_order')
                 ->first();
 
@@ -163,13 +163,14 @@ class OrderHeaderResource extends JsonResource
             'warehouse_id' => $this->warehouse_id,
             'warehouse_code' => $this->warehouse->warehouse_code ?? null,
             'warehouse_name' => $this->warehouse->warehouse_name ?? null,
-            'warehouse_number' => $this->warehouse->owner_number ?? null,
+            'warehouse_contact' => $this->warehouse->owner_number ?? null,
             'warehouse_address' => $this->warehouse->address ?? null,
             'warehouse_street' => $this->warehouse->street ?? null,
             'warehouse_town' => $this->warehouse->town_village ?? null,
             'customer_id' => $this->customer_id,
             'customer_code' => $this->customer->osa_code ?? null,
             'customer_name' => $this->customer->name ?? null,
+            'customer_contact' => $this->customer->contact_no ?? null,
             'customer_street' => $this->customer->street ?? null,
             'customer_town' => $this->customer->town ?? null,
             'customer_contact' => $this->customer->contact_no ?? null,
@@ -179,14 +180,15 @@ class OrderHeaderResource extends JsonResource
             'salesman_id' => $this->salesman_id,
             'salesman_code' => $this->salesman->osa_code ?? null,
             'salesman_name' => $this->salesman->name ?? null,
+            'salesman_contact' => $this->salesman->contact_no ?? null,
             'delivery_date' => $this->delivery_date?->format('Y-m-d'),
             'comment' => $this->comment,
             'order_flag' => match ($this->order_flag) {
-                        1 => 'Created Order',
-                        2 => 'Delivery Created',
-                        3 => 'Completed',
-                        default => 'Unknown',
-                    },
+                1 => 'Created Order',
+                2 => 'Delivery Created',
+                3 => 'Completed',
+                default => 'Unknown',
+            },
             'status' => $this->status,
             'created_at' => $this->created_at,
             'details' => OrderDetailResource::collection($details),

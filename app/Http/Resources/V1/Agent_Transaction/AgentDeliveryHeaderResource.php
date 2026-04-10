@@ -89,7 +89,7 @@ class AgentDeliveryHeaderResource extends JsonResource
 
         if ($workflowRequest) {
             $current = HtappWorkflowRequestStep::where('workflow_request_id', $workflowRequest->id)
-                ->whereIn('status', ['PENDING', 'IN_PROGRESS','RETURNED'])
+                ->whereIn('status', ['PENDING', 'IN_PROGRESS', 'RETURNED'])
                 ->orderBy('step_order')
                 ->first();
 
@@ -137,7 +137,8 @@ class AgentDeliveryHeaderResource extends JsonResource
             'salesman' => $this->salesman ? [
                 'id' => $this->salesman->id,
                 'code' => $this->salesman->osa_code,
-                'name' => $this->salesman->name
+                'name' => $this->salesman->name,
+                'contact_no' => $this->salesman->contact_no
             ] : null,
 
             'customer' => $this->customer ? [
@@ -163,7 +164,8 @@ class AgentDeliveryHeaderResource extends JsonResource
             'discount' => $this->discount,
             'net_amount' => $this->net_amount,
             'total' => $this->total,
-            'delivery_date' => $this->created_at,
+            'delivery_date' => $this->delivery_date,
+            'created_at' => $this->created_at,
             'comment' => $this->comment,
             // 'status' => $this->status,
             'status' => $statusText,

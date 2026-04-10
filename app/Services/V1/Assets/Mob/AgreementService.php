@@ -9,6 +9,7 @@ use App\Models\IRHeader;
 use App\Models\IRDetail;
 use App\Models\IROHeader;
 use App\Models\IRODetail;
+use App\Models\ChillerRequest;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
@@ -54,15 +55,13 @@ class AgreementService
                         'customer_id'  => $customerId,
                     ]);
             }
+            $irHeader = null;
            if ($irId) {
-
                 $irHeader = IRHeader::find($irId);
-
                     if ($irHeader) {
-
                      $irHeader->update(['status' => 5]);
                     }}
-            if ($fridgeId) {
+            if ($irId) {
                 IRDetail::where('header_id', $irId)
                     ->update(['agreement_id' => $agreementId,
                               'status' => 1
@@ -72,7 +71,7 @@ class AgreementService
                 $iroId = $irHeader->iro_id;
                 if($iroId){
                     IROHeader::where('id', $iroId)
-                    ->update(['status' => 5]);
+                    ->update(['status' => 6]);
                 }
                 if($iroId){
                     IRODetail::where('header_id', $iroId)
@@ -80,6 +79,11 @@ class AgreementService
                               ]);
                 }
             }
+            if($addChillerId){
+                $chillerrequest = ChillerRequest::find($addChillerId);
+                    if ($chillerrequest) {
+                     $chillerrequest->update(['status' => 4]);
+                    }}
             DB::commit();
             return $agreement;
         } catch (\Exception $e) {

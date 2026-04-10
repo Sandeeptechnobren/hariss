@@ -47,6 +47,7 @@ class CodeController extends Controller
     }
     public function finalize(CodeReservationRequest $request): JsonResponse
     {
+        
         $request->validate([
             'reserved_code' => 'required|string|max:50',
             'model_name' => 'required|string|max:50',

@@ -42,6 +42,7 @@ public function damagelist(int $perPage = 50, ?int $shelfId = null)
         $query = Damage::query();
         if ($shelfId) {
             $query->where('shelf_id', $shelfId);
+            $query->orderBy('id', 'desc');
         }
         return $query->paginate($perPage);
     } 
@@ -50,6 +51,7 @@ public function expiry(int $perPage = 50, ?int $shelfId = null)
         $query = ExpiryShelfItem::query();
         if ($shelfId) {
             $query->where('shelf_id', $shelfId);
+            $query->orderBy('id', 'desc');
         }
         return $query->paginate($perPage);
     } 
@@ -58,6 +60,7 @@ public function viewstock(int $perPage = 50, ?int $shelfId = null)
         $query = ViewStockPost::query();
         if ($shelfId) {
             $query->where('shelf_id', $shelfId);
+            $query->orderBy('id', 'desc');
         }
         return $query->paginate($perPage);
     }         

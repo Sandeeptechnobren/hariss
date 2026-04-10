@@ -66,7 +66,7 @@ class SalesmanInvoicesExport implements FromCollection, WithHeadings, WithStyles
         return [
             'Invoice Code',
             'Invoice Date',
-            'Warehouse',
+            'Distributor',
             'Route',
             'Customer',
             'Salesman',

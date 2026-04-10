@@ -608,53 +608,37 @@ class ItemController extends Controller
             return response()->json(['message' => 'No data available for export'], 404);
         }
         $data = $items->map(function ($item) {
-            $uom = $item->itemUoms->first();
-
+            // dd($item->itemUoms);
+            $uom = $item->itemUoms;
             return [
-                'id'                   => $item->id,
                 'erp_code'             => $item->erp_code,
                 'code'                 => $item->code,
                 'name'                 => $item->name,
-                'description'          => $item->description,
-                'image'                => $item->image,
                 'category_name'        => optional($item->itemCategory)->category_name,
                 'sub_category_name'    => optional($item->itemSubCategory)->sub_category_name,
                 'shelf_life'           => $item->shelf_life,
-                'status'               => $item->status == 1 ? 'Active' : 'Inactive',
                 'brand'                => optional($item->brandData)->name,
                 'item_weight'          => $item->item_weight,
                 'volume'               => $item->volume,
-                'is_promotional'       => $item->is_promotional ? 'Yes' : 'No',
                 'is_taxable'           => $item->is_taxable ? 'Yes' : 'No',
                 'has_excies'           => $item->has_excies ? 'Yes' : 'No',
                 'commodity_goods_code' => $item->commodity_goods_code,
                 'excise_duty_code'     => $item->excise_duty_code,
-                'base_uom_vol'         => $item->base_uom_vol,
-                'alter_base_uom_vol'   => $item->alter_base_uom_vol,
-                'distribution_code'    => $item->distribution_code,
-                'barcode'              => $item->barcode,
-                'net_weight'           => $item->net_weight,
-                'tax'                  => $item->tax,
-                'vat'                  => $item->vat,
-                'excise'               => $item->excise,
-                'uom_efris_code'       => $item->uom_efris_code,
-                'altuom_efris_code'    => $item->altuom_efris_code,
-                'item_group'           => $item->item_group,
-                'item_group_desc'      => $item->item_group_desc,
-                'caps_promo'           => $item->caps_promo,
-                'sequence_no'          => $item->sequence_no,
 
                 // UOM (first row)
-                'uom_id'               => optional($uom)->id,
-                'uom_name'             => optional($uom)->name,
-                'uom_type'             => optional($uom)->uom_type,
-                'upc'                  => optional($uom)->upc,
-                'price'                => optional($uom)->price,
-                'is_stock_keeping'     => optional($uom)->is_stock_keeping,
-                'enable_for'           => optional($uom)->enable_for,
-                'uom_status'           => optional($uom)->status,
-                'keeping_quantity'     => optional($uom)->keeping_quantity,
-                'uom_ref_id'           => optional($uom)->ref_id,
+                // 'uom_name'             => $uom?->uom?->name,
+                // 'upc'                  => optional($uom)->upc,
+                // 'price'                => optional($uom)->price,
+                // 'is_stock_keeping'     => optional($uom)->is_stock_keeping,
+                // 'enable_for'           => optional($uom)->enable_for,
+                 'uom_name' => $uom->pluck('uom.name')->filter()->implode(', '),
+                 'upc'      => $uom->pluck('upc')->filter()->implode(', '),
+                 'price'    => $uom->pluck('price')->filter()->implode(', '),
+                 'is_stock_keeping' => $uom->pluck('is_stock_keeping')
+                                        ->map(fn($v) => $v ? 'Yes' : 'No')
+                                        ->implode(', '),
+
+                'enable_for' => $uom->pluck('enable_for')->filter()->implode(', '),
             ];
         });
         $export = new \App\Exports\ItemExport($data, $columns);
@@ -798,7 +782,7 @@ class ItemController extends Controller
                 return response()->json([
                     'status'  => 'error',
                     'message' => 'No invoices found for this item.',
-                ], 404);
+                ], 200);
             }
 
             return response()->json([

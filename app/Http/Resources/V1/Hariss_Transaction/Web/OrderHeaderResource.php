@@ -7,8 +7,17 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class OrderHeaderResource extends JsonResource
 {
+    private function getOrderAction($status): string
+    {
+        return match ((int) $status) {
+            0 => "In Progress",
+            1 => "Delivered by Salesman",
+            default => "Unknown",
+        };
+    }
     public function toArray(Request $request): array
     {
+
         return [
             'id'                  => $this->id,
             'uuid'                => $this->uuid,
@@ -16,6 +25,7 @@ class OrderHeaderResource extends JsonResource
 
             'customer_id'         => $this->customer_id,
             'customer_code'       => $this->customer->osa_code ?? null,
+            'customer_name'       => $this->customer->business_name ?? null,
             'customer_town'       => $this->customer->town ?? null,
             'customer_contact'    => $this->customer->contact_number ?? null,
 
@@ -30,15 +40,19 @@ class OrderHeaderResource extends JsonResource
             'company_id'          => $this->company_id,
             'company_code'        => $this->company->company_code ?? null,
             'company_name'        => $this->company->company_name ?? null,
+            'company_contact' => $this->company->primary_contact ?? null,
+            'company_address' => $this->company->address ?? null,
 
             'warehouse_id'        => $this->warehouse_id,
             'warehouse_code'      => $this->warehouse->warehouse_code ?? null,
             'warehouse_name'      => $this->warehouse->warehouse_name ?? null,
+            'warehouse_contact' => $this->warehouse->warehouse_manager_contact ?? null,
+            'warehouse_town' => $this->warehouse->town_village ?? null,
 
 
             'delivery_date'       => $this->delivery_date?->format('Y-m-d'),
             'comment'             => $this->comment,
-            'status'              => $this->status,
+            'status' => $this->getOrderAction($this->status),
             'currency'            => $this->currency,
             'gross_total'         => (float) $this->gross_total,
             'pre_vat'             => (float) $this->pre_vat,

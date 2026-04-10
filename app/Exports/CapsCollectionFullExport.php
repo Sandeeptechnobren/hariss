@@ -56,14 +56,15 @@ class CapsCollectionFullExport implements
             'customerdata',
             'salesman',
         ])
-        ->when(
-            $this->fromDate && $this->toDate,
-            fn($q) =>
-            $q->whereBetween('created_at', [
-                $this->fromDate . ' 00:00:00',
-                $this->toDate . ' 23:59:59'
-            ])
-        )
+            ->withSum('details as itemtotal', 'collected_quantity')
+            ->when(
+                $this->fromDate && $this->toDate,
+                fn($q) =>
+                $q->whereBetween('created_at', [
+                    $this->fromDate . ' 00:00:00',
+                    $this->toDate . ' 23:59:59'
+                ])
+            )
 
             ->when(
                 !empty($this->salesmanIds),
@@ -83,8 +84,8 @@ class CapsCollectionFullExport implements
                 $q->whereIn('warehouse_id', $this->warehouseIds)
             );
 
-            $query = DataAccessHelper::filterAgentTransaction($query, Auth::user());
-            $headers = $query->get();
+        $query = DataAccessHelper::filterAgentTransaction($query, Auth::user());
+        $headers = $query->get();
 
         foreach ($headers as $header) {
 
@@ -93,26 +94,20 @@ class CapsCollectionFullExport implements
                 'Date' => $header->created_at
                     ? Carbon::parse($header->created_at)->format('d M Y')
                     : '',
-                'Warehouse' => trim(
-                    ($header->warehouse->warehouse_code ?? '') . '-' .
+
+                'Distributer' => trim(
+                    ($header->warehouse->warehouse_code ?? '') . ' - ' .
                         ($header->warehouse->warehouse_name ?? '')
                 ),
-                'Route' => trim(
-                    ($header->route->route_code ?? '') . '-' .
-                        ($header->route->route_name ?? '')
-                ),
+
                 'Customer' => trim(
-                    ($header->customerdata->osa_code ?? '') . '-' .
+                    ($header->customerdata->osa_code ?? '') . ' - ' .
                         ($header->customerdata->name ?? '')
                 ),
-                'Salesman' => trim(
-                    ($header->salesman->osa_code ?? '') . '-' .
-                        ($header->salesman->name ?? '')
-                ),
+
                 'Contact No' => $header->contact_no,
-                // 'Status' => $this->mapStatus($header->status),
-                'Latitude' => $header->latitude,
-                'Longitude' => $header->longitude,
+
+                'Total Qty' => $header->itemtotal ?? 0,
             ];
         }
 
@@ -124,14 +119,11 @@ class CapsCollectionFullExport implements
         return [
             'Code',
             'Date',
-            'Warehouse',
-            'Route',
+            'Distributer',
             'Customer',
-            'Salesman',
             'Contact No',
+            'Total Qty',
             // 'Status',
-            'Latitude',
-            'Longitude',
         ];
     }
 

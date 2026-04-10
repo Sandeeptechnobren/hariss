@@ -3,7 +3,6 @@
 namespace App\Exports;
 
 use App\Models\Agent_Transaction\CapsCollectionHeader;
-use App\Models\Agent_Transaction\CapsCollectionDetail;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
@@ -15,30 +14,25 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
+use Carbon\Carbon;
 use App\Helpers\DataAccessHelper;
 use Illuminate\Support\Facades\Auth;
 
-class CapsCollectionCollapseExport implements
-    FromCollection,
-    WithHeadings,
-    ShouldAutoSize,
-    WithEvents,
-    WithStyles
+class CapsCollectionCollapseExport implements FromCollection, WithHeadings, ShouldAutoSize, WithEvents, WithStyles
 {
-    protected $from;
-    protected $to;
+    protected $groupIndexes = [];
+    protected $fromDate;
+    protected $toDate;
     protected $warehouseIds;
     protected $routeIds;
     protected $salesmanIds;
-    protected $groupIndexes = [];
 
-    public function __construct($from = null, $to = null, $warehouseIds = [], $routeIds = [], $salesmanIds = [])
+    public function __construct($fromDate = null, $toDate = null, $warehouseIds = [], $routeIds = [], $salesmanIds = [])
     {
-        $today = now()->toDateString();
-        $this->from = $from ?: $today;
-        $this->to   = $to   ?: $today;
-        // $this->from = $from;
-        // $this->to   = $to;
+        // ✅ FIXED (no auto today)
+        $this->fromDate = $fromDate;
+        $this->toDate   = $toDate;
+
         $this->warehouseIds = $warehouseIds;
         $this->routeIds = $routeIds;
         $this->salesmanIds = $salesmanIds;
@@ -51,46 +45,52 @@ class CapsCollectionCollapseExport implements
 
         $query = CapsCollectionHeader::with([
             'warehouse',
-            'route',
-            'salesman',
-            'customerdata'
+            'customerdata',
+            'details.item',
+            'details.uom2'
         ])
-            ->when($this->from, fn($q) => $q->whereDate('created_at', '>=', $this->from))
-            ->when($this->to, fn($q) => $q->whereDate('created_at', '<=', $this->to))
+            ->withSum('details as itemtotal', 'collected_quantity')
 
-            // 🔥 ADDED FILTERS (no change to existing logic)
+            // ✅ DATE FILTER FIX
+            ->when($this->fromDate && $this->toDate, function ($q) {
+                $q->whereBetween('created_at', [
+                    Carbon::parse($this->fromDate)->startOfDay(),
+                    Carbon::parse($this->toDate)->endOfDay(),
+                ]);
+            })
+
+            ->when(
+                !empty($this->warehouseIds),
+                fn($q) => $q->whereIn('warehouse_id', $this->warehouseIds)
+            )
+            ->when(
+                !empty($this->routeIds),
+                fn($q) => $q->whereIn('route_id', $this->routeIds)
+            )
             ->when(
                 !empty($this->salesmanIds),
-                fn($q) =>
-                $q->whereIn('salesman_id', $this->salesmanIds)
-            )
-
-            ->when(
-                empty($this->salesmanIds) && !empty($this->routeIds),
-                fn($q) =>
-                $q->whereIn('route_id', $this->routeIds)
-            )
-
-            ->when(
-                empty($this->salesmanIds) && empty($this->routeIds) && !empty($this->warehouseIds),
-                fn($q) =>
-                $q->whereIn('warehouse_id', $this->warehouseIds)
+                fn($q) => $q->whereIn('salesman_id', $this->salesmanIds)
             );
 
-            $query = DataAccessHelper::filterAgentTransaction($query, Auth::user());
-            $headers = $query->get();
+        $query = DataAccessHelper::filterAgentTransaction($query, Auth::user());
+
+        $headers = $query->get();
 
         foreach ($headers as $header) {
 
-            $details   = $header->details;
-            $itemCount = $details->count();
             $headerRow = $rowIndex;
 
+            // ✅ HEADER
             $rows[] = [
                 $header->code,
-                trim(($header->warehouse->warehouse_code ?? '') . '-' . ($header->warehouse->warehouse_name ?? '')),
-                trim(($header->customerdata->osa_code ?? '') . '-' . ($header->customerdata->name ?? '')),
-                $itemCount,
+                optional($header->created_at)->format('d M Y'),
+                trim(($header->warehouse->warehouse_code ?? '') . ' - ' . ($header->warehouse->warehouse_name ?? '')),
+                trim(($header->customerdata->osa_code ?? '') . ' - ' . ($header->customerdata->name ?? '')),
+                $header->details->count(),
+                $header->itemtotal ?? 0,
+                '',
+                '',
+                '',
                 '',
                 '',
                 '',
@@ -98,49 +98,82 @@ class CapsCollectionCollapseExport implements
             ];
 
             $rowIndex++;
-            $detailRowIndexes = [];
 
-            foreach ($details as $d) {
+            // ✅ DETAIL HEADING
+            $detailHeadingRow = $rowIndex;
+
+            $rows[] = [
+                '',
+                'Item',
+                'UOM',
+                'Collected Qty',
+                'Item Price',
+                'Total',
+                'Status',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+            ];
+
+            $rowIndex++;
+
+            // ✅ DETAILS
+            foreach ($header->details as $detail) {
 
                 $rows[] = [
                     '',
+                    trim(($detail->item->code ?? '') . ' - ' . ($detail->item->name ?? '')),
+                    $detail->uom2->name ?? '',
+                    (float) $detail->collected_quantity,
+                    (float) $detail->price,
+                    (float) $detail->total,
+                    $detail->status == 1 ? 'Active' : 'Inactive',
                     '',
                     '',
                     '',
-                    trim(($d->item->code ?? '') . '-' . ($d->item->name ?? '')),
-                    $d->uom2->name ?? '',
-                    (float) $d->collected_quantity,
-                    $d->status == 1 ? 'Active' : 'Inactive',
+                    '',
+                    '',
+                    '',
                 ];
 
-                $detailRowIndexes[] = $rowIndex;
                 $rowIndex++;
             }
 
-            if (!empty($detailRowIndexes)) {
+            // ✅ GROUP
+            if ($detailHeadingRow + 1 < $rowIndex) {
                 $this->groupIndexes[] = [
-                    'start' => $headerRow + 1,
-                    'end'   => max($detailRowIndexes),
+                    'header_row' => $headerRow,
+                    'start'      => $detailHeadingRow,
+                    'end'        => $rowIndex - 1,
                 ];
             }
 
-            $rows[] = array_fill(0, count($rows[0]), '');
+            // ✅ GAP
+            $rows[] = array_fill(0, 20, '');
             $rowIndex++;
         }
 
         return new Collection($rows);
     }
+
     public function headings(): array
     {
         return [
-            'OSA Code',
-            'Warehouse',
+            'Caps Collection Code',
+            'Date',
+            'Distributer',
             'Customer',
             'Item Count',
-            'Item',
-            'UOM',
-            'Collected Qty',
-            'Status',
+            'Item Qty Total',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
         ];
     }
 
@@ -158,34 +191,46 @@ class CapsCollectionCollapseExport implements
             AfterSheet::class => function (AfterSheet $event) {
 
                 $sheet = $event->sheet->getDelegate();
-                $lastColumn = $sheet->getHighestColumn();
-                $sheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
+
+                // ✅ HEADER COLOR ONLY A → G
+                $sheet->getStyle("A1:G1")->applyFromArray([
                     'font' => [
-                        'bold'  => true,
-                        'color' => ['rgb' => 'FFFFFF'],
+                        'bold' => true,
+                        'color' => ['rgb' => 'FFFFFF']
                     ],
                     'alignment' => [
                         'horizontal' => Alignment::HORIZONTAL_CENTER,
                         'vertical'   => Alignment::VERTICAL_CENTER,
                     ],
                     'fill' => [
-                        'fillType'   => Fill::FILL_SOLID,
+                        'fillType' => Fill::FILL_SOLID,
                         'startColor' => ['rgb' => '993442'],
                     ],
                     'borders' => [
                         'allBorders' => [
-                            'borderStyle' => Border::BORDER_THIN,
-                            'color'       => ['rgb' => '000000'],
+                            'borderStyle' => Border::BORDER_THIN
                         ],
                     ],
                 ]);
 
-                $sheet->getRowDimension(1)->setRowHeight(25);
                 foreach ($this->groupIndexes as $group) {
+
+                    // header visible
+                    $sheet->getRowDimension($group['header_row'])
+                        ->setOutlineLevel(0)
+                        ->setVisible(true);
+
+                    // collapse
                     for ($i = $group['start']; $i <= $group['end']; $i++) {
-                        $sheet->getRowDimension($i)->setOutlineLevel(1);
-                        $sheet->getRowDimension($i)->setVisible(false);
+                        $sheet->getRowDimension($i)
+                            ->setOutlineLevel(1)
+                            ->setVisible(false);
                     }
+
+                    // ✅ DETAIL HEADING BOLD
+                    $sheet->getStyle("B{$group['start']}:G{$group['start']}")
+                        ->getFont()
+                        ->setBold(true);
                 }
 
                 $sheet->setShowSummaryBelow(false);

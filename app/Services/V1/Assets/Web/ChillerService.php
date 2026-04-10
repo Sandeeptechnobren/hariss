@@ -80,7 +80,7 @@ class ChillerService
                 ->orderBy('serial_number')
                 ->pluck('serial_number');
         }
-        $query = DataAccessHelper::filterRoutes($query, $user);
+        // $query = DataAccessHelper::filterAssets($query, $user);
         foreach ($filters as $field => $value) {
             if (!empty($value)) {
                 if (in_array($field, ['osa_code', 'serial_number'])) {
@@ -442,17 +442,11 @@ class ChillerService
     // }
 
 
-    public function filterData(array $filters = [], int $perPage = 50)
+public function filterData(array $filters = [], int $perPage = 50)
     {
-        $query = AddChiller::query()
-            ->whereNull('deleted_at')
-            ->orderByDesc('id');
-
+        $query = AddChiller::query()->whereNull('deleted_at')->orderByDesc('id');
         $filter = $filters['filter'] ?? [];
-
-
         if (!empty($filter)) {
-
             $warehouseIds = CommonLocationFilter::resolveWarehouseIds([
                 'company_id'   => $filter['company_id']   ?? null,
                 'region_id'    => $filter['region_id']    ?? null,
@@ -460,31 +454,25 @@ class ChillerService
                 'warehouse_id' => $filter['warehouse_id'] ?? null,
                 'route_id'     => $filter['route_id']     ?? null,
             ]);
-
             if (!empty($warehouseIds)) {
                 $query->whereIn('warehouse_id', $warehouseIds);
             }
         }
-
         if (!empty($filter['status'])) {
             $statuses = is_array($filter['status'])
                 ? $filter['status']
                 : explode(',', $filter['status']);
-
             $query->whereIn('status', $statuses);
         }
-
         if (!empty($filter['model'])) {
             $modelIds = is_array($filter['model'])
                 ? $filter['model']
                 : explode(',', $filter['model']);
-
             $query->whereIn(
                 'model_number',
                 array_filter(array_map('intval', $modelIds))
             );
         }
-
         return $query->paginate($perPage);
     }
 

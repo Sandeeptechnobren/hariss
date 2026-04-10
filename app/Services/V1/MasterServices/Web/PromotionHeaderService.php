@@ -8,6 +8,7 @@ use App\Models\PromotionOfferItem;
 use App\Models\PromotionalSlab;
 use App\Models\AgentCustomer;
 use App\Models\Warehouse;
+use App\Models\Agent_Transaction\InvoiceHeader;
 use App\Models\Area;
 use App\Models\Region;
 use App\Models\Company;
@@ -1485,5 +1486,21 @@ class PromotionHeaderService
             })
             ->values()
             ->toArray();
+    }
+
+    public function invoice_promo(array $filters)
+    {
+        try {
+             $query = PromotionHeader::select('id','promotion_name')->with('invoices')->orderByDesc('id');
+
+                if (!empty($filters['promotion_id'])) {
+                    $query->where('id', $filters['promotion_id']);
+                }
+                
+                $limit = $filters['limit'] ?? 10;
+                return $query->paginate($limit);
+        } catch (\Throwable $e) {
+            throw new \Exception('Failed to fetch Invoice list. Please try again later.',500,$e);
+        }
     }
 }

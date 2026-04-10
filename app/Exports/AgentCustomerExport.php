@@ -16,7 +16,7 @@ class AgentCustomerExport implements FromCollection, WithHeadings
         'owner_name'     => 'Owner Name',
         'customer_type'  => 'Customer Type',
         'route_name'     => 'Route Name',
-        'warehouse_name' => 'Warehouse Name',
+        'warehouse_name' => 'Distributor Name',
         'outlet_channel' => 'Outlet Channel',
         'category'       => 'Category',
         'subcategory'    => 'Subcategory',
@@ -42,45 +42,102 @@ class AgentCustomerExport implements FromCollection, WithHeadings
             : array_values(array_intersect($columns, array_keys($this->availableColumns)));
     }
 
+    // public function collection()
+    // {
+    //     return $this->data->map(function ($item) {
+    //         $row = [];
+
+    //         foreach ($this->columns as $column) {
+    //             $row[] = match ($column) {
+    //                 'osa_code'       => $item->osa_code ?? '',
+    //                 'name'           => $item->name ?? '',
+    //                 'owner_name'     => $item->owner_name ?? '',
+    //                 'customer_type'  => $item->customer_type ?? '',
+    //                 'route_name'     => $item->route_name ?? '',
+    //                 'warehouse_name' => $item->warehouse_name ?? '',
+    //                 'outlet_channel' => $item->outlet_channel ?? '',
+    //                 'category'       => $item->category ?? '',
+    //                 'subcategory'    => $item->subcategory ?? '',
+    //                 'contact_no'     => $item->contact_no ?? '',
+    //                 'contact_no2'    => $item->contact_no2 ?? '',
+    //                 'street'         => $item->street ?? '',
+    //                 'town'           => $item->town ?? '',
+    //                 'landmark'       => $item->landmark ?? '',
+    //                 'district'       => $item->district ?? '',
+    //                 'payment_type'   => match ((int) ($item->payment_type ?? 0)) {
+    //                     1 => 'Cash',
+    //                     2 => 'Cheque',
+    //                     3 => 'Transfer',
+    //                     default => '',
+    //                 },
+    //                 'credit_limit'   => $item->credit_limit ?? '',
+    //                 'longitude'      => $item->longitude ?? '',
+    //                 'latitude'       => $item->latitude ?? '',
+    //                 'status'         => ((int) ($item->status ?? 0) === 1) ? 'Active' : 'Inactive',
+    //                 default          => '',
+    //             };
+    //         }
+
+    //         return $row;
+    //     });
+    // }
+
     public function collection()
-    {
-        return $this->data->map(function ($item) {
-            $row = [];
+{
+    return $this->data->map(function ($item) {
+        $row = [];
 
-            foreach ($this->columns as $column) {
-                $row[] = match ($column) {
-                    'osa_code'       => $item->osa_code ?? '',
-                    'name'           => $item->name ?? '',
-                    'owner_name'     => $item->owner_name ?? '',
-                    'customer_type'  => $item->customer_type ?? '',
-                    'route_name'     => $item->route_name ?? '',
-                    'warehouse_name' => $item->warehouse_name ?? '',
-                    'outlet_channel' => $item->outlet_channel ?? '',
-                    'category'       => $item->category ?? '',
-                    'subcategory'    => $item->subcategory ?? '',
-                    'contact_no'     => $item->contact_no ?? '',
-                    'contact_no2'    => $item->contact_no2 ?? '',
-                    'street'         => $item->street ?? '',
-                    'town'           => $item->town ?? '',
-                    'landmark'       => $item->landmark ?? '',
-                    'district'       => $item->district ?? '',
-                    'payment_type'   => match ((int) ($item->payment_type ?? 0)) {
-                        1 => 'Cash',
-                        2 => 'Cheque',
-                        3 => 'Transfer',
-                        default => '',
-                    },
-                    'credit_limit'   => $item->credit_limit ?? '',
-                    'longitude'      => $item->longitude ?? '',
-                    'latitude'       => $item->latitude ?? '',
-                    'status'         => ((int) ($item->status ?? 0) === 1) ? 'Active' : 'Inactive',
-                    default          => '',
-                };
-            }
+        foreach ($this->columns as $column) {
+            $row[] = match ($column) {
 
-            return $row;
-        });
-    }
+                'osa_code'       => $item->osa_code ?? '',
+                'name'           => $item->name ?? '',
+                'owner_name'     => $item->owner_name ?? '',
+                'customer_type'  => $item->customer_type ?? '',
+                'route_name'     => $item->route_code
+                    ? $item->route_code . ' - ' . $item->route_name
+                    : $item->route_name ?? '',
+                'warehouse_name' => $item->warehouse_code
+                    ? $item->warehouse_code . ' - ' . $item->warehouse_name
+                    : $item->warehouse_name ?? '',
+                'outlet_channel' => $item->outlet_channel ?? '',
+                'category'       => $item->category ?? '',
+                'subcategory'    => $item->subcategory ?? '',
+                'contact_no'     => isset($item->contact_no)
+                    ? (string) $item->contact_no
+                    : '',
+
+                'contact_no2'    => isset($item->contact_no2)
+                    ? (string) $item->contact_no2
+                    : '',
+
+                'street'         => $item->street ?? '',
+                'town'           => $item->town ?? '',
+                'landmark'       => $item->landmark ?? '',
+                'district'       => $item->district ?? '',
+
+                'payment_type'   => match ((int) ($item->payment_type ?? 0)) {
+                    1 => 'Cash',
+                    2 => 'Cheque',
+                    3 => 'Transfer',
+                    default => '',
+                },
+
+                'credit_limit'   => $item->credit_limit ?? '',
+                'longitude'      => $item->longitude ?? '',
+                'latitude'       => $item->latitude ?? '',
+
+                'status'         => ((int) ($item->status ?? 0) === 1)
+                    ? 'Active'
+                    : 'Inactive',
+
+                default => '',
+            };
+        }
+
+        return $row;
+    });
+}
 
     public function headings(): array
     {

@@ -3,24 +3,33 @@
 namespace App\Exports;
 
 use App\Models\AddChiller;
-use Maatwebsite\Excel\Concerns\FromArray;
+use Carbon\Carbon;
+use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Events\AfterSheet;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
 
-class AddChillerFullExport implements FromArray, WithHeadings
+class AddChillerFullExport implements
+    FromCollection,
+    WithHeadings,
+    ShouldAutoSize,
+    WithEvents
 {
-    protected $uuid;
-    protected $warehouseIds;
-    protected $status;
-    protected $model;
+    protected $uuid, $warehouseIds, $status, $model;
 
     public function __construct($uuid = null, $warehouseIds = [], $status = [], $model = [])
     {
         $this->uuid = $uuid;
-        $this->warehouseIds = $warehouseIds;
-        $this->status = $status;
-        $this->model = $model;
+        $this->warehouseIds = (array) $warehouseIds;
+        $this->status = (array) $status;
+        $this->model = (array) $model;
     }
-    public function array(): array
+
+    public function collection()
     {
         $query = AddChiller::with([
             'country',
@@ -29,118 +38,111 @@ class AddChillerFullExport implements FromArray, WithHeadings
             'modelNumber',
             'manufacture',
             'brand',
-            'fridgeStatus'
-        ])
-            ->when(!empty($this->warehouseIds), function ($q) {
-                $q->whereIn('warehouse_id', $this->warehouseIds);
-            })
-            ->when(!empty($this->status), function ($q) {
+            'fridgeStatus',
+            'warehouse',
+            'customer'
+        ]);
 
-                $status = $this->status;
+        if (!empty($this->warehouseIds)) {
+            $query->whereIn('warehouse_id', $this->warehouseIds);
+        }
 
-                if (is_array($status)) {
-                    $status = implode(',', $status);
-                }
+        if (!empty($this->status)) {
+            $query->whereIn('status', array_map('intval', $this->status));
+        }
 
-                $status = array_map('intval', explode(',', $status));
-
-                $q->whereIn('status', $status);
-            })
-            ->when(!empty($this->model), function ($q) {
-
-                if (is_array($this->model)) {
-                    $modelIds = $this->model;
-                } else {
-                    $modelIds = explode(',', $this->model);
-                }
-                $modelIds = array_filter(array_map('intval', $modelIds));
-                $q->whereIn('model_number', $modelIds);
-            });
+        if (!empty($this->model)) {
+            $query->whereIn('model_number', array_map('intval', $this->model));
+        }
 
         if ($this->uuid) {
             $query->where('uuid', $this->uuid);
         }
-        // dd($query->count());
-        $chillers = $query->get();
-        $data = [];
 
-        foreach ($chillers as $c) {
-            $data[] = [
-                'osa_code'   => $c->osa_code,
-                'sap_code'   => $c->sap_code,
-                'serial_number' => $c->serial_number,
-                'acquisition'   => $c->acquisition,
-                'assets_type'   => $c->assets_type,
-
-                // Country
-                // 'country_code' => $c->country->country_code ?? null,
-                // 'country_name' => $c->country->country_name ?? null,
-
-                // Vendor
-                // 'vendor_code' => $c->vendor->code ?? null,
-                'vendor_name' => $c->vendor->name ?? null,
-
-                // Assets Category
-                'assets_category_code' => $c->assetsCategory->osa_code ?? null,
-                'assets_category_name' => $c->assetsCategory->name ?? null,
-
-                // Model Number
-                'model_number_code' => $c->modelNumber->code ?? null,
-                'model_number_name' => $c->modelNumber->name ?? null,
-
-                // Manufacturer
-                'manufacturer_code' => $c->manufacture->osa_code ?? null,
-                'manufacturer_name' => $c->manufacture->name ?? null,
-
-                // Branding
-                'brand_code' => $c->brand->osa_code ?? null,
-                'brand_name' => $c->brand->name ?? null,
-                // 'status'        => $c->status,
-                'remarks'       => $c->remarks,
-                'trading_partner_number' => $c->trading_partner_number,
-                'capacity'      => $c->capacity,
-                'manufacturing_year' => $c->manufacturing_year,
-                'status' => $c->fridgeStatus->name ?? null,
-                // 'created_at'    => $c->created_at,
+        return $query->get()->map(function ($c) {
+            return [
+                'Chiller Code' => $c->osa_code ?? '',
+                'Serial Number' => $c->serial_number ?? '',
+                'Acquisition' => $c->acquisition
+                    ? Carbon::parse($c->acquisition)->format('d M Y')
+                    : '',
+                'Chiller Type' => $c->assets_type ?? '',
+                'Distributor' => trim(
+                    (optional($c->warehouse)->warehouse_code ?? '') . ' - ' .
+                        (optional($c->warehouse)->warehouse_name ?? '')
+                ),
+                'Customer' => trim(
+                    (optional($c->customer)->osa_code ?? '') . ' - ' .
+                        (optional($c->customer)->name ?? '')
+                ),
+                'Vendor' => optional($c->vendor)->name ?? '',
+                'Chiller Number' => optional($c->assetsCategory)->name ?? '',
+                'Model' => optional($c->modelNumber)->name ?? '',
+                'Manufacturer' => optional($c->manufacture)->name ?? '',
+                'Brand' => optional($c->brand)->name ?? '',
+                'Remarks' => $c->remarks ?? '',
+                'Capacity' => $c->capacity ?? '',
+                'Manufacturing Year' => $c->manufacturing_year ?? '',
+                'Status' => optional($c->fridgeStatus)->name ?? '',
             ];
-        }
-
-        return $data;
+        });
     }
 
     public function headings(): array
     {
         return [
-            'Code',
-            'SAP Code',
+            'Chiller Code',
             'Serial Number',
             'Acquisition',
-            'Assets Type',
-
-            // 'Country Code',
-            // 'Country Name',
-
-            // 'Vendor Code',
-            'Vendor Name',
-
-            'Assets Category Code',
-            'Assets Category Name',
-
-            'Model Number Code',
-            'Model Number Name',
-
-            'Manufacturer Code',
-            'Manufacturer Name',
-
-            'Brand Code',
-            'Brand Name',
-
+            'Chiller Type',
+            'Distributor',
+            'Customer',
+            'Vendor',
+            'Chiller Number',
+            'Model',
+            'Manufacturer',
+            'Brand',
             'Remarks',
-            'Trading Partner Number',
             'Capacity',
             'Manufacturing Year',
             'Status',
-            // 'Created At',
+        ];
+    }
+
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => function (AfterSheet $event) {
+
+                $sheet = $event->sheet->getDelegate();
+                $lastColumn = $sheet->getHighestColumn();
+                $lastRow = $sheet->getHighestRow();
+
+                // Header Style
+                $sheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
+                    'font' => [
+                        'bold'  => true,
+                        'color' => ['rgb' => 'FFFFFF'],
+                    ],
+                    'alignment' => [
+                        'vertical'   => Alignment::VERTICAL_CENTER,
+                    ],
+                    'fill' => [
+                        'fillType'   => Fill::FILL_SOLID,
+                        'startColor' => ['rgb' => '993442'],
+                    ],
+                ]);
+                $sheet->getStyle("A1:{$lastColumn}{$lastRow}")
+                    ->getBorders()
+                    ->getAllBorders()
+                    ->setBorderStyle(Border::BORDER_THIN);
+
+                $sheet->getStyle("A1:{$lastColumn}{$lastRow}")
+                    ->getAlignment()
+                    ->setVertical(Alignment::VERTICAL_CENTER);
+
+                $sheet->getRowDimension(1)->setRowHeight(25);
+            },
         ];
     }
 }

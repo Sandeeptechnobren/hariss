@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\Blames;
-
+use App\Models\Agent_Transaction\InvoiceHeader;
 
 class PromotionHeader extends Model
 {
@@ -77,4 +77,12 @@ class PromotionHeader extends Model
     {
         return $this->hasMany(PromotionalSlab::class, 'promotion_header_id');
     }
+     public function promotion_data()
+    {
+        return $this->belongsTo(InvoiceHeader::class, 'promotion_id');
+    }
+    public function invoices()
+{
+    return $this->hasMany(InvoiceHeader::class, 'promotion_id');
+}
 }

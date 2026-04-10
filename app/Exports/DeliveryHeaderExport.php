@@ -39,7 +39,6 @@ class DeliveryHeaderExport implements
     public function collection()
     {
         $rows = [];
-
         $query = AgentDeliveryHeaders::with([
             'warehouse',
             'route',
@@ -75,7 +74,7 @@ class DeliveryHeaderExport implements
 
             $rows[] = [
                 'Delivery Code' => (string) ($header->delivery_code ?? ''),
-                'Delivery Date' => (string) optional($header->created_at)->format('Y-m-d'),
+                'Delivery Date' => (string) optional($header->created_at)->format('d-M-Y'),
                 'Warehouse' => trim(
                     ($header->warehouse->warehouse_code ?? '') . '-' .
                         ($header->warehouse->warehouse_name ?? '')
@@ -111,7 +110,7 @@ class DeliveryHeaderExport implements
         return [
             'Delivery Code',
             'Delivery Date',
-            'Warehouse',
+            'Distributors',
             'Route',
             'Salesman',
             'Customer',

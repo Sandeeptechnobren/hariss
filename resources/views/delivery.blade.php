@@ -121,35 +121,25 @@
         </tr>
         <tr>
             <th style="border:1px solid #000;">S/N</th>
-            <th style="border:1px solid #000;">Description</th>
-            <th style="border:1px solid #000;">Qty</th>
+            <th style="border:1px solid #000;">Item</th>
             <th style="border:1px solid #000;">UOM</th>
+            <th style="border:1px solid #000;">Qty</th>
             <th style="border:1px solid #000;">Price</th>
-            <th style="border:1px solid #000;">
-                Total {{ $delivery->currency_name }}
-            </th>
+            <th style="border:1px solid #000;">Vat</th>
+            <th style="border:1px solid #000;">Net</th>
+            <th style="border:1px solid #000;">Total</th>
         </tr>
 
         @foreach($deliveryDetails as $i => $item)
         <tr>
-            <td style="border:1px solid #000; text-align:center;">
-                {{ $i+1 }}
-            </td>
-            <td style="border:1px solid #000;">
-                {{ $item->item->name ?? '' }}
-            </td>
-            <td style="border:1px solid #000; text-align:center;">
-                {{ $item->quantity }}
-            </td>
-            <td style="border:1px solid #000; text-align:center;">
-                {{ $item->Uom->name ?? '' }}
-            </td>
-            <td style="border:1px solid #000; text-align:right;">
-                {{ number_format($item->item_price, 2) }}
-            </td>
-            <td style="border:1px solid #000; text-align:right;">
-                {{ number_format($item->total, 2) }}
-            </td>
+            <td style="border:1px solid #000; text-align:center;">{{ $i+1 }}</td>
+            <td style="border:1px solid #000;">{{ ($item->item?->erp_code ?? '') . ' - ' . ($item->item?->name ?? '') }}</td>
+            <td style="border:1px solid #000; text-align:center;"> {{ $item->Uom->name ?? '' }}</td>
+            <td style="border:1px solid #000; text-align:center;">{{ $item->quantity }}</td>
+            <td style="border:1px solid #000; text-align:right;">{{ number_format($item->item_price, 2) }}</td>
+            <td style="border:1px solid #000; text-align:right;">{{ number_format($item->vat, 2) }}</td>
+            <td style="border:1px solid #000; text-align:right;">{{ number_format($item->net_total, 2) }}</td>
+            <td style="border:1px solid #000; text-align:right;">{{ number_format($item->total, 2) }}</td>
         </tr>
         @endforeach
     </table>
@@ -176,8 +166,8 @@
                 <table width="100%" cellpadding="4" cellspacing="0"
                     style="border-collapse:collapse;">
                     <tr>
-                        <td>Discount</td>
-                        <td style="text-align:right;">0.00</td>
+                        <!-- <td>Discount</td>
+                        <td style="text-align:right;">0.00</td> -->
                     </tr>
                 </table>
             </td>
@@ -200,9 +190,9 @@
                 <table width="100%" cellpadding="4" cellspacing="0"
                     style="border-collapse:collapse;">
                     <tr>
-                        <td style="font-weight:bold;">Total</td>
+                        <td style="font-weight:bold;">Total (UGX)</td>
                         <td style="text-align:right; font-weight:bold;">
-                            {{ number_format($delivery->total, 2) }}
+                            {{ number_format($delivery->total, 2) }} 
                         </td>
                     </tr>
                 </table>

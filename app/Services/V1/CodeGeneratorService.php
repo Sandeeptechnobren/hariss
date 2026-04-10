@@ -8,9 +8,9 @@ use Carbon\Carbon;
 
 class CodeGeneratorService
 {
-public function generateNextCodeAtomically(string $prefix): string
+    public function generateNextCodeAtomically(string $prefix): string
     {
-        
+
         $year = now()->year;
 
         return DB::transaction(function () use ($prefix, $year) {
@@ -57,57 +57,57 @@ public function generateNextCodeAtomically(string $prefix): string
             );
         });
     }
-// public function generateNextCodeAtomically(string $prefix): string
-// {
-//     $now = now();
-//     $year = $now->year;
-//     $datePart = $now->format('ymd'); // YYMMDD
+    // public function generateNextCodeAtomically(string $prefix): string
+    // {
+    //     $now = now();
+    //     $year = $now->year;
+    //     $datePart = $now->format('ymd'); // YYMMDD
 
-//     return DB::transaction(function () use ($prefix, $year, $datePart) {
+    //     return DB::transaction(function () use ($prefix, $year, $datePart) {
 
-//         $counter = CodeCounter::where('prefix', $prefix)
-//             ->where('year', $year)
-//             ->lockForUpdate()
-//             ->first();
+    //         $counter = CodeCounter::where('prefix', $prefix)
+    //             ->where('year', $year)
+    //             ->lockForUpdate()
+    //             ->first();
 
-//         if (!$counter) {
-//             try {
-//                 $counter = CodeCounter::create([
-//                     'prefix' => $prefix,
-//                     'year' => $year,
-//                     'current_value' => 1,
-//                 ]);
-//             } catch (\Illuminate\Database\QueryException $e) {
-//                 $counter = CodeCounter::where('prefix', $prefix)
-//                     ->where('year', $year)
-//                     ->lockForUpdate()
-//                     ->first();
-//             }
-//         }
+    //         if (!$counter) {
+    //             try {
+    //                 $counter = CodeCounter::create([
+    //                     'prefix' => $prefix,
+    //                     'year' => $year,
+    //                     'current_value' => 1,
+    //                 ]);
+    //             } catch (\Illuminate\Database\QueryException $e) {
+    //                 $counter = CodeCounter::where('prefix', $prefix)
+    //                     ->where('year', $year)
+    //                     ->lockForUpdate()
+    //                     ->first();
+    //             }
+    //         }
 
-//         /*
-//         MAGIC PART ⭐
-//         We detect if the stored counter belongs to today.
-//         */
+    //         /*
+    //         MAGIC PART ⭐
+    //         We detect if the stored counter belongs to today.
+    //         */
 
-//         $lastGenerated = $counter->updated_at?->format('ymd');
+    //         $lastGenerated = $counter->updated_at?->format('ymd');
 
-//         if ($lastGenerated !== $datePart) {
-//             $counter->current_value = 1;
-//             $counter->save();
-//         }
+    //         if ($lastGenerated !== $datePart) {
+    //             $counter->current_value = 1;
+    //             $counter->save();
+    //         }
 
-//         $next = $counter->current_value;
+    //         $next = $counter->current_value;
 
-//         $counter->increment('current_value');
+    //         $counter->increment('current_value');
 
-//         return sprintf(
-//             '%s%s%s',
-//             $prefix,
-//             $datePart,
-//             str_pad($next, 4, '0', STR_PAD_LEFT)
-//         );
-//     });
-// }
+    //         return sprintf(
+    //             '%s%s%s',
+    //             $prefix,
+    //             $datePart,
+    //             str_pad($next, 4, '0', STR_PAD_LEFT)
+    //         );
+    //     });
+    // }
 
 }

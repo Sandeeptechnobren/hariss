@@ -98,77 +98,77 @@ class VehicleController extends Controller
      * )
      */
 
-// public function index(Request $request): JsonResponse
-//     {
-//         $perPage  = (int) $request->get('limit', 50);
-//         $dropdown = filter_var($request->get('dropdown', false), FILTER_VALIDATE_BOOLEAN);
+    // public function index(Request $request): JsonResponse
+    //     {
+    //         $perPage  = (int) $request->get('limit', 50);
+    //         $dropdown = filter_var($request->get('dropdown', false), FILTER_VALIDATE_BOOLEAN);
 
-//         $filters = $request->only([
-//             'vehicle_code',
-//             'number_plat',
-//             'status',
-//             'warehouse_id'
-//         ]);
-//         $vehicles = $this->service->getAll($perPage, $filters, $dropdown);
-//         if ($dropdown) {
-//             return response()->json([
-//                 'status'  => 'success',
-//                 'code'    => 200,
-//                 'message' => 'Vehicle dropdown fetched successfully',
-//                 'data'    => $vehicles,
-//             ]);
-//         }
-//         return response()->json([
-//             'status' => 'success',
-//             'code'   => 200,
-//             'message' => 'Vehicles fetched successfully',
-//             'data' => $vehicles->items(),
-//             'pagination' => [
-//                 'page'          => $vehicles->currentPage(),
-//                 'limit'         => $vehicles->perPage(),
-//                 'totalPages'    => $vehicles->lastPage(),
-//                 'totalRecords'  => $vehicles->total(),
-//             ],
-//         ]);
-//     }
-   
-public function index(Request $request): JsonResponse
-{
-    $perPage = (int) $request->get('per_page', $request->get('limit', 50));
-    $page = (int) $request->get('page', 1);
-    $dropdown = filter_var($request->get('dropdown', false), FILTER_VALIDATE_BOOLEAN);
+    //         $filters = $request->only([
+    //             'vehicle_code',
+    //             'number_plat',
+    //             'status',
+    //             'warehouse_id'
+    //         ]);
+    //         $vehicles = $this->service->getAll($perPage, $filters, $dropdown);
+    //         if ($dropdown) {
+    //             return response()->json([
+    //                 'status'  => 'success',
+    //                 'code'    => 200,
+    //                 'message' => 'Vehicle dropdown fetched successfully',
+    //                 'data'    => $vehicles,
+    //             ]);
+    //         }
+    //         return response()->json([
+    //             'status' => 'success',
+    //             'code'   => 200,
+    //             'message' => 'Vehicles fetched successfully',
+    //             'data' => $vehicles->items(),
+    //             'pagination' => [
+    //                 'page'          => $vehicles->currentPage(),
+    //                 'limit'         => $vehicles->perPage(),
+    //                 'totalPages'    => $vehicles->lastPage(),
+    //                 'totalRecords'  => $vehicles->total(),
+    //             ],
+    //         ]);
+    //     }
 
-    $filters = [
-        'vehicle_code' => $request->get('vehicle_code'),
-        'number_plat' => $request->get('number_plat'),
-        'status' => $request->get('status'),
-        'warehouse_id' => $request->get('warehouse_id'),
-    ];
+    public function index(Request $request): JsonResponse
+    {
+        $perPage = (int) $request->get('per_page', $request->get('limit', 50));
+        $page = (int) $request->get('page', 1);
+        $dropdown = filter_var($request->get('dropdown', false), FILTER_VALIDATE_BOOLEAN);
 
-    $vehicles = $this->service->getAll($perPage, $filters, $dropdown, $page);
+        $filters = [
+            'vehicle_code' => $request->get('vehicle_code'),
+            'number_plat' => $request->get('number_plat'),
+            'status' => $request->get('status'),
+            'warehouse_id' => $request->get('warehouse_id'),
+        ];
 
-    if ($dropdown) {
+        $vehicles = $this->service->getAll($perPage, $filters, $dropdown, $page);
+
+        if ($dropdown) {
+            return response()->json([
+                'status' => 'success',
+                'code' => 200,
+                'message' => 'Vehicle dropdown fetched successfully',
+                'data' => $vehicles
+            ]);
+        }
+
         return response()->json([
             'status' => 'success',
             'code' => 200,
-            'message' => 'Vehicle dropdown fetched successfully',
-            'data' => $vehicles
+            'message' => 'Vehicles fetched successfully',
+            'data' => $vehicles->items(),
+            'pagination' => [
+                'page' => $vehicles->currentPage(),
+                'limit' => $vehicles->perPage(),
+                'totalPages' => $vehicles->lastPage(),
+                'totalRecords' => $vehicles->total()
+            ]
         ]);
     }
-
-    return response()->json([
-        'status' => 'success',
-        'code' => 200,
-        'message' => 'Vehicles fetched successfully',
-        'data' => $vehicles->items(),
-        'pagination' => [
-            'page' => $vehicles->currentPage(),
-            'limit' => $vehicles->perPage(),
-            'totalPages' => $vehicles->lastPage(),
-            'totalRecords' => $vehicles->total()
-        ]
-    ]);
-}
 
     /**
      * @OA\Post(
@@ -359,7 +359,7 @@ public function index(Request $request): JsonResponse
             'owner_type' => [
                 'required',
                 'string',
-                Rule::in(['Company', 'distributor'])
+                Rule::in(['company', 'distributor'])
             ],
             'warehouse_id' => [
                 'nullable',
@@ -591,9 +591,9 @@ public function index(Request $request): JsonResponse
     // public function exportVehicles(Request $request)
     // { 
     //     $filters = $request->input('filter', []);
-        
+
     //     $format = strtolower($request->input('format', 'csv'));
-        
+
     //     $search = $request->input('search');
     //     // ✅ Call service to export and get full URL
     //     $downloadUrl = $this->service->export($filters, $format,$search);

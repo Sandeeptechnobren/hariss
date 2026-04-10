@@ -13,21 +13,17 @@ class ChillerRequestResource extends JsonResource
             1  => "Sales Team Requested",
             2  => "IRO Created",
             3  => "IR Created",
-            4  => "Closed",
-            // 2  => "Area Sales Manager Accepted",
-            // 3  => "Area Sales Manager Rejected",
-            // 4  => "Chiller Officer Accepted",
-            // 5  => "Chiller Officer Rejected",
-            // 6  => "Completed",
-            // 7  => "Chiller Manager Rejected",
-            // 8  => "Sales/Key Manager Rejected",
-            // 9  => "Refused by Customer",
-            // 10 => "Fridge Manager Accepted",
-            // 11 => "Fridge Manager Rejected",
+            4  => "Requesting for close",
+            5  => "Completed",
         ][$statusId] ?? "Unknown";
     }
     private function resolveWorkflowStatus(): string
     {
+        // ✅ NEW CONDITION (no impact on existing logic)
+        if (!empty($this->approval_status) && stripos($this->approval_status, 'rejected') !== false) {
+            return $this->approval_status;
+        }
+
         if (is_null($this->progress)) {
             return $this->approval_status ?? 'Pending Approval';
         }
@@ -112,6 +108,10 @@ class ChillerRequestResource extends JsonResource
                 'name'     => $this->customer->name ?? null,
                 'district' => $this->customer->district ?? null
             ] : null,
+            'customer_category' => optional($this->customer->category) ? [
+                'id'   => optional($this->customer->category)->id,
+                'name' => optional($this->customer->category)->customer_category_name,
+            ] : null,
             "agreement_id" => $this->agreement?->id,
             'customer_last_3_month_sales' => $this->last_three_month_sales ?? 0,
             'warehouse' => $this->warehouse ? [
@@ -156,6 +156,7 @@ class ChillerRequestResource extends JsonResource
             'outlet_address_proof'       => $this->outlet_address_proof,
             'chiller_asset_care_manager' => $this->chiller_asset_care_manager,
             'national_id_file'           => $this->national_id_file,
+            'national_id1_file'           => $this->national_id1_file,
             'password_photo_file'        => $this->password_photo_file,
             'outlet_address_proof_file'  => $this->outlet_address_proof_file,
             'trading_licence_file'       => $this->trading_licence_file,
@@ -179,6 +180,7 @@ class ChillerRequestResource extends JsonResource
             'current_step'    => $this->current_step ?? null,
             'request_step_id' => $this->request_step_id ?? null,
             'progress'        => $this->progress ?? null,
+            'rejection_reason'        => $this->returnComment ?? null,
         ];
     }
 }

@@ -391,7 +391,7 @@ class ChillerRequestController extends Controller
                 'message' => 'IR Detail ID is required.'
             ], 422);
         }
-        
+
         $record = $this->service->getAgreementByIrDetailId($id);
         if (!$record) {
             return response()->json([
@@ -460,98 +460,95 @@ class ChillerRequestController extends Controller
     //         'download_url' => $fullUrl,
     //     ]);
     // }
-// public function export(Request $request)
-//     {
-//         try {
-//             // dd($request);
-//             $filters = [
-//                 'status'     => $request['filter']['status'],
-//                 'region_id'     => $request['filter']['region_id'],
-//                 'user_id'     => $request['filter']['user_id'],
-//                 'warehouse_id'     => $request['filter']['warehouse_id'],
-//                 'route_id'     => $request['filter']['route_id'],
-//                 'salesman_id'     => $request['filter']['salesman_id'],
-//                 'from_date'     => $request['filter']['from_date'],
-//                 'to_date'     => $request['filter']['to_date'],
-//                 'request_status'     => $request['filter']['request_status'],
-//             ];
-            
-//             $format = strtolower($request->get('format', 'xlsx'));
-            
-//             if (!in_array($format, ['xlsx', 'csv'])) {
-//                 $format = 'xlsx';
-//             }
-//             $filename = 'crf_export_' . now()->format('Ymd_His') . '.' . $format;
-//             $path     = 'exports/chiller/' . $filename;
-//             \Storage::disk('public')->makeDirectory('exports/chiller');
-//             \Maatwebsite\Excel\Facades\Excel::store(
-//                 new \App\Exports\CRFRequestExport($filters),
-//                 $path,
-//                 'public'
-//             );
-//             $url = rtrim(config('app.url'), '/') . '/storage/app/public/' . $path;
-//             return response()->json([
-//                 'status'       => 'success',
-//                 'message'      => strtoupper($format) . ' export generated successfully',
-//                 'download_url' => $url
-//             ]);
-//         } catch (\Throwable $e) {
-//             dd($e);
-//             return response()->json([
-//                 'status'  => 'error',
-//                 'message' => 'Failed to generate CRF export',
-//                 'error'   => config('app.debug') ? $e->getMessage() : null
-//             ], 500);
-//         }
-//         catch (\Exceptions $e) {
-//             dd($e);
-//             return response()->json([
-//                 'status'  => 'error',
-//                 'message' => 'Failed to generate CRF export',
-//                 'error'   => config('app.debug') ? $e->getMessage() : null
-//             ], 500);
-//         }
-//     }
-public function export(Request $request)
-{
-    try {
+    // public function export(Request $request)
+    //     {
+    //         try {
+    //             // dd($request);
+    //             $filters = [
+    //                 'status'     => $request['filter']['status'],
+    //                 'region_id'     => $request['filter']['region_id'],
+    //                 'user_id'     => $request['filter']['user_id'],
+    //                 'warehouse_id'     => $request['filter']['warehouse_id'],
+    //                 'route_id'     => $request['filter']['route_id'],
+    //                 'salesman_id'     => $request['filter']['salesman_id'],
+    //                 'from_date'     => $request['filter']['from_date'],
+    //                 'to_date'     => $request['filter']['to_date'],
+    //                 'request_status'     => $request['filter']['request_status'],
+    //             ];
 
-        // dd($request);
-        $filters = $request->input('filter', []);
-        $format = strtolower($request->get('format', 'xlsx'));
+    //             $format = strtolower($request->get('format', 'xlsx'));
 
-        if (!in_array($format, ['xlsx', 'csv'])) {
-            $format = 'xlsx';
+    //             if (!in_array($format, ['xlsx', 'csv'])) {
+    //                 $format = 'xlsx';
+    //             }
+    //             $filename = 'crf_export_' . now()->format('Ymd_His') . '.' . $format;
+    //             $path     = 'exports/chiller/' . $filename;
+    //             \Storage::disk('public')->makeDirectory('exports/chiller');
+    //             \Maatwebsite\Excel\Facades\Excel::store(
+    //                 new \App\Exports\CRFRequestExport($filters),
+    //                 $path,
+    //                 'public'
+    //             );
+    //             $url = rtrim(config('app.url'), '/') . '/storage/app/public/' . $path;
+    //             return response()->json([
+    //                 'status'       => 'success',
+    //                 'message'      => strtoupper($format) . ' export generated successfully',
+    //                 'download_url' => $url
+    //             ]);
+    //         } catch (\Throwable $e) {
+    //             dd($e);
+    //             return response()->json([
+    //                 'status'  => 'error',
+    //                 'message' => 'Failed to generate CRF export',
+    //                 'error'   => config('app.debug') ? $e->getMessage() : null
+    //             ], 500);
+    //         }
+    //         catch (\Exceptions $e) {
+    //             dd($e);
+    //             return response()->json([
+    //                 'status'  => 'error',
+    //                 'message' => 'Failed to generate CRF export',
+    //                 'error'   => config('app.debug') ? $e->getMessage() : null
+    //             ], 500);
+    //         }
+    //     }
+    public function export(Request $request)
+    {
+        try {
+            $filters = $request->input('filter', []);
+            $format = strtolower($request->get('format', 'xlsx'));
+
+            if (!in_array($format, ['xlsx', 'csv'])) {
+                $format = 'xlsx';
+            }
+
+            $filename = 'Chiller_Request_' . now()->format('Ymd_His') . '.' . $format;
+            $path = 'exports/chiller/' . $filename;
+
+            \Storage::disk('public')->makeDirectory('exports/chiller');
+
+            \Maatwebsite\Excel\Facades\Excel::store(
+                new \App\Exports\CRFRequestExport($filters),
+                $path,
+                'public'
+            );
+
+            $url = asset('storage/' . $path);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => strtoupper($format) . ' export generated successfully',
+                'download_url' => $url
+            ]);
+        } catch (\Throwable $e) {
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to generate CRF export',
+                'error' => config('app.debug') ? $e->getMessage() : null
+            ], 500);
         }
-
-        $filename = 'Chiller_Request_' . now()->format('Ymd_His') . '.' . $format;
-        $path = 'exports/chiller/' . $filename;
-
-        \Storage::disk('public')->makeDirectory('exports/chiller');
-
-        \Maatwebsite\Excel\Facades\Excel::store(
-            new \App\Exports\CRFRequestExport($filters),
-            $path,
-            'public'
-        );
-
-        $url = asset('storage/' . $path);
-
-        return response()->json([
-            'status' => 'success',
-            'message' => strtoupper($format) . ' export generated successfully',
-            'download_url' => $url
-        ]);
-
-    } catch (\Throwable $e) {
-
-        return response()->json([
-            'status' => 'error',
-            'message' => 'Failed to generate CRF export',
-            'error' => config('app.debug') ? $e->getMessage() : null
-        ], 500);
     }
-}
 
     public function getCRFData(Request $request): JsonResponse
     {
@@ -607,5 +604,24 @@ public function export(Request $request)
                 'message' => 'Failed to fetch chiller requests',
             ], 500);
         }
+    }
+
+    public function exportPdf($uuid)
+    {
+        $path = $this->service->generateAndStorePdf($uuid);
+
+        if (!$path) {
+            return response()->json([
+                'message' => 'Record not found'
+            ], 404);
+        }
+
+        $appUrl  = rtrim(config('app.url'), '/');
+        $fullUrl = $appUrl . '/storage/app/public/' . $path;
+
+        return response()->json([
+            'message' => 'PDF generated successfully',
+            'url' => $fullUrl
+        ]);
     }
 }

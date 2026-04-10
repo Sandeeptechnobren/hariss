@@ -102,11 +102,23 @@ class IROHeaderService
 
             $user = auth()->user();
             $detailQuery = IRODetail::query();
-            $detailQuery = DataAccessHelper::filterRoutes($detailQuery, $user);
+            // $detailQuery = DataAccessHelper::filterWarehouses($detailQuery, $user);
+            if (!empty($filters['warehouse_id'])) {
+
+                $warehouseIds = is_array($filters['warehouse_id'])
+                    ? $filters['warehouse_id']
+                    : explode(',', $filters['warehouse_id']);
+
+                $warehouseIds = array_filter(array_map('intval', $warehouseIds));
+
+                $detailQuery->whereIn('warehouse_id', $warehouseIds);
+            }
+
             foreach ($filters as $field => $value) {
 
-                if ($field === 'status') {
-                    continue; // detail table me status nahi hai
+                // ❌ skip special fields
+                if (in_array($field, ['status', 'warehouse_id'])) {
+                    continue;
                 }
 
                 if (!empty($value)) {
@@ -170,7 +182,7 @@ class IROHeaderService
             do {
                 $last = IROHeader::withTrashed()->latest('id')->first();
                 $next = $last ? ((int) preg_replace('/\D/', '', $last->osa_code)) + 1 : 1;
-                $osa_code = 'IRO' . str_pad($next, 3, '0', STR_PAD_LEFT);
+                $osa_code = 'IRO-' . str_pad($next, 5, '0', STR_PAD_LEFT);
             } while (IROHeader::withTrashed()->where('osa_code', $osa_code)->exists());
 
             return $osa_code;
@@ -222,12 +234,12 @@ class IROHeaderService
     public function store(array $data): IROHeader
     {
         DB::beginTransaction();
-
+        // dd($data);
         try {
             $data['uuid']     = $data['uuid'] ?? Str::uuid()->toString();
             $data['osa_code'] = $data['osa_code'] ?? $this->generateOsaCode();
             $osaCode = $this->generateOsaCodeDetail($request->osa_code ?? null);
-
+            // dd($data['osa_code']);
             $header = IROHeader::create([
                 'uuid'     => $data['uuid'],
                 'osa_code' => $data['osa_code'],

@@ -15,6 +15,8 @@ use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
+use Barryvdh\DomPDF\Facade\Pdf;
+
 
 class ChillerRequestService
 {
@@ -46,7 +48,8 @@ class ChillerRequestService
                 'warehouse:id,warehouse_code,warehouse_name,area_id',
                 'createdBy:id,name,username',
                 'updatedBy:id,name,username',
-                'customer:id,osa_code,name,district'
+                'customer:id,osa_code,name,district,category_id',
+                'customer.category:id,customer_category_name'
             ])->orderBy('id', 'desc');
 
             $query = \App\Helpers\DataAccessHelper::filterAssets($query, $user);
@@ -742,21 +745,22 @@ class ChillerRequestService
             $user   = auth()->user();
             $filter = $filters['filter'] ?? [];
 
-            $query = ChillerRequest::select([
-                'id',
-                'uuid',
-                'osa_code',
-                'owner_name',
-                'contact_number',
-                'warehouse_id',
-                'salesman_id',
-                'model',
-                'customer_id',
-                'outlet_id',
-                'status',
-                'created_user',
-                'created_at',
-            ])
+            $query = ChillerRequest::query()
+                ->select([
+                    'id',
+                    'uuid',
+                    'osa_code',
+                    'owner_name',
+                    'contact_number',
+                    'warehouse_id',
+                    'salesman_id',
+                    'model',
+                    'customer_id',
+                    'outlet_id',
+                    'status',
+                    'created_user',
+                    'created_at',
+                ])
                 ->with([
                     'warehouse:id,warehouse_name,warehouse_code',
                     'salesman:id,name,osa_code',
@@ -776,7 +780,6 @@ class ChillerRequestService
                                 ->from('htapp_workflow_request_steps as ws')
                                 ->whereColumn('ws.workflow_request_id', 'wr.id')
                                 ->where('ws.status', 'APPROVED')
-                                ->where('ws.message', 'Sales/Key Manager Accepted')
                                 ->whereRaw("
                                 ws.step_order = (
                                     SELECT MAX(s2.step_order)
@@ -788,91 +791,231 @@ class ChillerRequestService
                         });
                 });
 
-            // dd($query->toRawSql());
             if (method_exists(DataAccessHelper::class, 'filterAgentTransaction')) {
                 $query = DataAccessHelper::filterAgentTransaction($query, $user);
             }
 
-            if (!empty($filter)) {
+            $warehouseIds = $this->parseIds($filter['warehouse_id'] ?? null);
 
-                $warehouseIds = CommonLocationFilter::resolveWarehouseIds([
-                    'company'   => $filter['company_id']   ?? null,
-                    'region'    => $filter['region_id']    ?? null,
-                    'area'      => $filter['area_id']      ?? null,
-                    'warehouse' => $filter['warehouse_id'] ?? null,
-                    'route'     => $filter['route_id']     ?? null,
+            if (!empty($warehouseIds)) {
+                $query->whereIn('warehouse_id', $warehouseIds);
+            } elseif (!empty($filter)) {
+                $resolved = CommonLocationFilter::resolveWarehouseIds([
+                    'company'   => $filter['company_id'] ?? null,
+                    'region'    => $filter['region_id'] ?? null,
+                    'area'      => $filter['area_id'] ?? null,
+                    'warehouse' => null,
+                    'route'     => $filter['route_id'] ?? null,
                 ]);
 
-                if (!empty($warehouseIds)) {
-                    $query->whereIn('warehouse_id', $warehouseIds);
+                if (!empty($resolved)) {
+                    $query->whereIn('warehouse_id', $resolved);
                 }
             }
 
-            if (!empty($filter['salesman_id'])) {
-                $salesmanIds = is_array($filter['salesman_id'])
-                    ? $filter['salesman_id']
-                    : explode(',', $filter['salesman_id']);
-
-                $query->whereIn('salesman_id', array_map('intval', $salesmanIds));
-            }
-            if (!empty($filter['model_id'])) {
-
-                $modelIds = is_array($filter['model_id'])
-                    ? $filter['model_id']
-                    : explode(',', $filter['model_id']);
-
-                $query->whereIn(
-                    'model', // DB column
-                    array_filter(array_map('intval', $modelIds))
-                );
+            // 🔹 Salesman
+            $salesmanIds = $this->parseIds($filter['salesman_id'] ?? null);
+            if (!empty($salesmanIds)) {
+                $query->whereIn('salesman_id', $salesmanIds);
             }
 
-            if (!empty($filter['from_date']) && !empty($filter['to_date'])) {
-
-                $from = Carbon::parse($filter['from_date'])->startOfDay();
-                $to   = Carbon::parse($filter['to_date'])->endOfDay();
-
-                $query->whereBetween('created_at', [$from, $to]);
-            } elseif (!empty($filter['from_date'])) {
-
-                $query->where('created_at', '>=', Carbon::parse($filter['from_date'])->startOfDay());
-            } elseif (!empty($filter['to_date'])) {
-
-                $query->where('created_at', '<=', Carbon::parse($filter['to_date'])->endOfDay());
+            // 🔹 Model
+            $modelIds = $this->parseIds($filter['model_id'] ?? null);
+            if (!empty($modelIds)) {
+                $query->whereIn('model', $modelIds);
             }
-            // dd($query->count());
-            $results = $query->latest()->paginate($perPage);
 
-            $results->getCollection()->transform(function ($item) {
-                $item->makeHidden([
-                    'warehouse_id',
-                    'salesman_id',
-                    'customer_id',
-                    'outlet_id',
-                    'created_user',
-                ]);
+            // 🔹 Date
+            if (!empty($filter['from_date']) || !empty($filter['to_date'])) {
+                $from = !empty($filter['from_date'])
+                    ? Carbon::parse($filter['from_date'])->startOfDay()
+                    : null;
 
-                if ($item->salesman) {
-                    $item->salesman->makeHidden([
+                $to = !empty($filter['to_date'])
+                    ? Carbon::parse($filter['to_date'])->endOfDay()
+                    : null;
+
+                $query->when($from && $to, fn($q) => $q->whereBetween('created_at', [$from, $to]))
+                    ->when($from && !$to, fn($q) => $q->where('created_at', '>=', $from))
+                    ->when(!$from && $to, fn($q) => $q->where('created_at', '<=', $to));
+            }
+            return $query->latest()->paginate($perPage)
+                ->through(function ($item) {
+                    $item->makeHidden([
+                        'warehouse_id',
+                        'salesman_id',
+                        'customer_id',
+                        'outlet_id',
+                        'created_user',
+                    ]);
+
+                    $item->salesman?->makeHidden([
                         'route',
                         'route_name',
                         'route_id',
                     ]);
-                }
 
-                return $item;
-            });
-
-            return $results;
+                    return $item;
+                });
         } catch (Throwable $e) {
-            Log::error('ChillerRequestService::globalFilter failed', [
+            Log::error('ChillerRequestService::getCRFData failed', [
                 'filters' => $filters,
                 'error'   => $e->getMessage(),
             ]);
-
             throw $e;
         }
     }
+
+    private function parseIds($input): array
+    {
+        if (empty($input)) return [];
+
+        $values = is_array($input) ? $input : [$input];
+
+        return collect($values)
+            ->flatMap(fn($v) => explode(',', $v))
+            ->map(fn($v) => (int) trim($v))
+            ->filter()
+            ->values()
+            ->all();
+    }
+    // public function getCRFData(int $perPage = 50, array $filters = [])
+    // {
+    //     try {
+    //         $user   = auth()->user();
+    //         $filter = $filters['filter'] ?? [];
+    //         // dd($filter);
+    //         $query = ChillerRequest::select([
+    //             'id',
+    //             'uuid',
+    //             'osa_code',
+    //             'owner_name',
+    //             'contact_number',
+    //             'warehouse_id',
+    //             'salesman_id',
+    //             'model',
+    //             'customer_id',
+    //             'outlet_id',
+    //             'status',
+    //             'created_user',
+    //             'created_at',
+    //         ])
+    //             ->with([
+    //                 'warehouse:id,warehouse_name,warehouse_code',
+    //                 'salesman:id,name,osa_code',
+    //                 'modelNumber:id,code,name',
+    //                 'customer:id,osa_code,name',
+    //                 'outlet:id,outlet_channel',
+    //                 'createdBy:id,username',
+    //             ])
+    //             ->where('fridge_status', 0)
+    //             ->whereExists(function ($q) {
+    //                 $q->select(DB::raw(1))
+    //                     ->from('htapp_workflow_requests as wr')
+    //                     ->whereColumn('wr.process_id', 'chiller_requests.id')
+    //                     ->where('wr.process_type', 'Chiller_Request')
+    //                     ->whereExists(function ($step) {
+    //                         $step->select(DB::raw(1))
+    //                             ->from('htapp_workflow_request_steps as ws')
+    //                             ->whereColumn('ws.workflow_request_id', 'wr.id')
+    //                             ->where('ws.status', 'APPROVED')
+    //                             // ->where('ws.message', 'Chiller Manager Accepted')
+    //                             ->whereRaw("
+    //                             ws.step_order = (
+    //                                 SELECT MAX(s2.step_order)
+    //                                 FROM htapp_workflow_request_steps s2
+    //                                 WHERE s2.workflow_request_id = wr.id
+    //                                 AND s2.status = 'APPROVED'
+    //                             )
+    //                         ");
+    //                     });
+    //             });
+
+    //         // dd($query->toRawSql());
+    //         if (method_exists(DataAccessHelper::class, 'filterAgentTransaction')) {
+    //             $query = DataAccessHelper::filterAgentTransaction($query, $user);
+    //         }
+
+    //         if (!empty($filter)) {
+
+    //             $warehouseIds = CommonLocationFilter::resolveWarehouseIds([
+    //                 'company'   => $filter['company_id']   ?? null,
+    //                 'region'    => $filter['region_id']    ?? null,
+    //                 'area'      => $filter['area_id']      ?? null,
+    //                 'warehouse' => $filter['warehouse_id'] ?? null,
+    //                 'route'     => $filter['route_id']     ?? null,
+    //             ]);
+
+    //             if (!empty($warehouseIds)) {
+    //                 $query->whereIn('warehouse_id', $warehouseIds);
+    //             }
+    //         }
+
+    //         if (!empty($filter['salesman_id'])) {
+    //             $salesmanIds = is_array($filter['salesman_id'])
+    //                 ? $filter['salesman_id']
+    //                 : explode(',', $filter['salesman_id']);
+
+    //             $query->whereIn('salesman_id', array_map('intval', $salesmanIds));
+    //         }
+    //         if (!empty($filter['model_id'])) {
+
+    //             $modelIds = is_array($filter['model_id'])
+    //                 ? $filter['model_id']
+    //                 : explode(',', $filter['model_id']);
+
+    //             $query->whereIn(
+    //                 'model', // DB column
+    //                 array_filter(array_map('intval', $modelIds))
+    //             );
+    //         }
+
+    //         if (!empty($filter['from_date']) && !empty($filter['to_date'])) {
+
+    //             $from = Carbon::parse($filter['from_date'])->startOfDay();
+    //             $to   = Carbon::parse($filter['to_date'])->endOfDay();
+
+    //             $query->whereBetween('created_at', [$from, $to]);
+    //         } elseif (!empty($filter['from_date'])) {
+
+    //             $query->where('created_at', '>=', Carbon::parse($filter['from_date'])->startOfDay());
+    //         } elseif (!empty($filter['to_date'])) {
+
+    //             $query->where('created_at', '<=', Carbon::parse($filter['to_date'])->endOfDay());
+    //         }
+    //         // dd($query->count());
+    //         $results = $query->latest()->paginate($perPage);
+
+    //         $results->getCollection()->transform(function ($item) {
+    //             $item->makeHidden([
+    //                 'warehouse_id',
+    //                 'salesman_id',
+    //                 'customer_id',
+    //                 'outlet_id',
+    //                 'created_user',
+    //             ]);
+
+    //             if ($item->salesman) {
+    //                 $item->salesman->makeHidden([
+    //                     'route',
+    //                     'route_name',
+    //                     'route_id',
+    //                 ]);
+    //             }
+
+    //             return $item;
+    //         });
+
+    //         return $results;
+    //     } catch (Throwable $e) {
+    //         Log::error('ChillerRequestService::globalFilter failed', [
+    //             'filters' => $filters,
+    //             'error'   => $e->getMessage(),
+    //         ]);
+
+    //         throw $e;
+    //     }
+    // }
 
 
 
@@ -885,9 +1028,10 @@ class ChillerRequestService
             $query = ChillerRequest::query(); // ❌ no eager load, no extra data
 
             // 🔐 Agent access control
-            if (method_exists(DataAccessHelper::class, 'filterAgentTransaction')) {
-                $query = DataAccessHelper::filterAgentTransaction($query, $user);
-            }
+            // if (method_exists(DataAccessHelper::class, 'filterAgentTransaction')) {
+            //     $query = DataAccessHelper::filterAgentTransaction($query, $user);
+            // }
+            $query = DataAccessHelper::filterWarehouses($query, $user);
 
             // 🌍 Location hierarchy filter
             if (!empty($filter)) {
@@ -937,7 +1081,13 @@ class ChillerRequestService
             }
 
             // 📄 Final result
-            return $query->latest()->paginate($perPage);
+            // dd($query->count());
+            $result = $query->latest()->paginate($perPage);
+            $result->getCollection()->transform(function ($item) {
+                return \App\Helpers\ApprovalHelper::attach($item, 'Chiller_Request');
+            });
+
+            return $result;
         } catch (Throwable $e) {
             Log::error('ChillerRequestService::globalFilter failed', [
                 'filters' => $filters,
@@ -946,5 +1096,46 @@ class ChillerRequestService
 
             throw $e;
         }
+    }
+
+    public function generateAndStorePdf($uuid)
+    {
+        $data = DB::table('chiller_requests')->where('uuid', $uuid)->first();
+
+        if (!$data) {
+            return null;
+        }
+
+        $imageFields = [
+            'national_id_file' => 'National Id Front',
+            'national_id1_file' => 'National Id Back',
+            'password_photo_file' => 'Password Photo',
+            'outlet_address_proof_file' => 'Outlet Address Proof',
+            'trading_licence_file' => 'Trading License',
+            'lc_letter_file' => 'Lc Letter',
+            'outlet_stamp_file' => 'Outlet Stamp',
+            'sign__customer_file' => 'Sign Customer',
+        ];
+
+        $images = [];
+
+        foreach ($imageFields as $column => $label) {
+            if (!empty($data->$column)) {
+                $images[] = [
+                    'label' => $label,
+                    'path' => $data->$column
+                ];
+            }
+        }
+
+        $pdf = Pdf::loadView('chiller-images', [
+            'images' => $images,
+            'uuid' => $uuid
+        ]);
+
+        $fileName = "chiller_requests/{$uuid}.pdf";
+        Storage::disk('public')->put($fileName, $pdf->output());
+
+        return $fileName;
     }
 }

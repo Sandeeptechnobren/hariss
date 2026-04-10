@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use App\Helpers\ApprovalHelper;
 use Throwable;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Storage;
 
 class ServiceVisitService
 {
@@ -442,5 +444,51 @@ class ServiceVisitService
 
             throw $e;
         }
+    }
+
+    public function generateAndStoreServiceVisitPdf($uuid)
+    {
+        $data = DB::table('tbl_service_visit')->where('uuid', $uuid)->first();
+
+        if (!$data) {
+            return null;
+        }
+
+        $imageFields = [
+            'scan_image' => 'Scan Image',
+            'is_machine_in_working_img' => 'Machine Working',
+            'cleanliness_img' => 'Cleanliness',
+            'condensor_coil_cleand_img' => 'Condensor Coil Cleaned',
+            'stock_availability_in_img' => 'Stock Availability',
+            'cooler_image' => 'Cooler Image',
+            'customer_signature' => 'Customer Signature',
+            'type_details_photo1' => 'Type Details Photo',
+        ];
+
+        $images = [];
+
+        foreach ($imageFields as $column => $label) {
+            if (!empty($data->$column)) {
+                $images[] = [
+                    'label' => $label,
+                    'path' => $data->$column,
+                ];
+            }
+        }
+
+        if (empty($images)) {
+            return null;
+        }
+
+        $pdf = Pdf::loadView('service-visit-images', [
+            'images' => $images,
+            'uuid' => $uuid,
+        ]);
+
+        $fileName = "service_visit/{$uuid}.pdf";
+
+        Storage::disk('public')->put($fileName, $pdf->output());
+
+        return $fileName;
     }
 }

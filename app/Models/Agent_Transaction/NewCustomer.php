@@ -26,7 +26,10 @@ class NewCustomer extends Model
 
     protected $fillable = [
         'uuid',
+        'osa_code',
         'name',
+        'email',
+        'language',
         'customer_type',
         'route_id',
         'is_whatsapp',
@@ -56,32 +59,31 @@ class NewCustomer extends Model
         'owner_name',
         'reject_reason',
         'approval_status',
-        'salesman_id'
+        'salesman_id',
+        'visit_on',
+        'avelable_fridge',
     ];
 
-    protected static function boot()
+protected static function boot()
     {
         parent::boot();
-
         static::creating(function ($model) {
-            // Generate UUID
+            // Generate UUID if not provided
             if (empty($model->uuid)) {
                 $model->uuid = Str::uuid();
             }
-
-            // Generate osa_code using if-else
-            $latest = static::latest('id')->first();
-
-            if ($latest) {
-                $nextId = $latest->id + 1;
-                $model->osa_code = 'NC' . str_pad($nextId, 4, '0', STR_PAD_LEFT);
-            } else {
-                $model->osa_code = 'NC0001';
+            // Generate osa_code ONLY if not coming from payload
+            if (empty($model->osa_code)) {
+                $latest = static::latest('id')->first();
+                if ($latest) {
+                    $nextId = $latest->id + 1;
+                    $model->osa_code = 'NC' . str_pad($nextId, 4, '0', STR_PAD_LEFT);
+                } else {
+                    $model->osa_code = 'NC0001';
+                }
             }
         });
     }
-
-
     // Relationships
     public function customertype()
     {

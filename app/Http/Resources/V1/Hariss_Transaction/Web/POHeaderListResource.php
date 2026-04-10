@@ -30,10 +30,16 @@ class POHeaderListResource extends JsonResource
             'company_code'        => $this->company->company_code ?? null,
             'company_name'        => $this->company->company_name ?? null,
             'company_email'       => $this->company->email ?? null,
+            'company_contact' => $this->company->primary_contact ?? null,
+            'company_address' => $this->company->address ?? null,
+
 
             'warehouse_id'        => $this->warehouse_id,
             'warehouse_code'      => $this->warehouse->warehouse_code ?? null,
             'warehouse_name'      => $this->warehouse->warehouse_name ?? null,
+            'warehouse_contact' => $this->warehouse->warehouse_manager_contact ?? null,
+            'warehouse_town' => $this->warehouse->town_village ?? null,
+
 
 
             'delivery_date'       => $this->delivery_date?->format('Y-m-d'),

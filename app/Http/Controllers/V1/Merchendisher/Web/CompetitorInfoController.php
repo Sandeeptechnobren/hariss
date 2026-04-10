@@ -163,6 +163,7 @@ class CompetitorInfoController extends Controller
  *             mediaType="multipart/form-data",
  *             @OA\Schema(
  *                 required={"company_name","brand","merchendiser_id","item_name","price","image1","image2","promotion","notes"},
+ *                 @OA\Property(property="code", type="string", example="COMP-001"),
  *                 @OA\Property(property="company_name", type="string", example="Nestlé"),
  *                 @OA\Property(property="brand", type="string", example="Milo"),
  *                 @OA\Property(property="merchendiser_id", type="integer", example=75),
@@ -209,20 +210,21 @@ class CompetitorInfoController extends Controller
  *     )
  * )
  */
-    public function store(CompetitorInfoRequest $request, CompetitorInfoService $service): JsonResponse
+public function store(CompetitorInfoRequest $request, CompetitorInfoService $service): JsonResponse
 {
-    $result = $service->store($request);
-
-    if (!$result['success']) {
+    try {
+        $result = $service->store($request);
+        if (!$result['status']) {
+            return response()->json($result, 422);
+        }
+        return response()->json($result, 201);
+    } catch (\Throwable $e) {
         return response()->json([
-            'message' => $result['message']
-        ], 422); 
+            'status' => false,
+            'message' => 'Something went wrong.',
+            'error' => $e->getMessage(), // remove in production if needed
+        ], 500);
     }
-
-    return response()->json([
-        'message' => $result['message'],
-        'data' => $result['data']
-    ], 201);
 }
 /**
  * @OA\Get(

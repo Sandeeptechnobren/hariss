@@ -333,14 +333,113 @@ class UnloadHeaderController extends Controller
     //  *     )
     //  * )
     //  */
+    // public function exportUnloadHeader(Request $request)
+    // {
+    //     $format = strtolower($request->input('format', 'xlsx'));
+    //     $extension = $format === 'csv' ? 'csv' : 'xlsx';
+    //     $filename = 'unload_header_export_' . now()->format('Ymd_His') . '.' . $extension;
+    //     $path = 'unloadexports/' . $filename;
+
+    //     $export = new UnloadHeaderFullExport();
+
+    //     if ($format === 'csv') {
+    //         Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
+    //     } else {
+    //         Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
+    //     }
+
+    //     $appUrl = rtrim(config('app.url'), '/');
+    //     $fullUrl = $appUrl . '/storage/app/public/' . $path;
+
+    //     return response()->json([
+    //         'status' => 'success',
+    //         'download_url' => $fullUrl,
+    //     ]);
+    // }
+    // public function exportUnloadHeader(Request $request)
+    // {
+    //     try {
+
+    //         // 🔹 format handle
+    //         $format = strtolower($request->input('format', 'xlsx'));
+    //         $extension = $format === 'csv' ? 'csv' : 'xlsx';
+
+    //         // 🔹 filename
+    //         $filename = 'unload_header_export_' . now()->format('Ymd_His') . '.' . $extension;
+    //         $path = 'unloadexports/' . $filename;
+
+    //         // 🔥 nested filter (same as globalFilter)
+    //         $filter = $request->input('filter', []);
+
+    //         $filters = [
+    //             'from_date' => $filter['from_date'] ?? null,
+    //             'to_date'   => $filter['to_date'] ?? null,
+    //             'warehouse_id' => $filter['warehouse_id'] ?? null,
+    //             'salesman_id'  => $filter['salesman_id'] ?? null,
+    //             'company_id'   => $filter['company_id'] ?? null,
+    //             'region_id'    => $filter['region_id'] ?? null,
+    //             'area_id'      => $filter['area_id'] ?? null,
+    //             'route_id'     => $filter['route_id'] ?? null,
+    //         ];
+
+    //         // 🔥 export call
+    //         $export = new UnloadHeaderFullExport($filters);
+
+    //         // 🔹 store file
+    //         if ($format === 'csv') {
+    //             Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
+    //         } else {
+    //             Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
+    //         }
+
+    //         // 🔹 download URL
+    //         $appUrl = rtrim(config('app.url'), '/');
+    //         $downloadUrl = $appUrl . '/storage/app/public/' . $path;
+
+    //         return response()->json([
+    //             'status' => true,
+    //             'message' => 'Unload Header Export Generated Successfully',
+    //             'download_url' => $downloadUrl,
+    //         ]);
+
+    //     } catch (\Exception $e) {
+
+    //         return response()->json([
+    //             'status' => false,
+    //             'message' => 'Export Failed',
+    //             'error' => $e->getMessage(),
+    //         ], 500);
+    //     }
+    // }
+
     public function exportUnloadHeader(Request $request)
-    {
+{
+    try {
+
         $format = strtolower($request->input('format', 'xlsx'));
         $extension = $format === 'csv' ? 'csv' : 'xlsx';
+
         $filename = 'unload_header_export_' . now()->format('Ymd_His') . '.' . $extension;
         $path = 'unloadexports/' . $filename;
 
-        $export = new UnloadHeaderFullExport();
+        // 🔥 FULL FILTER
+        $filters = $request->input('filter', []);
+
+        $fromDate = $filters['from_date'] ?? null;
+        $toDate   = $filters['to_date'] ?? null;
+
+        $routeIds    = CommonLocationFilter::normalizeIds($filters['route_id'] ?? []);
+        $salesmanIds = CommonLocationFilter::normalizeIds($filters['salesman_id'] ?? []);
+
+        $warehouseIds = CommonLocationFilter::resolveWarehouseIds($filters);
+
+        $export = new UnloadHeaderFullExport(
+            $fromDate,
+            $toDate,
+            $warehouseIds,
+            $routeIds,
+            $salesmanIds
+        );
 
         if ($format === 'csv') {
             Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
@@ -349,13 +448,23 @@ class UnloadHeaderController extends Controller
         }
 
         $appUrl = rtrim(config('app.url'), '/');
-        $fullUrl = $appUrl . '/storage/app/public/' . $path;
+        $downloadUrl = $appUrl . '/storage/app/public/' . $path;
 
         return response()->json([
-            'status' => 'success',
-            'download_url' => $fullUrl,
+            'status' => true,
+            'message' => 'Unload Header Export Generated Successfully',
+            'download_url' => $downloadUrl,
         ]);
+
+    } catch (\Exception $e) {
+
+        return response()->json([
+            'status' => false,
+            'message' => 'Export Failed',
+            'error' => $e->getMessage(),
+        ], 500);
     }
+}
 
     public function exportUnload(Request $request)
     {

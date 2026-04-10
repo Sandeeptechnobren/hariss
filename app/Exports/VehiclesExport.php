@@ -117,8 +117,16 @@ use App\Models\Vehicle;
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
+use Maatwebsite\Excel\Concerns\FromCollection;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use Maatwebsite\Excel\Events\AfterSheet;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 
-class VehiclesExport implements FromQuery, WithHeadings, WithMapping
+class VehiclesExport implements FromQuery, WithHeadings, WithMapping, WithEvents
 {
     protected $query;
 
@@ -138,7 +146,10 @@ class VehiclesExport implements FromQuery, WithHeadings, WithMapping
             $vehicle->vehicle_code,
             $vehicle->number_plat,
             $vehicle->vehicle_chesis_no,
-            optional($vehicle->warehouse)->warehouse_name,
+            // optional($vehicle->warehouse)->warehouse_name,
+            optional($vehicle->warehouse)->warehouse_code 
+            ? $vehicle->warehouse->warehouse_code . ' - ' . $vehicle->warehouse->warehouse_name
+            : null,
             $vehicle->description,
             $vehicle->capacity,
             $vehicle->vehicle_type,
@@ -171,5 +182,43 @@ class VehiclesExport implements FromQuery, WithHeadings, WithMapping
             'Status',
         ];
     }
+
+    public function registerEvents(): array
+{
+    return [
+        AfterSheet::class => function (AfterSheet $event) {
+
+            $sheet = $event->sheet->getDelegate();
+            $lastColumn = $sheet->getHighestColumn();
+
+            $sheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
+                'font' => [
+                    'bold' => true,
+                    'color' => ['argb' => 'FFFFFFFF'], // white text
+                    'size' => 12,
+                ],
+                'alignment' => [
+                    'horizontal' => Alignment::HORIZONTAL_CENTER,
+                    'vertical'   => Alignment::VERTICAL_CENTER,
+                ],
+                'fill' => [
+                    'fillType' => Fill::FILL_SOLID,
+                    'startColor' => [
+                        'argb' => 'FFDC3545', // 🔥 proper red (same as your image)
+                    ],
+                ],
+                'borders' => [
+                    'allBorders' => [
+                        'borderStyle' => Border::BORDER_THIN,
+                        'color' => ['argb' => 'FF000000'],
+                    ],
+                ],
+            ]);
+
+            // Row height
+            $sheet->getRowDimension(1)->setRowHeight(25);
+        },
+    ];
+}
 }
 

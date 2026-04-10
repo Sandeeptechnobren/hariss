@@ -127,6 +127,6 @@ Route::prefix('technician_mob')->group(function () {
         }); 
         Route::prefix('asset-tracking')->group(function () {
             Route::post('/create', [AssetTrackingController::class, 'store']);
-            Route::get('/asm-details', [AssetTrackingController::class, 'asmdetails']);
+            Route::post('/asm-details', [AssetTrackingController::class, 'asmdetails']);
         }); 
 });

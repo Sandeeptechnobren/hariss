@@ -742,4 +742,11 @@ class HtReturnService
         // dd($query->count());
         return $query->paginate($perPage);
     }
+
+     public function getByWarehouseId($warehouseId, $perPage = 10)
+    {
+        return HtReturnHeader::where('warehouse_id', $warehouseId)
+            ->paginate($perPage);
+    }
 }
+ 

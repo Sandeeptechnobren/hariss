@@ -14,6 +14,7 @@ class SurveyDetailResource extends JsonResource
             'uuid' => $this->uuid,
             'header_id' => $this->header_id,
             'question_id' => $this->question_id,
+            'question_name' => $this->question->question,
             'answer' => $this->answer,
         ];
     }

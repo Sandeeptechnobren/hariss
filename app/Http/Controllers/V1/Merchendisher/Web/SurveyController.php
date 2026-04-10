@@ -7,6 +7,7 @@ use App\Http\Requests\V1\Merchendisher\Web\SurveyRequest;
 use App\Http\Resources\V1\Merchendisher\Web\SurveyResource;
 use App\Http\Resources\V1\Merchendisher\Web\SurveyShowResource;
 use App\Models\Survey;
+use App\Exports\SurveyExport;
 use App\Services\V1\Merchendisher\Web\SurveyService;
 use Illuminate\Http\JsonResponse;
 use App\Imports\SurveyImport;
@@ -610,82 +611,144 @@ public function destroy(int $id): JsonResponse
  * )
  */
 
-    public function export(Request $request)
-    {
-        $request->validate([
-            'format'     => 'required|in:csv,xlsx',
-            'valid_from' => 'nullable|date',
-            'valid_to'   => 'nullable|date|after_or_equal:valid_from',
-        ]);
-        $surveys = $this->service->getFiltered(
-            $request->valid_from,
-            $request->valid_to
-        );
+    // public function export(Request $request)
+    // {
+    //     $request->validate([
+    //         'format'     => 'required|in:csv,xlsx',
+    //         'valid_from' => 'nullable|date',
+    //         'valid_to'   => 'nullable|date|after_or_equal:valid_from',
+    //     ]);
+    //     $surveys = $this->service->getFiltered(
+    //         $request->valid_from,
+    //         $request->valid_to
+    //     );
 
-        if ($surveys->isEmpty()) {
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'No data found for the given date range.'
-            ], 404);
-        }
+    //     if ($surveys->isEmpty()) {
+    //         return response()->json([
+    //             'status'  => 'error',
+    //             'message' => 'No data found for the given date range.'
+    //         ], 404);
+    //     }
 
-        $data = $surveys->map(function ($item) {
-        $surveyTypeMap = [
-                1 => 'Consumer',
-                2 => 'Sensory',
-                3 => 'Asset',
-            ];
-            return [
-                'survey_name'  => $item->survey_name ?? 'N/A',
-                'survey_code'  => $item->survey_code ?? 'N/A',
-                'start_date'    => $item->start_date ?? 'N/A',
-                'end_date'      => $item->end_date,
-                'survey_type'  => $surveyTypeMap[$item->survey_type] ?? 'N/A',
-                'merchandiser' => $item->merchandishers->pluck('name')->implode(', ') ?: 'N/A',
-                'customer'     => $item->customers->pluck('business_name')->implode(', ') ?: 'N/A',
-                'asset'        => $item->assets->pluck('serial_number')->implode(', ') ?: 'N/A',
-                'Status'      => $item->status == 1 ? 'Active' : 'Inactive',
-            ];
-        });
-       $fileName = 'survey_list_' . now()->format('Y_m_d_H_i_s');
-        $path = 'survey_export/';
-        if ($request->format === 'csv') {
-            $fileName .= '.csv';
-            $fullPath = $path . $fileName;
-            Storage::disk('public')->put($fullPath, '');
-            $handle = fopen(storage_path('app/public/' . $fullPath), 'w');
-            fputcsv($handle, array_keys($data->first()));
-            foreach ($data as $row) {
-                fputcsv($handle, $row);
-            }
-            fclose($handle);
-        } else {
-            $fileName .= '.xlsx';
-            $fullPath = $path . $fileName;
-            Excel::store(
-                new class($data) implements 
-                    \Maatwebsite\Excel\Concerns\FromCollection,
-                    \Maatwebsite\Excel\Concerns\WithHeadings {
-                    private $data;
-                    public function __construct($data) {
-                        $this->data = $data;
-                    }
-                    public function collection() {
-                        return $this->data;
-                    }
-                    public function headings(): array {
-                        return array_keys($this->data->first());
-                    }
-                },
-                $fullPath,
-                'public',
-                ExcelFormat::XLSX
-            );
-        }
-        return response()->json([
-        'success' => true,
-        'file_name' => $fileName,
-        'file_url' => asset('storage/survey_export/' . $fileName),
+    //     $data = $surveys->map(function ($item) {
+    //     $surveyTypeMap = [
+    //             1 => 'Consumer',
+    //             2 => 'Sensory',
+    //             3 => 'Asset',
+    //         ];
+    //         return [
+    //             'survey_name'  => $item->survey_name ?? 'N/A',
+    //             'survey_code'  => $item->survey_code ?? 'N/A',
+    //             'start_date'    => $item->start_date ?? 'N/A',
+    //             'end_date'      => $item->end_date,
+    //             'survey_type'  => $surveyTypeMap[$item->survey_type] ?? 'N/A',
+    //             'merchandiser' => $item->merchandishers->pluck('name')->implode(', ') ?: 'N/A',
+    //             'customer'     => $item->customers->pluck('business_name')->implode(', ') ?: 'N/A',
+    //             'asset'        => $item->assets->pluck('serial_number')->implode(', ') ?: 'N/A',
+    //             'Status'      => $item->status == 1 ? 'Active' : 'Inactive',
+    //         ];
+    //     });
+    //    $fileName = 'survey_list_' . now()->format('Y_m_d_H_i_s');
+    //     $path = 'survey_export/';
+    //     if ($request->format === 'csv') {
+    //         $fileName .= '.csv';
+    //         $fullPath = $path . $fileName;
+    //         Storage::disk('public')->put($fullPath, '');
+    //         $handle = fopen(storage_path('app/public/' . $fullPath), 'w');
+    //         fputcsv($handle, array_keys($data->first()));
+    //         foreach ($data as $row) {
+    //             fputcsv($handle, $row);
+    //         }
+    //         fclose($handle);
+    //     } else {
+    //         $fileName .= '.xlsx';
+    //         $fullPath = $path . $fileName;
+    //         Excel::store(
+    //             new class($data) implements 
+    //                 \Maatwebsite\Excel\Concerns\FromCollection,
+    //                 \Maatwebsite\Excel\Concerns\WithHeadings {
+    //                 private $data;
+    //                 public function __construct($data) {
+    //                     $this->data = $data;
+    //                 }
+    //                 public function collection() {
+    //                     return $this->data;
+    //                 }
+    //                 public function headings(): array {
+    //                     return array_keys($this->data->first());
+    //                 }
+    //             },
+    //             $fullPath,
+    //             'public',
+    //             ExcelFormat::XLSX
+    //         );
+    //     }
+    //     return response()->json([
+    //     'success' => true,
+    //     'file_name' => $fileName,
+    //     'file_url' => asset('storage/survey_export/' . $fileName),
+    //     ]);
+    // }
+
+public function export(Request $request)
+{
+    $request->validate([
+        'format'     => 'nullable|in:csv,xlsx',
+        'file_type'  => 'nullable|in:csv,xlsx',
+        'valid_from' => 'nullable|date',
+        'valid_to'   => 'nullable|date|after_or_equal:valid_from',
+        'search'     => 'nullable|string|max:255',
     ]);
+
+    $format     = $request->input('file_type') ?? $request->input('format', 'xlsx');
+    $validFrom  = $request->input('valid_from');
+    $validTo    = $request->input('valid_to');
+    $searchTerm = $request->input('search');
+
+    $export = new SurveyExport(
+        validFrom:  $validFrom,
+        validTo:    $validTo,
+        searchTerm: $searchTerm,
+    );
+
+    // Check data exists before generating file
+    $hasData = Survey::when($validFrom && $validTo, fn($q) =>
+                    $q->whereBetween('created_at', [
+                        Carbon::parse($validFrom)->startOfDay(),
+                        Carbon::parse($validTo)->endOfDay(),
+                    ])
+                )
+                ->when(!empty($searchTerm), function ($q) use ($searchTerm) {
+                    $like = '%' . strtolower($searchTerm) . '%';
+                    $q->where(function ($inner) use ($like, $searchTerm) {
+                        $inner->whereRaw('LOWER(survey_code) LIKE ?', [$like])
+                              ->orWhereRaw('LOWER(survey_name) LIKE ?', [$like]);
+                    });
+                })
+                ->exists();
+
+    if (!$hasData) {
+        return response()->json([
+            'status'  => 'error',
+            'message' => 'No data found for the given filters.',
+        ], 404);
     }
+
+    $fileName = 'survey_list_' . now()->format('Y_m_d_H_i_s') . '.' . $format;
+    $path     = 'survey_export/' . $fileName;
+
+    if ($format === 'csv') {
+        Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
+    } else {
+        Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
+    }
+
+    $downloadUrl = rtrim(config('app.url'), '/') . '/storage/app/public/' . $path;
+
+    return response()->json([
+        'status'       => 'success',
+        'message'      => 'Export file generated successfully',
+        'download_url' => $downloadUrl,
+    ]);
+}
 }

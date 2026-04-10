@@ -471,22 +471,26 @@ class NewCustomerController extends Controller
         $fromDate = $filters['from_date'] ?? null;
         $toDate   = $filters['to_date'] ?? null;
 
-        $routeIds = !empty($filters['route_id'])
-            ? explode(',', $filters['route_id'])
-            : [];
-            
-        $approval_status = !empty($filters['approval_status'])
-            ? explode(',', $filters['approval_status'])
-            : [];
+        // ✅ SAME NORMALIZATION AS GLOBAL
+        $approval_status = CommonLocationFilter::normalizeIds($filters['approval_status'] ?? []);
+        $routeIds        = CommonLocationFilter::normalizeIds($filters['route_id'] ?? []);
+        $salesmanIds     = CommonLocationFilter::normalizeIds($filters['salesman_id'] ?? []);
 
-        $warehouseIds = CommonLocationFilter::resolveWarehouseIds($filters);
+        $warehouseIds = CommonLocationFilter::resolveWarehouseIds([
+            'company_id'   => CommonLocationFilter::normalizeIds($filters['company_id'] ?? null),
+            'region_id'    => CommonLocationFilter::normalizeIds($filters['region_id'] ?? null),
+            'area_id'      => CommonLocationFilter::normalizeIds($filters['area_id'] ?? null),
+            'warehouse_id' => CommonLocationFilter::normalizeIds($filters['warehouse_id'] ?? null),
+            'route_id'     => CommonLocationFilter::normalizeIds($filters['route_id'] ?? null),
+        ]);
 
         $export = new NewCustomerFullExport(
             $fromDate,
             $toDate,
             $warehouseIds,
             $routeIds,
-            $approval_status
+            $approval_status,
+            $salesmanIds // ✅ FIXED
         );
 
         if ($format === 'csv') {

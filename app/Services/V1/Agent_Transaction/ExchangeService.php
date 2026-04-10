@@ -690,20 +690,32 @@ class ExchangeService
         ])->latest();
 
         // $query = DataAccessHelper::filterAgentTransaction($query, $user);
-
-        // 🌍 LOCATION HIERARCHY (NOW WORKS)
-        $warehouseIds = CommonLocationFilter::resolveWarehouseIds([
-            'company_id'   => $filter['company_id']   ?? null,
-            'region_id'    => $filter['region_id']    ?? null,
-            'area_id'      => $filter['area_id']      ?? null,
-            'warehouse_id' => $filter['warehouse_id'] ?? null,
-            'route_id'     => $filter['route_id']     ?? null,
-        ]);
-
-        if (!empty($warehouseIds)) {
-            $query->whereIn('warehouse_id', $warehouseIds);
+        if (!empty($filter)) {
+            // 🌍 LOCATION HIERARCHY (NOW WORKS)
+            $warehouseIds = CommonLocationFilter::resolveWarehouseIds([
+                'company_id'   => $filter['company_id']   ?? null,
+                'region_id'    => $filter['region_id']    ?? null,
+                'area_id'      => $filter['area_id']      ?? null,
+                'warehouse_id' => $filter['warehouse_id'] ?? null,
+                'route_id'     => $filter['route_id']     ?? null,
+            ]);
         }
-        // dd($warehouseIds);
+        if (!empty($filter['warehouse_id'])) {
+            $warehouseIds = is_array($filter['warehouse_id'])
+                ? $filter['warehouse_id']
+                : explode(',', $filter['warehouse_id']);
+
+            $query->whereIn('warehouse_id', array_map('intval', $warehouseIds));
+        }
+
+        if (!empty($filter['route_id'])) {
+            $routeIds = is_array($filter['route_id'])
+                ? $filter['route_id']
+                : explode(',', $filter['route_id']);
+
+            $query->whereIn('route_id', array_map('intval', $routeIds));
+        }
+
         // Other filters
         if (!empty($filter['customer_id'])) {
             $query->whereIn('customer_id', $filter['customer_id']);

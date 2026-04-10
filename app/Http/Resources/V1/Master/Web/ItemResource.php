@@ -96,6 +96,7 @@ class ItemResource extends JsonResource
             'commodity_goods_code' => $this->commodity_goods_code,
             'excise_duty_code' => $this->excise_duty_code,
             'status' => $this->status,
+            'discount_status' => $this->discount_status,
             'is_taxable' => $this->is_taxable,
             'has_excies' => $this->has_excies,
             'item_weight' => $this->item_weight,

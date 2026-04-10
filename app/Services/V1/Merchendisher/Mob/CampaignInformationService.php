@@ -8,6 +8,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use App\Exports\CampaignInformationExport;
+use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Helpers\SearchHelper;
 
@@ -30,10 +31,13 @@ class CampaignInformationService
     $data['images'] = $images;
 
     return CampaignInformation::create([
+        'code'  => $data['code'] ?? null,
+        'date-time' => $data['date_time'] ?? null,
         'merchandiser_id' => $data['merchandiser_id'],
         'customer_id' => $data['customer_id'],
         'feedback' => $data['feedback'] ?? '',
         'images' => $images,
+        'name' => $data['name'] ?? '',
     ]);
 }
 
@@ -68,15 +72,44 @@ public function getAll(Request $request)
     return $query->latest()->paginate(50);
 }
 
- public function export($startDate, $endDate, $format = 'csv')
-{
-    $export = new CampaignInformationExport($startDate, $endDate);
-    $fileName = 'campaign_information_' . now()->format('Ymd_His') . '.' . $format;
+//  public function export($startDate, $endDate, $format = 'csv')
+// {
+//     $export = new CampaignInformationExport($startDate, $endDate);
+//     $fileName = 'campaign_information_' . now()->format('Ymd_His') . '.' . $format;
 
-    return Excel::download(
-        $export,
-        $fileName,
-        $format === 'csv' ? \Maatwebsite\Excel\Excel::CSV : \Maatwebsite\Excel\Excel::XLSX
+//     return Excel::download(
+//         $export,
+//         $fileName,
+//         $format === 'csv' ? \Maatwebsite\Excel\Excel::CSV : \Maatwebsite\Excel\Excel::XLSX
+//     );
+// }
+
+public function export($startDate, $endDate, $format = 'csv', $filters = [])
+{
+    $export = new CampaignInformationExport(
+        startDate:      $startDate,
+        endDate:        $endDate,
+        searchTerm:     $filters['search']    ?? null,
+        merchandiserId: $filters['merchandiser_id'] ?? null,
+        customerId:     $filters['customer_id']     ?? null,
+        date:           $filters['date']     ?? null,
     );
+
+    $fileName = 'campaign_information_' . now()->format('Ymd_His') . '.' . $format;
+    $path     = 'campaign_exports/' . $fileName;
+
+    if ($format === 'csv') {
+        Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
+    } else {
+        Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
+    }
+
+    $downloadUrl = rtrim(config('app.url'), '/') . '/storage/app/public/' . $path;
+
+    return response()->json([
+        'status'       => 'success',
+        'message'      => 'Export file generated successfully',
+        'download_url' => $downloadUrl,
+    ]);
 }
 }

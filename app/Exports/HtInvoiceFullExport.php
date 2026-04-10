@@ -57,8 +57,13 @@ class HtInvoiceFullExport implements FromCollection, WithHeadings, ShouldAutoSiz
         foreach ($invoices as $i) {
             $rows[] = [
                 'Invoice Code'      => (string)  $i->invoice_code,
-                'Invoice Date'      => (string) ($i->invoice_date ?? ''),
-                'Invoice Time'      => (string)  $i->invoice_time,
+                'Invoice Date' => $i->invoice_date
+                    ? \Carbon\Carbon::parse($i->invoice_date)->format('d M Y')
+                    : '',
+
+                'Invoice Time' => $i->invoice_time
+                    ? \Carbon\Carbon::parse($i->invoice_time)->format('h:i A')
+                    : '',
                 // 'PurchaseOrder Code' => (string) ($i->poorder->order_code ?? ''),
                 // 'Order Code'        => (string) ($i->order->order_code ?? ''),
                 'Customer'     => trim(($i->customer->osa_code ?? '') . ' - ' . ($i->customer->business_name ?? '')),
@@ -66,12 +71,12 @@ class HtInvoiceFullExport implements FromCollection, WithHeadings, ShouldAutoSiz
                 // 'Company Code'      => (string) ($header->company->company_code ?? ''),
                 // 'Company Name'      => (string) ($header->company->company_name ?? ''),
                 'Warehouse'    =>  trim(($i->warehouse->warehouse_code ?? '') . ' - ' . ($i->warehouse->warehouse_name ?? '')),
-                'Order Number'      => (string)  $i->order_number,
-                'Delivery Number'   => (string)  $i->delivery_number,
+                'Order Number'      => optional($i->order)->order_code ?? '',
+                'Delivery Number'   => optional($i->delivery)->delivery_code ?? '',
                 // 'Delivery Code'     => (string)  ($i->delivery->delivery_code ?? ''),
-                'Net'               => (float) $i->net,
                 'VAT'               => (float) $i->vat,
                 'Excise'            => (float) $i->excise,
+                'Net'               => (float) $i->net,
                 'Total'             => (float) $i->total,
             ];
         }
@@ -91,13 +96,13 @@ class HtInvoiceFullExport implements FromCollection, WithHeadings, ShouldAutoSiz
             'Salesman',
             // 'Company Code'      => '',
             // 'Company Name'      => '',
-            'Warehouse',
+            'Distributors',
             'Order Number',
             'Delivery Number',
             // 'Delivery Code',
-            'Net',
             'VAT',
             'Excise',
+            'Net',
             'Total',
 
         ];

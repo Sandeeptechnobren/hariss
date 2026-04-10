@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Str;
 use App\Traits\Blames;
+use App\Models\OutletChannel;
 
 
 class FrigeCustomerUpdate extends Model
@@ -150,7 +151,11 @@ class FrigeCustomerUpdate extends Model
     }
     public function outletType()
     {
-        return $this->belongsTo(OutletChannel::class, 'outlet_type', 'id');
+        return $this->belongsTo(OutletChannel::class, 'outlet_type', 'id',);
+    }
+    public function outletChannel()
+    {
+        return $this->belongsTo(OutletChannel::class, 'outlet_type');
     }
     public function fridges()
     {

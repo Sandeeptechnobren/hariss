@@ -150,31 +150,32 @@ public function list(array $filters = [], int $perPage = 50)
     if (!empty($filters['agent_id'])) {
         $query->where('agent_id', $filters['agent_id']);
     }
-    //   $fromDate = !empty($filters['from_date'])
-    // ? Carbon::parse($filters['from_date'])->toDateString()
-    // : null;
+    $fromDate = !empty($filters['from_date'])
+        ? Carbon::parse($filters['from_date'])->toDateString()
+        : null;
 
-    // $toDate = !empty($filters['to_date'])
-    //     ? Carbon::parse($filters['to_date'])->toDateString()
-    //     : null;
+    $toDate = !empty($filters['to_date'])
+        ? Carbon::parse($filters['to_date'])->toDateString()
+        : null;
 
-    // if ($fromDate || $toDate) {
+    if ($fromDate || $toDate) {
 
-    //     if ($fromDate && $toDate) {
-    //         $query->whereDate('created_at', '>=', $fromDate)
-    //             ->whereDate('created_at', '<=', $toDate);
-    //     }
-    //     elseif ($fromDate) {
-    //         $query->whereDate('created_at', '>=', $fromDate);
-    //     }
-    //     elseif ($toDate) {
-    //         $query->whereDate('created_at', '<=', $toDate);
-    //     }
+        if ($fromDate && $toDate) {
+            $query->whereDate('created_at', '>=', $fromDate)
+                ->whereDate('created_at', '<=', $toDate);
+        } elseif ($fromDate) {
+            $query->whereDate('created_at', '>=', $fromDate);
+        } elseif ($toDate) {
+            $query->whereDate('created_at', '<=', $toDate);
+        }
 
-    // } else {
-    //     // DEFAULT: today only
-    //     $query->whereDate('created_at', Carbon::today());
-    // }
+    } else {
+        // DEFAULT: current month
+        $query->whereBetween('created_at', [
+            Carbon::now()->startOfMonth(),
+            Carbon::now()->endOfMonth()
+        ]);
+    }
 
     $query->orderBy('id', 'desc');
 

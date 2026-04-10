@@ -125,7 +125,8 @@ class CapsCollectionService
             'salesman:id,name,osa_code',
             'details.item:id,code,name',
             'details.uom:id,name',
-        ]);
+        ])
+        ->withSum('details as itemtotal', 'collected_quantity');
         $query = DataAccessHelper::filterAgentTransaction($query, $user);
         if (!empty($filters['warehouse_id'])) {
 
@@ -436,9 +437,10 @@ class CapsCollectionService
             'salesman:id,name,osa_code',
             'details.item:id,code,name',
             'details.uom:id,name',
-        ])->latest();
+        ])
+        ->latest()
+        ->withSum('details as itemtotal', 'total');
 
-        // 🔐 Agent access
         $query = DataAccessHelper::filterAgentTransaction($query, $user);
 
         // 🌍 Location hierarchy

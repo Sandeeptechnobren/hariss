@@ -14,6 +14,7 @@ use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
 use App\Exports\ShelvesExport;
+use Exception;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -73,11 +74,33 @@ class ShelveService
         return $shelve;
     }
 
+
 public function getAll()
     {
-      return Shelve::latest()->paginate(50);
-    }    
-    public function deleteByUuid(string $uuid): void
+        try {
+            DB::beginTransaction();
+            $data = Shelve::select([
+                    'uuid',
+                    'id',
+                    'shelf_name',
+                    'code',
+                    'valid_from',
+                    'valid_to',
+                    'height',
+                    'width',
+                    'depth',
+                    'created_at'
+                ])->latest()->paginate(50);
+            DB::commit();
+            return $data;
+        } catch (Exception $e){
+            DB::rollBack();
+            return $this->fail('Failed to fetch shelves', [
+                'error' => $e->getMessage()
+            ]);
+        }
+    } 
+public function deleteByUuid(string $uuid): void
     {
         $shelve = Shelve::where('uuid', trim($uuid))->first();
 
@@ -90,60 +113,60 @@ public function getByUuid(string $uuid): ?Shelve
         return Shelve::where('uuid', $uuid)->first();
     }
 
- public function globalSearch(int $perPage = 10, ?string $searchTerm = null)
-{
-    $query = Shelve::with([
-        'createdUser:id,name,username',
-        'updatedUser:id,name,username',
-        'deletedUser:id,name,username',
-    ]);
+public function globalSearch(int $perPage = 10, ?string $searchTerm = null)
+    {
+        $query = Shelve::with([
+            'createdUser:id,name,username',
+            'updatedUser:id,name,username',
+            'deletedUser:id,name,username',
+        ]);
 
-    if (!empty($searchTerm)) {
-        $like = '%' . strtolower($searchTerm) . '%';
+        if (!empty($searchTerm)) {
+            $like = '%' . strtolower($searchTerm) . '%';
 
-        $query->where(function ($q) use ($like, $searchTerm) {
-            $q->orWhereRaw('LOWER(shelf_name) LIKE ?', [$like])
-              ->orWhereRaw('CAST(height AS TEXT) ILIKE ?', [$like])
-              ->orWhereRaw('CAST(width AS TEXT) ILIKE ?', [$like])
-              ->orWhereRaw('CAST(depth AS TEXT) ILIKE ?', [$like])
-              ->orWhereRaw('CAST(id AS TEXT) ILIKE ?', [$like]);
+            $query->where(function ($q) use ($like, $searchTerm) {
+                $q->orWhereRaw('LOWER(shelf_name) LIKE ?', [$like])
+                ->orWhereRaw('CAST(height AS TEXT) ILIKE ?', [$like])
+                ->orWhereRaw('CAST(width AS TEXT) ILIKE ?', [$like])
+                ->orWhereRaw('CAST(depth AS TEXT) ILIKE ?', [$like])
+                ->orWhereRaw('CAST(id AS TEXT) ILIKE ?', [$like]);
 
-            foreach (['createdUser', 'updatedUser', 'deletedUser'] as $relation) {
-                $q->orWhereHas($relation, fn($sub) =>
-                    $sub->whereRaw('LOWER(name) LIKE ?', [$like])
-                        ->orWhereRaw('LOWER(username) LIKE ?', [$like])
-                );
-            }
+                foreach (['createdUser', 'updatedUser', 'deletedUser'] as $relation) {
+                    $q->orWhereHas($relation, fn($sub) =>
+                        $sub->whereRaw('LOWER(name) LIKE ?', [$like])
+                            ->orWhereRaw('LOWER(username) LIKE ?', [$like])
+                    );
+                }
 
-            $matchingCustomerIds = \App\Models\CompanyCustomer::where(function ($sub) use ($like) {
-                $sub->whereRaw('LOWER(osa_code) LIKE ?', [$like])
-                    ->orWhereRaw('LOWER(business_name) LIKE ?', [$like]);
-            })->pluck('id')->toArray();
+                $matchingCustomerIds = \App\Models\CompanyCustomer::where(function ($sub) use ($like) {
+                    $sub->whereRaw('LOWER(osa_code) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(business_name) LIKE ?', [$like]);
+                })->pluck('id')->toArray();
 
-            foreach ($matchingCustomerIds as $customerId) {
-                $q->orWhereRaw('? = ANY(SELECT jsonb_array_elements_text(customer_ids::jsonb))', [(string)$customerId]);
-            }
+                foreach ($matchingCustomerIds as $customerId) {
+                    $q->orWhereRaw('? = ANY(SELECT jsonb_array_elements_text(customer_ids::jsonb))', [(string)$customerId]);
+                }
 
-            $matchingMerchIds = \App\Models\Salesman::where(function ($sub) use ($like) {
-                $sub->whereRaw('LOWER(osa_code) LIKE ?', [$like])
-                    ->orWhereRaw('LOWER(name) LIKE ?', [$like]);
-            })->pluck('id')->toArray();
+                $matchingMerchIds = \App\Models\Salesman::where(function ($sub) use ($like) {
+                    $sub->whereRaw('LOWER(osa_code) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(name) LIKE ?', [$like]);
+                })->pluck('id')->toArray();
 
-            foreach ($matchingMerchIds as $merchId) {
-                $q->orWhereRaw('? = ANY(SELECT jsonb_array_elements_text(merchendiser_ids::jsonb))', [(string)$merchId]);
-            }
+                foreach ($matchingMerchIds as $merchId) {
+                    $q->orWhereRaw('? = ANY(SELECT jsonb_array_elements_text(merchendiser_ids::jsonb))', [(string)$merchId]);
+                }
 
-            if (is_numeric($searchTerm)) {
-                $q->orWhereRaw('? = ANY(SELECT jsonb_array_elements_text(customer_ids::jsonb))', [$searchTerm]);
-                $q->orWhereRaw('? = ANY(SELECT jsonb_array_elements_text(merchendiser_ids::jsonb))', [$searchTerm]);
-            }
-        });
+                if (is_numeric($searchTerm)) {
+                    $q->orWhereRaw('? = ANY(SELECT jsonb_array_elements_text(customer_ids::jsonb))', [$searchTerm]);
+                    $q->orWhereRaw('? = ANY(SELECT jsonb_array_elements_text(merchendiser_ids::jsonb))', [$searchTerm]);
+                }
+            });
+        }
+
+        return $query->paginate($perPage);
     }
 
-    return $query->paginate($perPage);
-}
-
-  public function exportCustomerDataForMerchandiser()
+public function exportCustomerDataForMerchandiser()
 {
     $userId = Auth::id();
     $customers = DB::table('tbl_company_customer')

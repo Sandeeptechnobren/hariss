@@ -72,140 +72,139 @@ class ReturnService
     //         throw $e;
     //     }
     // }
-public function create(array $data): ?ReturnHeader
-{
-    try {
-        DB::beginTransaction();
+    public function create(array $data): ?ReturnHeader
+    {
+        try {
+            DB::beginTransaction();
 
-        $requestedReturns = collect($data['details'])
-            ->groupBy('item_id')
-            ->map(fn($items) => $items->sum('item_quantity'));
+            $requestedReturns = collect($data['details'])
+                ->groupBy('item_id')
+                ->map(fn($items) => $items->sum('item_quantity'));
 
-        foreach ($requestedReturns as $itemId => $reqQty) {
+            foreach ($requestedReturns as $itemId => $reqQty) {
 
-            $invoiceQty = InvoiceDetail::where('header_id', $data['invoice_id'])
-                ->where('item_id', $itemId)
-                ->sum('quantity');
+                $invoiceQty = InvoiceDetail::where('header_id', $data['invoice_id'])
+                    ->where('item_id', $itemId)
+                    ->sum('quantity');
 
-            if ($invoiceQty <= 0) {
-                throw new \Exception("Item {$itemId} does not exist in invoice {$data['invoice_id']}");
-            }
+                if ($invoiceQty <= 0) {
+                    throw new \Exception("Item {$itemId} does not exist in invoice {$data['invoice_id']}");
+                }
 
-            $alreadyReturned = ReturnDetail::whereIn('header_id', function ($query) use ($data) {
+                $alreadyReturned = ReturnDetail::whereIn('header_id', function ($query) use ($data) {
                     $query->select('id')
                         ->from('return_header')
                         ->where('invoice_id', $data['invoice_id']);
                 })
-                ->where('item_id', $itemId)
-                ->sum('item_quantity');
-
-            if (($alreadyReturned + $reqQty) > $invoiceQty) {
-                throw new \Exception(
-                    "Return quantity exceeds invoice quantity for item {$itemId}"
-                );
-            }
-        }
-
-        $header = ReturnHeader::create([
-            'osa_code'     => $data['osa_code'] ?? null,
-            'currency'     => $data['currency'] ?? null,
-            'country_id'   => $data['country_id'] ?? null,
-            'order_id'     => $data['order_id'] ?? null,
-            'invoice_id'   => $data['invoice_id'] ?? null,
-            'delivery_id'  => $data['delivery_id'] ?? null,
-            'warehouse_id' => $data['warehouse_id'],
-            'route_id'     => $data['route_id'] ?? null,
-            'customer_id'  => $data['customer_id'],
-            'salesman_id'  => $data['salesman_id'] ?? null,
-            'gross_total'  => $data['gross_total'] ?? 0,
-            'vat'          => $data['vat'] ?? 0,
-            'net_amount'   => $data['net_amount'] ?? 0,
-            'total'        => $data['total'] ?? 0,
-            'discount'     => $data['discount'] ?? 0,
-            'status'       => $data['status'] ?? 1,
-        ]);
-
-        foreach ($data['details'] as $detail) {
-
-            $qty = (float) ($detail['item_quantity'] ?? 0);
-
-            if ($qty <= 0) {
-                throw new \Exception('Item quantity must be greater than zero.');
+                    ->where('item_id', $itemId)
+                    ->sum('item_quantity');
+                // dd($alreadyReturned + $reqQty);
+                if (($alreadyReturned + $reqQty) > $invoiceQty) {
+                    throw new \Exception(
+                        "Return quantity exceeds invoice quantity for item {$itemId}"
+                    );
+                }
             }
 
-            ReturnDetail::create([
-                'header_id'      => $header->id,
-                'header_code'    => $header->osa_code,
-                'item_id'        => $detail['item_id'],
-                'uom_id'         => $detail['uom_id'],
-                'discount_id'    => $detail['discount_id'] ?? null,
-                'promotion_id'   => $detail['promotion_id'] ?? null,
-                'parent_id'      => $detail['parent_id'] ?? null,
-                'item_price'     => $detail['item_price'] ?? 0,
-                'item_quantity'  => $qty,
-                'return_type'    => $detail['return_type'] ?? null,
-                'return_reason'  => $detail['return_reason'] ?? null,
-                'vat'            => $detail['vat'] ?? 0,
-                'discount'       => $detail['discount'] ?? 0,
-                'gross_total'    => $detail['gross_total'] ?? 0,
-                'net_total'      => $detail['net_total'] ?? 0,
-                'total'          => $detail['total'] ?? 0,
-                'is_promotional' => $detail['is_promotional'] ?? false,
-                'status'         => $detail['status'] ?? 1,
+            $header = ReturnHeader::create([
+                'osa_code'     => $data['osa_code'] ?? null,
+                'currency'     => $data['currency'] ?? null,
+                'country_id'   => $data['country_id'] ?? null,
+                'order_id'     => $data['order_id'] ?? null,
+                'invoice_id'   => $data['invoice_id'] ?? null,
+                'delivery_id'  => $data['delivery_id'] ?? null,
+                'warehouse_id' => $data['warehouse_id'],
+                'route_id'     => $data['route_id'] ?? null,
+                'customer_id'  => $data['customer_id'],
+                'salesman_id'  => $data['salesman_id'] ?? null,
+                'gross_total'  => $data['gross_total'] ?? 0,
+                'vat'          => $data['vat'] ?? 0,
+                'net_amount'   => $data['net_amount'] ?? 0,
+                'total'        => $data['total'] ?? 0,
+                'discount'     => $data['discount'] ?? 0,
+                'status'       => $data['status'] ?? 1,
             ]);
 
-            $stock = WarehouseStock::where('warehouse_id', $header->warehouse_id)
-                ->where('item_id', $detail['item_id'])
-                ->lockForUpdate()
-                ->first();
+            foreach ($data['details'] as $detail) {
 
-            if (!$stock) {
-                throw new \Exception(
-                    "Stock not found for Item ID {$detail['item_id']} in Warehouse {$header->warehouse_id}"
-                );
-            }
+                $qty = (float) ($detail['item_quantity'] ?? 0);
 
-            if ($detail['return_type'] == 1) {
-                $stock->qty += $qty;
-            } elseif ($detail['return_type'] == 2) {
+                if ($qty <= 0) {
+                    throw new \Exception('Item quantity must be greater than zero.');
+                }
 
-                if ($stock->qty < $qty) {
+                ReturnDetail::create([
+                    'header_id'      => $header->id,
+                    'header_code'    => $header->osa_code,
+                    'item_id'        => $detail['item_id'],
+                    'uom_id'         => $detail['uom_id'],
+                    'discount_id'    => $detail['discount_id'] ?? null,
+                    'promotion_id'   => $detail['promotion_id'] ?? null,
+                    'parent_id'      => $detail['parent_id'] ?? null,
+                    'item_price'     => $detail['item_price'] ?? 0,
+                    'item_quantity'  => $qty,
+                    'return_type'    => $detail['return_type'] ?? null,
+                    'return_reason'  => $detail['return_reason'] ?? null,
+                    'vat'            => $detail['vat'] ?? 0,
+                    'discount'       => $detail['discount'] ?? 0,
+                    'gross_total'    => $detail['gross_total'] ?? 0,
+                    'net_total'      => $detail['net_total'] ?? 0,
+                    'total'          => $detail['total'] ?? 0,
+                    'is_promotional' => $detail['is_promotional'] ?? false,
+                    'status'         => $detail['status'] ?? 1,
+                ]);
+
+                $stock = WarehouseStock::where('warehouse_id', $header->warehouse_id)
+                    ->where('item_id', $detail['item_id'])
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$stock) {
                     throw new \Exception(
-                        "Insufficient stock for Item ID {$detail['item_id']} in Warehouse {$header->warehouse_id}"
+                        "Stock not found for Item ID {$detail['item_id']} in Warehouse {$header->warehouse_id}"
                     );
                 }
 
-                $stock->qty -= $qty;
+                if ($detail['return_type'] == 1) {
+                    $stock->qty += $qty;
+                } elseif ($detail['return_type'] == 2) {
+
+                    if ($stock->qty < $qty) {
+                        throw new \Exception(
+                            "Insufficient stock for Item ID {$detail['item_id']} in Warehouse {$header->warehouse_id}"
+                        );
+                    }
+
+                    $stock->qty -= $qty;
+                }
+
+                $stock->save();
             }
 
-            $stock->save();
+            DB::commit();
+
+            $workflow = DB::table('htapp_workflow_assignments')
+                ->where('process_type', 'Return_Header')
+                ->where('is_active', true)
+                ->first();
+
+            if ($workflow) {
+                app(\App\Services\V1\Approval_process\HtappWorkflowApprovalService::class)
+                    ->startApproval([
+                        "workflow_id"  => $workflow->workflow_id,
+                        "process_type" => "Return_Header",
+                        "process_id"   => $header->id
+                    ]);
+            }
+
+            return $header->load('details');
+        } catch (Exception $e) {
+
+            DB::rollBack();
+            Log::error('ReturnService::create Error: ' . $e->getMessage());
+            throw $e;
         }
-
-        DB::commit();
-
-        $workflow = DB::table('htapp_workflow_assignments')
-            ->where('process_type', 'Return_Header')
-            ->where('is_active', true)
-            ->first();
-
-        if ($workflow) {
-            app(\App\Services\V1\Approval_process\HtappWorkflowApprovalService::class)
-                ->startApproval([
-                    "workflow_id"  => $workflow->workflow_id,
-                    "process_type" => "Return_Header",
-                    "process_id"   => $header->id
-                ]);
-        }
-
-        return $header->load('details');
-
-    } catch (Exception $e) {
-
-        DB::rollBack();
-        Log::error('ReturnService::create Error: ' . $e->getMessage());
-        throw $e;
     }
-}
 
     //     public function getAll(int $perPage, array $filters = [], bool $dropdown = false)
     //     {
@@ -445,12 +444,20 @@ public function create(array $data): ?ReturnHeader
             }
 
             // ✅ Warehouse
-            if (!empty($filter['warehouse_id'])) {
-                $ids = is_array($filter['warehouse_id'])
-                    ? $filter['warehouse_id']
-                    : explode(',', $filter['warehouse_id']);
+            // if (!empty($filter['warehouse_id'])) {
+            //     $ids = is_array($filter['warehouse_id'])
+            //         ? $filter['warehouse_id']
+            //         : explode(',', $filter['warehouse_id']);
 
-                $query->whereIn('warehouse_id', array_map('intval', $ids));
+            //     $query->whereIn('warehouse_id', array_map('intval', $ids));
+            // }
+
+            if (!empty($filter['route_id'])) {
+                $routeIds = is_array($filter['route_id'])
+                    ? $filter['route_id']
+                    : explode(',', $filter['route_id']);
+
+                $query->whereIn('route_id', array_map('intval', $routeIds));
             }
 
             // ✅ Customer

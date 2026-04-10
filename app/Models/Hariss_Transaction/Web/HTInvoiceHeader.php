@@ -94,7 +94,7 @@ class HTInvoiceHeader extends Model
 
     public function order()
     {
-        return $this->belongsTo(HTOrderHeader::class, 'order_id');
+        return $this->belongsTo(HTOrderHeader::class, 'order_number');
     }
 
     public function poorder()
@@ -102,18 +102,17 @@ class HTInvoiceHeader extends Model
         return $this->belongsTo(PoOrderHeader::class, 'po_id');
     }
 
-        public function delivery()
+    public function delivery()
     {
-        return $this->belongsTo(HTDeliveryHeader::class, 'delivery_id');
+        return $this->belongsTo(HTDeliveryHeader::class, 'delivery_number');
     }
 
     public function company()
     {
         return $this->belongsTo(Company::class, 'company_id');
     }
-        public function warehouse()
+    public function warehouse()
     {
         return $this->belongsTo(Warehouse::class, 'warehouse_id');
     }
-
 }

@@ -32,5 +32,7 @@ return [
     'IR_Header'=> App\Models\IRHeader::class,
     'CompiledClaim'=> App\Models\Claim_Management\Web\CompiledClaim::class,
     'PetitClaim'=> App\Models\Claim_Management\Web\PetitClaim::class,
+    'users' => App\Models\User::class,
+    'credit_note' => App\Models\Hariss_Transaction\Web\CreditNoteHeader::class,
 ];
  

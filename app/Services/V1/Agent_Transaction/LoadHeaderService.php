@@ -21,7 +21,7 @@ use Illuminate\Pagination\Paginator;
 class LoadHeaderService
 {
 
-public function store(array $data)
+    public function store(array $data)
     {
         DB::beginTransaction();
         try {
@@ -149,7 +149,7 @@ public function store(array $data)
     }
 
 
-public function all($perPage = 50, $filters = [])
+    public function all($perPage = 50, $filters = [])
     {
         try {
             $user = auth()->user();
@@ -306,7 +306,7 @@ public function all($perPage = 50, $filters = [])
     }
 
 
-public function globalFilter(int $perPage = 50, array $filters = [])
+    public function globalFilter(int $perPage = 50, array $filters = [])
     {
         $user = auth()->user();
         $filter = $filters['filter'] ?? [];
@@ -336,18 +336,31 @@ public function globalFilter(int $perPage = 50, array $filters = [])
                 $query->whereIn('warehouse_id', $warehouseIds);
             }
         }
-        if (!empty($filter['warehouse_id'])){
-            $warehouseIds = is_array($filter['warehouse_id'])? $filter['warehouse_id']: explode(',', $filter['warehouse_id']);
-            $query->whereIn('warehouse_id', array_map('intval', $warehouseIds));
-        }
-        if (!empty($filter['salesman_id'])) {
-            $salesmanIds = is_array($filter['salesman_id'])? $filter['salesman_id']: explode(',', $filter['salesman_id']);
-            $query->whereIn('salesman_id', array_map('intval', $salesmanIds));
-        }
+        // if (!empty($filter['warehouse_id'])){
+        //     $warehouseIds = is_array($filter['warehouse_id'])? $filter['warehouse_id']: explode(',', $filter['warehouse_id']);
+        //     $query->whereIn('warehouse_id', array_map('intval', $warehouseIds));
+        // }
+        //    $query->when(!empty($filter['warehouse']), function ($q) use ($filter) {
+        //         $ids = is_array($filter['warehouse']) ? $filter['warehouse'] : explode(',', $filter['warehouse']);
+        //         $q->whereIn('warehouse_id', array_map('intval', $ids));
+        //     });
         if (!empty($filter['route_id'])) {
-            $routeIds = is_array($filter['route_id'])? $filter['route_id']: explode(',', $filter['route_id']);
+            $routeIds = is_array($filter['route_id']) ? $filter['route_id'] : explode(',', $filter['route_id']);
             $query->whereIn('route_id', array_map('intval', $routeIds));
         }
+        if (!empty($filter['salesman_id'])) {
+            $salesmanIds = is_array($filter['salesman_id']) ? $filter['salesman_id'] : explode(',', $filter['salesman_id']);
+            $query->whereIn('salesman_id', array_map('intval', $salesmanIds));
+        }
+        // if (!empty($filter['salesman'])) {
+        //     $salesmanIds = is_array($filter['salesman'])? $filter['salesman']: explode(',', $filter['salesman']);
+        //     $query->whereIn('salesman_id', array_map('intval', $salesmanIds));
+        // }
+
+        // if (!empty($filter['route'])) {
+        //     $routeIds = is_array($filter['route'])? $filter['route']: explode(',', $filter['route']);
+        //     $query->whereIn('route_id', array_map('intval', $routeIds));
+        // }
         if (!empty($filter['from_date'])) {
             $query->whereDate('created_at', '>=', $filter['from_date']);
         }

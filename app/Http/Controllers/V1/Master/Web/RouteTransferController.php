@@ -73,12 +73,26 @@ class RouteTransferController extends Controller
     //     }
     // }
 
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
+        $perPage = (int) $request->get('limit', 50);
+
+        $transfers = $this->service->getHistory($perPage);
+
         return response()->json([
             'status' => 'success',
-            'data'   => $this->service->getHistory(),
-        ], 200);
+            'code' => 200,
+            'message' => 'Route transfer history fetched successfully',
+
+            'data' => $transfers->items(), // ✅ only data array
+
+            'pagination' => [
+                'page' => $transfers->currentPage(),
+                'limit' => $transfers->perPage(),
+                'totalPages' => $transfers->lastPage(),
+                'totalRecords' => $transfers->total(),
+            ],
+        ]);
     }
     // public function index(Request $request): JsonResponse
     // {

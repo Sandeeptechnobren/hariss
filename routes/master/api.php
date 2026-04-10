@@ -27,6 +27,7 @@ use App\Http\Controllers\V1\Master\Web\DriverController;
 use App\Http\Controllers\V1\Master\Web\DiscountController;
 use App\Http\Controllers\V1\Master\Web\RouteTransferController;
 use App\Http\Controllers\V1\Agent_Transaction\LoadHeaderController;
+use App\Http\Controllers\V1\Agent_Transaction\AgentTargetController;
 use App\Http\Controllers\V1\Agent_Transaction\LoadDetailController;
 use App\Http\Controllers\V1\Agent_Transaction\UnloadHeaderController;
 use App\Http\Controllers\V1\Agent_Transaction\AdvancePaymentController;
@@ -93,6 +94,7 @@ use App\Http\Controllers\V1\Settings\Web\AssetModelNumberController;
 use App\Http\Controllers\V1\Settings\Web\AssetBrandingController;
 use App\Http\Controllers\V1\Settings\Web\FridgeStatusController;
 use App\Http\Controllers\V1\Settings\Web\AssetsStatusController;
+use App\Http\Controllers\V1\Settings\Web\DiscountSettingController;
 use App\Http\Controllers\V1\Merchendisher\Web\PlanogramController;
 use App\Http\Controllers\V1\Merchendisher\Web\PlanogramImageController;
 use App\Http\Controllers\V1\Merchendisher\Mob\PlanogramPostController;
@@ -120,6 +122,7 @@ use App\Http\Controllers\V1\Hariss_Transaction\Web\HTInvoiceController;
 use App\Http\Controllers\V1\Hariss_Transaction\Web\HtReturnController;
 use App\Http\Controllers\V1\Hariss_Transaction\Web\CapsHController;
 use App\Http\Controllers\V1\Hariss_Transaction\Web\TempReturnController;
+use App\Http\Controllers\V1\Hariss_Transaction\Web\CreditNoteController;
 use App\Http\Controllers\V1\Claim_Management\Web\CompiledClaimController;
 use App\Http\Controllers\V1\Claim_Management\Web\PetitClaimController;
 use App\Http\Controllers\V1\Approval_process\HtappWorkflowController;
@@ -132,6 +135,15 @@ use App\Http\Controllers\V1\Loyality_Management\LoyalityPointController;
 use App\Http\Controllers\V1\Loyality_Management\AdjustmentController;
 use App\Http\Controllers\V1\Ticket_Management\Web\RaiseTicketController;
 use App\Http\Controllers\V1\SAP\SapItemSyncController;
+use App\Http\Controllers\V1\EfrisAPI\UraSyncController;
+use App\Http\Controllers\V1\EfrisAPI\EfrisStockSyncTestController;
+use App\Http\Controllers\V1\EfrisAPI\UraInvoiceController;
+use App\Http\Controllers\V1\EfrisAPI\UraReturnController;
+use App\Http\Controllers\V1\EfrisAPI\UraDeliverySyncController;
+// use App\Http\Controllers\V1\EfrisAPI\EfrisPendingDeliveryController;
+use App\Http\Controllers\V1\EfrisAPI\UraCustomerValidateController;
+use App\Http\Controllers\V1\EfrisAPI\UraStockAdjustmentController;
+use App\Http\Controllers\V1\EfrisAPI\DailyStockCountController;
 use App\Http\Controllers\LogController;
 
 
@@ -226,7 +238,7 @@ Route::prefix('master')->group(function () {
             Route::post('/create', [WarehouseController::class, 'store']);
             // Route::get('/{id}', [WarehouseController::class, 'show']);
             Route::get('{uuid}', [WarehouseController::class, 'show']);
-            Route::put('/{uuid}', [WarehouseController::class, 'update']);
+            Route::post('/{uuid}', [WarehouseController::class, 'update']);
             // Route::delete('/{id}', [WarehouseController::class, 'destroy']);
             Route::get('/list_warehouse/active', [WarehouseController::class, 'active']);
             Route::get('/type/{type}', [WarehouseController::class, 'byType']);
@@ -335,6 +347,7 @@ Route::prefix('master')->group(function () {
             Route::get('/item-returns/{id}', [ItemController::class, 'getItemReturns']);
         });
         Route::prefix('salesmen')->group(function () {
+            Route::post('exportAttendance', [SalesmanController::class, 'exportAttendance']);
             Route::get('getattendance', [SalesmanController::class, 'report']);
             Route::get('list', [SalesmanController::class, 'index']);
             Route::post('exportfile', [SalesmanController::class, 'exportSalesmen']);
@@ -376,6 +389,7 @@ Route::prefix('master')->group(function () {
         Route::prefix('promotion-headers')->group(function () {
             Route::get('/global-search', [PromotionHeaderController::class, 'globalSearch']);
             Route::post('/applicable', [PromotionHeaderController::class, 'getAppliedPromotions']);
+            // Route::post('/getinvoicebasedpromotion', [PromotionHeaderController::class, 'getinvoicebasedpromotion']);
             Route::get('list', [PromotionHeaderController::class, 'index']);
             Route::post('create', [PromotionHeaderController::class, 'store']);
             Route::get('/warehouse', [PromotionHeaderController::class, 'getByWarehouse']);
@@ -652,13 +666,14 @@ Route::prefix('settings')->group(function () {
             Route::put('{uuid}', [UomController::class, 'update']);
             Route::delete('{uuid}', [UomController::class, 'destroy']);
         });
+        Route::get('/getItemStockSummary', [WarehouseStockController::class, 'overallStockHealth']);
 
         Route::prefix('warehouse-stocks')->group(function () {
             Route::get('dayYesterdayMonthWisefilter', [WarehouseStockController::class, 'dayYesterdayMonthWisefilter']);
             Route::get('stockitemdetails', [WarehouseStockController::class, 'getItemsByWarehouse']);
-            Route::get('/export', [WarehouseStockController::class, 'exportWarehouseStocks']);
+            Route::get('/export', [WarehouseStockController::class, 'exportStockHealth']);
             Route::get('{warehouseId}', [WarehouseStockController::class, 'LowStocks']);
-            Route::get('stock-transfer/{warehouseId}', [WarehouseStockController::class, 'itemsByWarehouse']);
+            Route::get('stock-transfer/{warehouseId}', [WarehouseStockController::class, 'warehouseByItemStock']);
             Route::post('/transfer', [WarehouseStockController::class, 'bulkTransfer']);
             Route::get('list', [WarehouseStockController::class, 'index']);
             Route::get('/stock', [WarehouseStockController::class, 'checkStock']);
@@ -673,6 +688,7 @@ Route::prefix('settings')->group(function () {
             Route::get('/{warehouseId}/stock-details', [WarehouseStockController::class, 'getWarehouseStockDetails']);
             Route::get('/{warehouseId}/stock-helth', [WarehouseStockController::class, 'warehouseStockHealth']);
             Route::get('/itemsbasedwarehouse/{id}', [WarehouseStockController::class, 'getItemUomsByWarehouse']);
+            Route::get('/warehouse-summary/overall', [WarehouseStockController::class, 'overallWarehouseSummary']);
         });
         Route::prefix('labels')->group(function () {
             Route::get('list/', [LabelController::class, 'index']);
@@ -718,6 +734,12 @@ Route::prefix('settings')->group(function () {
         Route::prefix('assets-status')->group(function () {
             Route::get('/dropdown', [AssetsStatusController::class, 'dropdown']);
         });
+        Route::prefix('discount-setting')->group(function () {
+            Route::get('/list', [DiscountSettingController::class, 'index']);
+            Route::get('{uuid}', [DiscountSettingController::class, 'show']);
+            Route::post('/add', [DiscountSettingController::class, 'store']);
+            Route::put('{uuid}', [DiscountSettingController::class, 'update']);
+        });
     });
 });
 
@@ -760,6 +782,7 @@ Route::prefix('assets')->group(function () {
             Route::delete('delete/{uuid}', [SpareController::class, 'destroy']);
         });
         Route::prefix('chiller-request')->group(function () {
+            Route::get('importimagespdf/{uuid}', [ChillerRequestController::class, 'exportPdf']);
             Route::get('/filter', [ChillerRequestController::class, 'filterChillerRequests']);
             Route::get('/approved', [ChillerRequestController::class, 'approvedChillerRequests']);
             Route::post('/crf-export', [ChillerRequestController::class, 'export']);
@@ -809,6 +832,7 @@ Route::prefix('assets')->group(function () {
         });
 
         Route::prefix('call-register')->group(function () {
+            Route::get('importimagespdf/{uuid}', [CallRegisterController::class, 'exportPdf']);
             Route::post('/export', [CallRegisterController::class, 'exportCallRegister']);
             Route::post('globalFilter', [CallRegisterController::class, 'globalFilter']);
             Route::get('/global_search', [CallRegisterController::class, 'global_search']);
@@ -821,6 +845,7 @@ Route::prefix('assets')->group(function () {
             Route::delete('/{id}', [CallRegisterController::class, 'destroy']);
         });
         Route::prefix('service-visit')->group(function () {
+            Route::get('exportserviceimagepdf/{uuid}', [ServiceVisitController::class, 'exportServiceVisitPdf']);
             Route::post('/export', [ServiceVisitController::class, 'export']);
             Route::post('/generate-code', [ServiceVisitController::class, 'generateCode']);
             Route::post('globalFilter', [ServiceVisitController::class, 'globalFilter']);
@@ -840,9 +865,12 @@ Route::prefix('assets')->group(function () {
             Route::delete('{uuid}', [ServiceTerritoryController::class, 'destroy']);
         });
         Route::prefix('fridge-customer-update')->group(function () {
+            Route::get('exportimagespdf/{uuid}', [FrigeCustomerUpdateController::class, 'exportPdf']);
             Route::get('/list', [FrigeCustomerUpdateController::class, 'index']);
-            Route::get('/export', [FrigeCustomerUpdateController::class, 'export']);
+            Route::post('/export', [FrigeCustomerUpdateController::class, 'export']);
             Route::get('/global_search', [FrigeCustomerUpdateController::class, 'globalSearch']);
+            Route::post('/globalFilter', [FrigeCustomerUpdateController::class, 'globalFilter']);
+            Route::post('/export', [FrigeCustomerUpdateController::class, 'export']);
             Route::get('{uuid}', [FrigeCustomerUpdateController::class, 'show']);
             Route::post('update/{uuid}', [FrigeCustomerUpdateController::class, 'update']);
         });
@@ -964,6 +992,7 @@ Route::prefix('merchendisher')->group(function () {
             Route::delete('delete/{uuid}', [StockInStoreController::class, 'destroy']);
             Route::post('bluckupload', [StockInStoreController::class, 'bulkUpload']);
             Route::get('/posts/{uuid}', [StockInStoreController::class, 'postsByStockUuid']);
+            Route::get('export', [StockInStoreController::class, 'export']);
         });
     });
 });
@@ -1007,6 +1036,8 @@ Route::prefix('agent_transaction')->group(function () {
             Route::delete('/{uuid}', [LoadDetailController::class, 'destroy']);
         });
         Route::prefix('invoices')->group(function () {
+            Route::post('getinvoicebypromotion', [InvoiceController::class, 'InvoicesByPromotion']);
+            Route::post('exportinvoicepromotioncollapse', [InvoiceController::class, 'exportInvoiceByPromotionCollapse']);
             Route::get('exportinvoicewarehouse', [InvoiceController::class, 'exportInvoicesByWarehouse']);
             Route::get('exportinvoiceagentcustomer/{uuid}', [InvoiceController::class, 'exportInvoiceAgentCustomer']);
             Route::post('exportcollapse', [InvoiceController::class, 'exportInvoiceCollapse']);
@@ -1044,7 +1075,7 @@ Route::prefix('agent_transaction')->group(function () {
             Route::get('/reson', [ReturnController::class, 'resionlist']);
         });
         Route::prefix('capscollection')->group(function () {
-            Route::get('exportall', [CapsCollectionController::class, 'exportCapsCollectionHeader']);
+            Route::get('exportall', [CapsCollectionController::class, 'exportCapsCollectionPdf']);
             Route::get('quantity', [CapsCollectionController::class, 'getQuantity']);
             Route::post('globalFilter', [CapsCollectionController::class, 'globalFilter']);
             Route::get('list', [CapsCollectionController::class, 'index']);
@@ -1058,7 +1089,7 @@ Route::prefix('agent_transaction')->group(function () {
         });
         Route::prefix('unload')->group(function () {
             Route::post('exportcollapse', [UnloadHeaderController::class, 'exportUnloadCollapse']);
-            Route::get('export', [UnloadHeaderController::class, 'exportUnloadHeader']);
+            Route::post('export', [UnloadHeaderController::class, 'exportUnloadHeader']);
             Route::get('exportall', [UnloadHeaderController::class, 'exportUnload']);
             Route::post('/add', [UnloadHeaderController::class, 'store']);
             Route::get('/list', [UnloadHeaderController::class, 'index']);
@@ -1128,13 +1159,19 @@ Route::prefix('agent_transaction')->group(function () {
             Route::post('create', [AdvancePaymentController::class, 'store']);
             Route::put('update/{uuid}', [AdvancePaymentController::class, 'update']);
             Route::get('/company-customer/{id}', [AdvancePaymentController::class, 'getBankDetails']);
+            Route::get('exportpdf', [AdvancePaymentController::class, 'exportadancepaymentpdf']);
         });
         Route::prefix('salesman-warehouse-history')->group(function () {
             Route::get('/list', [SalesmanWarehouseHistoryController::class, 'index']);
             Route::post('/globalFilter', [SalesmanWarehouseHistoryController::class, 'globalFilter']);
         });
         Route::prefix('stock-transfer')->group(function () {
+            Route::get('exportpdf', [StockTransferListController::class, 'exportstockpdffull']);
             Route::get('/list', [StockTransferListController::class, 'list']);
+            Route::post('/globalFilter', [StockTransferListController::class, 'globalFilter']);
+            Route::post('/exportHeader', [StockTransferListController::class, 'exportHeader']);
+            Route::post('/exportCollaps', [StockTransferListController::class, 'exportCollaps']);
+            Route::post('/getWarehouse', [StockTransferListController::class, 'getWarehouse']);
             Route::get('/{uuid}', [StockTransferListController::class, 'show']);
         });
         Route::prefix('reconsile')->group(function () {
@@ -1146,6 +1183,18 @@ Route::prefix('agent_transaction')->group(function () {
         });
         Route::prefix('salesteam-tracking')->group(function () {
             Route::get('/track', [SalesTeamTrackingController::class, 'show']);
+        });
+
+        Route::prefix('agent-target')->group(function () {
+            Route::post('/export', [AgentTargetController::class, 'export']);
+            Route::get('/list', [AgentTargetController::class, 'index']);
+            Route::post('/show', [AgentTargetController::class, 'show']);
+            Route::post('/update', [AgentTargetController::class, 'updateTarget']);
+            Route::post('/globalFilter', [AgentTargetController::class, 'globalFilter']);
+            Route::get('/dummy-csv', [AgentTargetController::class, 'downloadDummyCsv']);
+            Route::get('/fields', [AgentTargetController::class, 'getFields']);
+            Route::post('/import', [AgentTargetController::class, 'import']);
+            Route::post('/final_import', [AgentTargetController::class, 'final_import']);
         });
     });
 });
@@ -1159,7 +1208,7 @@ Route::prefix('hariss_transaction')->group(function () {
             Route::put('update/{uuid}', [CapsHController::class, 'update']);
             Route::get('export', [CapsHController::class, 'exportHtCaps']);
             Route::post('exportheader', [CapsHController::class, 'exportHtCapsHeader']);
-            Route::get('exportcollapse', [CapsHController::class, 'exportcapsCollapse']);
+            Route::post('exportcollapse', [CapsHController::class, 'exportcapsCollapse']);
             Route::get('list', [CapsHController::class, 'index']);
             Route::get('show/{uuid}', [CapsHController::class, 'show']);
             Route::post('create', [CapsHController::class, 'store']);
@@ -1205,6 +1254,7 @@ Route::prefix('hariss_transaction')->group(function () {
             Route::get('/{uuid}', [HTInvoiceController::class, 'show']);
         });
         Route::prefix('ht_returns')->group(function () {
+            Route::get('getreturnbywarehouse', [HtReturnController::class, 'getByWarehouse']);
             Route::post('globalFilter', [HtReturnController::class, 'globalFilter']);
             Route::get('export', [HtReturnController::class, 'exportHtReturns']);
             Route::post('exportheader', [HtReturnController::class, 'exportHtReturnHeader']);
@@ -1224,6 +1274,15 @@ Route::prefix('hariss_transaction')->group(function () {
             Route::get('show/{uuid}', [TempReturnController::class, 'show']);
             Route::get('gettemp', [TempReturnController::class, 'getTempReturnHeaders']);
         });
+        Route::prefix('credit_notes')->group(function () {
+            Route::get('/list', [CreditNoteController::class, 'index']);
+            Route::post('/add', [CreditNoteController::class, 'store']);
+            Route::get('list/{uuid}', [CreditNoteController::class, 'show']);
+            Route::delete('{uuid}', [CreditNoteController::class, 'destroy']);
+            Route::get('/header_list', [CreditNoteController::class, 'list']);
+            Route::get('export', [CreditNoteController::class, 'exportHeader']);
+            Route::get('exportcollapse', [CreditNoteController::class, 'exportCollapse']);
+        });
     });
 });
 
@@ -1239,8 +1298,9 @@ Route::prefix('claim_management')->group(function () {
         Route::prefix('petit-claim')->group(function () {
             Route::post('/globalFilter', [PetitClaimController::class, 'globalFilter']);
             Route::get('/list', [PetitClaimController::class, 'index']);
+            Route::get('/{uuid}', [PetitClaimController::class, 'showByUuid']);
             Route::post('/add', [PetitClaimController::class, 'store']);
-            Route::get(
+            Route::post(
                 '/export',
                 [PetitClaimController::class, 'export']
             );
@@ -1305,5 +1365,27 @@ Route::prefix('SAP')->group(function () {
     Route::middleware('auth:api')->group(function () {
         Route::get('/item', [SapItemSyncController::class, 'sync']);
         Route::get('/test', [SapItemSyncController::class, 'test']);
+    });
+});
+
+
+Route::prefix('EFRIS')->group(function () {
+    Route::middleware('auth:api')->group(function () {
+        Route::post('/sync_ura', [UraSyncController::class, 'sync']);
+        Route::post('/stock_sync_test', [EfrisStockSyncTestController::class, 'syncItems_test']);
+        Route::post('/sync_invoice_ura', [UraInvoiceController::class, 'sync']);
+        Route::post('/sync_delivery', [UraDeliverySyncController::class, 'syncDelivery']);
+        Route::post('/get_unsync_delivery', [UraDeliverySyncController::class, 'getUnsyncDelivery']);
+        Route::post('/ura_customer_valid', [UraCustomerValidateController::class, 'customerValidate']);
+        Route::post('/get_branches', [UraCustomerValidateController::class, 'getBranch']);
+        // Route::post('/ura_stock_adjust', [UraStockAdjustmentController::class, 'stockAdjustment']);
+        Route::get('/fetch_stock', [UraStockAdjustmentController::class, 'fetch']);
+        Route::post('/upload_stock', [UraStockAdjustmentController::class, 'upload']);
+        Route::post('/list_stock', [UraStockAdjustmentController::class, 'listEfrisStock']);
+        Route::post('/daily_stock_count', [DailyStockCountController::class, 'dailyStockCount']);
+        Route::post('/get_invoice', [UraInvoiceController::class, 'getInvoices']);
+        Route::post('/get_return_list', [UraReturnController::class, 'getReturnsList']);
+        Route::post('/get_return_detail', [UraReturnController::class, 'getReturnDetails']);
+        Route::post('/sync_return', [UraReturnController::class, 'syncReturn']);
     });
 });

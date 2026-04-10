@@ -79,5 +79,7 @@ return [
     'AUD'                   => 'AUD',
     'INS'                   => 'INS',
     'PM'                    => 'PM',
+    'users'                 => 'USR',
+    'credit_note'           => 'CNT',
 ];
  

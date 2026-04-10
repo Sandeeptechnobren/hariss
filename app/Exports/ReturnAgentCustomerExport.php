@@ -112,7 +112,7 @@ class ReturnAgentCustomerExport implements FromCollection, WithHeadings, ShouldA
     {
         return [
             'OSA Code',
-            'Warehouse',
+            'Distributor',
             'Route',
             'Customer',
             'Salesman',

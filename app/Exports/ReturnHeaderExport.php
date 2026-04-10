@@ -36,7 +36,7 @@ class ReturnHeaderExport implements
         $this->routeIds = $routeIds;
         $this->salesmanIds = $salesmanIds;
     }
-  public function collection()
+    public function collection()
     {
         $rows = [];
 
@@ -48,6 +48,7 @@ class ReturnHeaderExport implements
             'route',
             'customer',
             'salesman',
+            'invoice',
         ])
             ->when(
                 $this->fromDate,
@@ -76,10 +77,10 @@ class ReturnHeaderExport implements
         foreach ($headers as $header) {
 
             $rows[] = [
-                'Code'      => (string) $header->osa_code,
+                'Return No'      => (string) $header->osa_code,
                 'Date' => (string) optional($header->created_at)->format('Y-m-d'),
                 // 'Order Code'    => (string) ($header->order->order_code ?? ''),
-                'Delivery Code' => (string) ($header->delivery->delivery_code ?? ''),
+                'Invoice Code' => (string) ($header->invoice->invoice_code ?? ''),
                 'Warehouse' => trim(
                     ($header->warehouse->warehouse_code ?? '') . ' - ' .
                         ($header->warehouse->warehouse_name ?? '')
@@ -95,13 +96,13 @@ class ReturnHeaderExport implements
                         ($header->customer->name ?? '')
                 ),
 
-                'Salesman' => trim(
-                    ($header->salesman->osa_code ?? '') . ' - ' .
-                        ($header->salesman->name ?? '')
-                ),
+                // 'Salesman' => trim(
+                //     ($header->salesman->osa_code ?? '') . ' - ' .
+                //         ($header->salesman->name ?? '')
+                // ),
 
-                'VAT'        => (float) $header->vat,
-                'Net Amount' => (float) $header->net_amount,
+                // 'VAT'        => (float) $header->vat,
+                // 'Net Amount' => (float) $header->net_amount,
                 'Total'      => (float) $header->total,
             ];
         }
@@ -112,15 +113,15 @@ class ReturnHeaderExport implements
     public function headings(): array
     {
         return [
-            'Code',
+            'Return No',
             'Date',
-            'Delivery Code',
-            'Warehouse',
+            'Invoice Code',
+            'Distributors',
             'Route',
             'Customer',
-            'Salesman',
-            'VAT',
-            'Net Amount',
+            // 'Salesman',
+            // 'VAT',
+            // 'Net Amount',
             'Total',
         ];
     }

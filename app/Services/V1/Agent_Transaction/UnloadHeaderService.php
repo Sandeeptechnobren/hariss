@@ -812,6 +812,12 @@ class UnloadHeaderService
             ->get()
             ->groupBy('item_id');
 
+        $Uoms = ItemUom::whereIn('item_id', $itemIds)
+            ->where('uom_type', 'primary')
+            ->select('item_id', 'uom_id')
+            ->get()
+            ->keyBy('item_id');
+        // dd($Uoms);
         $merged = [];
 
         foreach ($loads as $load) {
@@ -831,7 +837,7 @@ class UnloadHeaderService
                 if ($uomId != 1) {
                     $loadQty *= $upc;
                 }
-
+                $primaryUomId = $Uoms[$itemId]->uom_id ?? null;
                 $unloadQty = $loadQty - $invoiceQty + $returnQty - $capsQty;
 
                 // row data
@@ -840,7 +846,7 @@ class UnloadHeaderService
                     'item_name' => $items[$itemId]->name ?? null,
                     'erp_code' => $items[$itemId]->erp_code ?? null,
 
-                    'uom' => $uomId,
+                    'uom' => $primaryUomId,
                     // 'uom_name'            => $uomRow->uom ?? null,
 
                     'total_load' => $loadQty,
@@ -903,14 +909,20 @@ class UnloadHeaderService
             }
 
             // ✅ Warehouse filter
-            if (!empty($filter['warehouse_id'])) {
-                $warehouseIds = is_array($filter['warehouse_id'])
-                    ? $filter['warehouse_id']
-                    : explode(',', $filter['warehouse_id']);
+            // if (!empty($filter['warehouse_id'])) {
+            //     $warehouseIds = is_array($filter['warehouse_id'])
+            //         ? $filter['warehouse_id']
+            //         : explode(',', $filter['warehouse_id']);
 
-                $query->whereIn('warehouse_id', array_map('intval', $warehouseIds));
+            //     $query->whereIn('warehouse_id', array_map('intval', $warehouseIds));
+            // }
+            if (!empty($filter['route_id'])) {
+                $routeIds = is_array($filter['route_id'])
+                    ? $filter['route_id']
+                    : explode(',', $filter['route_id']);
+
+                $query->whereIn('route_id', array_map('intval', $routeIds));
             }
-
             // ✅ Salesman filter
             if (!empty($filter['salesman_id'])) {
                 $salesmanIds = is_array($filter['salesman_id'])

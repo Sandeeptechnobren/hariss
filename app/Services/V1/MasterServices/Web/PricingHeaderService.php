@@ -37,22 +37,22 @@ class PricingHeaderService
             'applicable_for',
             'status'
         )
-        // ->with([
-        //     'warehouse:id,warehouse_code,warehouse_name',
-        //     'company:id,company_code,company_name',
-        //     'region:id,region_code,region_name',
-        //     'area:id,area_code,area_name',
-        //     'route:id,route_code,route_name',
-        //     'item:id,erp_code,name',
-        //     'itemType:id,category_code,category_name',
-        //     'customer:id,osa_code,name',
-        //     'customerCategory:id,customer_category_code,customer_category_name',
-        //     'outletChannel:id,outlet_channel_code,outlet_channel',
-        //     // ✅ Include pricing details with item info
-        //     'details:id,header_id,item_id,name,buom_ctn_price,auom_pc_price,status',
-        //     'details.item:id,erp_code,name'
-        // ]) 
-        ->latest();
+            // ->with([
+            //     'warehouse:id,warehouse_code,warehouse_name',
+            //     'company:id,company_code,company_name',
+            //     'region:id,region_code,region_name',
+            //     'area:id,area_code,area_name',
+            //     'route:id,route_code,route_name',
+            //     'item:id,erp_code,name',
+            //     'itemType:id,category_code,category_name',
+            //     'customer:id,osa_code,name',
+            //     'customerCategory:id,customer_category_code,customer_category_name',
+            //     'outletChannel:id,outlet_channel_code,outlet_channel',
+            //     // ✅ Include pricing details with item info
+            //     'details:id,header_id,item_id,name,buom_pc_price,auom_ctn_price,status',
+            //     'details.item:id,erp_code,name'
+            // ]) 
+            ->latest();
         // foreach ($filters as $field => $value) {
         //     if (!empty($value)) {
         //         if (in_array($field, ['name', 'description','applicable_for'])) {

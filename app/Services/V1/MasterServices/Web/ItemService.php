@@ -195,13 +195,13 @@ class ItemService
                                 ->where('warehouse_id', $warehouseId);
                         },
                         'itemUoms:id,item_id,uom_type,name,price,is_stock_keeping,upc,enable_for,uom_id',
-                        'pricing_details:item_id,buom_ctn_price,auom_pc_price',
+                        'pricing_details:item_id,buom_pc_price,auom_ctn_price',
                     ]);
                 } else {
                     $query->with([
                         'warehouse_stocks:id,item_id,warehouse_id,qty',
                         'itemUoms:id,item_id,uom_type,name,price,is_stock_keeping,upc,enable_for,uom_id',
-                        'pricing_details:item_id,buom_ctn_price,auom_pc_price',
+                        'pricing_details:item_id,buom_pc_price,auom_ctn_price',
                     ]);
                 }
                 return $query->latest()->get();
@@ -224,12 +224,13 @@ class ItemService
                 'commodity_goods_code',
                 'volume',
                 'is_taxable',
-                'has_excies'
+                'has_excies',
+                'discount_status'
             ])
                 ->with([
                     'itemCategory:id,category_name',
                     'itemSubCategory:id,sub_category_name',
-                    'pricing_details:item_id,buom_ctn_price,auom_pc_price',
+                    'pricing_details:item_id,buom_pc_price,auom_ctn_price',
                 ]);
             if (!empty($filters['warehouse_id'])) {
                 $warehouseId = $filters['warehouse_id'];
@@ -377,7 +378,8 @@ class ItemService
                 'has_excies',
                 'status',
                 'commodity_goods_code',
-                'excise_duty_code'
+                'excise_duty_code',
+                'discount_status'
             ];
 
             $updateData = [];
@@ -543,7 +545,7 @@ class ItemService
                 $pricing = null;
                 if ($pricingHeader) {
                     $pricingDetails = \App\Models\PricingDetail::where('header_id', $pricingHeader->id)
-                        ->select('buom_ctn_price', 'auom_pc_price')
+                        ->select('buom_pc_price', 'auom_ctn_price')
                         ->first();
                     $pricing = $pricingDetails ? $pricingDetails->toArray() : null;
                 }

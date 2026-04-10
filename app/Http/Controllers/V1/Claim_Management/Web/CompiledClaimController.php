@@ -13,6 +13,7 @@ use App\Models\Claim_Management\Web\CompiledClaim;
 use App\Http\Resources\V1\Claim_Management\Web\ClaimInvoiceDataResource;
 use App\Helpers\CommonLocationFilter;
 use Illuminate\Support\Facades\DB;
+use App\Helpers\ApprovalHelper;
 
 class CompiledClaimController extends Controller
 {
@@ -122,8 +123,8 @@ class CompiledClaimController extends Controller
 
     public function export()
     {
-        $filters = request()->input('filters', []);
-        $format = strtolower(request()->input('format', 'csv'));
+        $filters = request()->input('filter', []);
+        $format = strtolower(request()->input('format', 'xlsx'));
 
         $filename = 'compiled_claims_' . now()->format('Ymd_His');
         $filePath = "exports/{$filename}";
@@ -132,12 +133,18 @@ class CompiledClaimController extends Controller
         $toDate   = $filters['to_date'] ?? null;
 
         // warehouse filter (comma separated support)
-        $warehouseIds = [];
-        if (!empty($filters['warehouse_id'])) {
+        $warehouseIds = CommonLocationFilter::resolveWarehouseIds($filters);
+
+        // ✅ fallback: direct warehouse_id support
+        if (empty($warehouseIds) && !empty($filters['warehouse_id'])) {
             $warehouseIds = is_array($filters['warehouse_id'])
                 ? $filters['warehouse_id']
                 : explode(',', $filters['warehouse_id']);
         }
+
+        // ✅ sanitize
+        $warehouseIds = array_map('intval', array_filter($warehouseIds));
+
 
         $query = CompiledClaim::query()
             ->leftJoin('users as asm', function ($join) {
@@ -152,7 +159,8 @@ class CompiledClaimController extends Controller
                 'tbl_compiled_claim.*',
                 'asm.name as asm_name',
                 'rsm.name as rsm_name',
-            );
+            )
+            ->distinct('tbl_compiled_claim.id');
         if (!empty($warehouseIds)) {
             $query->whereIn('tbl_compiled_claim.warehouse_id', $warehouseIds);
         }
@@ -166,6 +174,8 @@ class CompiledClaimController extends Controller
             $query->whereDate('tbl_compiled_claim.created_at', '<=', $toDate);
         }
 
+        // dd($query->count());
+        // dd($query->count());
         $data = $query->get();
 
         if ($data->isEmpty()) {
@@ -174,9 +184,17 @@ class CompiledClaimController extends Controller
             ], 404);
         }
 
+        // ✅ attach approval data
+        $data = $data->map(function ($item) {
+            return \App\Helpers\ApprovalHelper::attach($item, 'CompiledClaim');
+        });
+
+        // ❗ FIX: remove resolve()
+        $data = CompiledClaimResource::collection($data);
+
         $export = new CompiledClaimExport($data);
 
-        $filePath .= $format === 'xlsx' ? '.xlsx' : '.csv';
+        $filePath .= $format === 'csv' ? '.xlsx' : '.xlsx';
 
         $success = Excel::store(
             $export,

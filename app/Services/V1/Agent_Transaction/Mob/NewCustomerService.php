@@ -36,12 +36,19 @@ class NewCustomerService
         'getWarehouse:id,warehouse_name'
     ])->where('uuid', $uuid)->first();
 }
-
-    public function create(array $data)
-    {
-        return NewCustomer::create($data);
+public function createCustomer(array $data)
+{
+    DB::beginTransaction();
+    try {
+        // dd($data);
+        $customer = NewCustomer::create($data);
+        DB::commit();
+        return $customer;
+    } catch (\Exception $e) {
+        DB::rollBack();
+        throw $e;
     }
-
+}
     public function update(NewCustomer $customer, array $data)
     {
         $customer->update($data);
@@ -61,13 +68,14 @@ class NewCustomerService
     //     return $customer->delete();
     // }
 
-public function updateByUuid(string $uuid, array $validated)
-    {
-        $customer = AgentCustomer::where('uuid', $uuid)->first();
-        if (!$customer) {
-            throw new Exception("Customer not found");
-        }
+public function updateById(int $id, array $validated)
+{
+    try {
+        $customer = AgentCustomer::findOrFail($id);
         $customer->update($validated);
         return $customer;
+    } catch (\Exception $e) {
+        throw new \Exception($e->getMessage());
     }
+}
 }

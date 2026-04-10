@@ -32,6 +32,9 @@ class CampaignInformationController extends Controller
  *             mediaType="multipart/form-data",
  *             @OA\Schema(
  *                 required={"merchandiser_id", "customer_id", "feedback", "image_1"},
+ *                 @OA\Property(property="code", type="string", example="CAMPIN-001"),
+ *                 @OA\Property(property="name", type="string", example="demo campaign"),
+ *                 @OA\Property(property="date_time", type="string", format="date-time", example="2025-10-10T14:00:00Z"),
  *                 @OA\Property(property="merchandiser_id", type="integer", example=101),
  *                 @OA\Property(property="customer_id", type="integer", example=205),
  *                 @OA\Property(property="feedback", type="string", example="Customer responded positively."),
@@ -63,11 +66,23 @@ class CampaignInformationController extends Controller
  * )
  */
 
-    public function store(CampaignInformationRequest $request)
-    {
+public function store(CampaignInformationRequest $request)
+{
+    try {
         $campaign = $this->service->store($request->validated());
-        return new CampaignInformationResource($campaign);
+        return response()->json([
+            'status' => true,
+            'message' => 'Campaign created successfully.',
+            'data' => new CampaignInformationResource($campaign)
+        ], 201);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => false,
+            'message' => 'Something went wrong while creating campaign.',
+            'error' => $e->getMessage()
+        ], 500);
     }
+}
 /**
  * @OA\Get(
  *     path="/api/merchendisher/campagin-info/list",
@@ -136,7 +151,7 @@ class CampaignInformationController extends Controller
  * )
  */
 
-         public function index(Request $request)
+public function index(Request $request)
     {
         $campaign = $this->service->getAll($request);
         return ResponseHelper::paginatedResponse(
@@ -201,18 +216,41 @@ class CampaignInformationController extends Controller
  * )
  */
 
-    public function export(Request $request)
+// public function export(Request $request)
+//     {
+//         $request->validate([
+//             'start_date' => 'nullable|date_format:Y-m-d',
+//             'end_date'   => 'nullable|date_format:Y-m-d|after_or_equal:start_date',
+//             'format'     => 'nullable|in:csv,xlsx',
+//         ]);
+
+//         $startDate = $request->input('start_date');
+//         $endDate   = $request->input('end_date');
+//         $format    = $request->input('format', 'csv'); // default to CSV
+
+//         return $this->service->export($startDate, $endDate, $format);
+//     }
+public function export(Request $request)
 {
     $request->validate([
-        'start_date' => 'nullable|date_format:Y-m-d',
-        'end_date'   => 'nullable|date_format:Y-m-d|after_or_equal:start_date',
-        'format'     => 'nullable|in:csv,xlsx',
+        'start_date'      => 'nullable|date_format:Y-m-d',
+        'end_date'        => 'nullable|date_format:Y-m-d|after_or_equal:start_date',
+        'format'          => 'nullable|in:csv,xlsx',
+        'file_type'       => 'nullable|in:csv,xlsx',   // ← support both param names
+        'search'          => 'nullable|string|max:255',
+        'merchandiser_id' => 'nullable|integer',
+        'customer_id'     => 'nullable|integer',
+        'date'            => 'nullable|date_format:Y-m-d',
     ]);
 
-    $startDate = $request->input('start_date');
-    $endDate   = $request->input('end_date');
-    $format    = $request->input('format', 'csv'); // default to CSV
+    // Accept either 'file_type' or 'format', default to xlsx
+    $format = $request->input('file_type') ?? $request->input('format', 'xlsx');
 
-    return $this->service->export($startDate, $endDate, $format);
+    return $this->service->export(
+        startDate: $request->input('start_date'),
+        endDate:   $request->input('end_date'),
+        format:    $format,
+        filters:   $request->only(['search', 'merchandiser_id', 'customer_id', 'date']),
+    );
 }
 }

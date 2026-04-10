@@ -17,7 +17,7 @@ use App\Models\AgentCustomer;
 use App\Http\Resources\V1\Master\Web\AgentCustomerResource;
 use App\Helpers\LogHelper;
 use App\Models\PromotionHeader;
-
+use Illuminate\Pagination\Paginator;
 class PromotionHeaderController extends Controller
 {
     protected PromotionHeaderService $service;
@@ -486,4 +486,49 @@ class PromotionHeaderController extends Controller
             ]
         ]);
     }
+
+    public function getinvoicebasedpromotion(Request $request): JsonResponse
+    {
+       $page = $request->input('page', 1);
+
+    Paginator::currentPageResolver(function () use ($page) {
+        return $page;
+    });
+
+    $filters = [
+        'promotion_id' => $request->input('promotion_id'),
+        'limit'        => (int) $request->input('per_page', 10),
+    ];
+
+    $data = $this->service->invoice_promo($filters);
+
+       if ($data->isEmpty()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => 'No records found',
+                'data' => [],
+                'pagination' => [
+                    'page' => $data->currentPage(),
+                    'limit' => $data->perPage(),
+                    'totalPages' => $data->lastPage(),
+                    'totalRecords' => $data->total(),
+                ]
+            ]);
+        }else{
+              return response()->json([
+                    'status' => 'success',
+                    'data'   => PromotionHeaderResource::collection($data),
+                    'pagination' => [
+                        'page'         => $data->currentPage(),
+                        'limit'        => $data->perPage(),
+                        'totalPages'   => $data->lastPage(),
+                        'totalRecords' => $data->total(),
+                    ]
+                ]);
+        }
+
+  
+    }
+
+
 }

@@ -85,9 +85,9 @@ class HtDeliveryFullExport implements FromCollection, WithHeadings, ShouldAutoSi
 
                 'VAT' => (float) $d->vat,
 
-                'Net Amount' => (float) $d->net,
-
                 'Excise' => (float) $d->excise,
+
+                'Net Amount' => (float) $d->net,
 
                 'Total' => (float) $d->total,
 
@@ -109,8 +109,8 @@ class HtDeliveryFullExport implements FromCollection, WithHeadings, ShouldAutoSi
             'Customer',
             'Salesman',
             'VAT',
-            'Net Amount',
             'Excise',
+            'Net Amount',
             'Total',
             'Comment',
         ];

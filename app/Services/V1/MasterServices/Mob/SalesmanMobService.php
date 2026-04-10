@@ -7,6 +7,7 @@ use App\Models\VersionControll;
 use App\Models\Warehouse;
 use Illuminate\Support\Facades\Hash;
 use App\Models\SalesmanAttendance;
+use App\Models\Agent_Transaction\AgentDeliveryHeaders;
 use Carbon\Carbon;
 use App\Models\AgentCustomer;
 use App\Models\VisitPlan;
@@ -19,6 +20,7 @@ use App\Models\PromotionHeader;
 use App\Models\DiscountHeader;
 use App\Http\Resources\V1\Master\Mob\PromotionHeaderResource;
 use App\Http\Resources\V1\Master\Mob\DiscountHeaderResource;
+use App\Http\Resources\V1\Agent_Transaction\Mob\AgentDeliveryHeaderResource;
 use Illuminate\Support\Facades\Storage;
 
 class SalesmanMobService
@@ -84,7 +86,9 @@ public function login($username, $password, $version, $device_token = null, $dev
             ->first();
         $attendance = [
             'uuid'     => $attendanceRow?->uuid,
-            'date'     =>$attendanceRow?->attendance_date,
+            'date'     => $attendanceRow?->attendance_date 
+                        ? $attendanceRow->attendance_date->format('Y-m-d') 
+                        : null,
             'check_in' => (int) !is_null($attendanceRow),
         ];
         $salesman->attendance = $attendance;
@@ -123,66 +127,6 @@ public function salesmanrequest(array $data)
     {
         return SalesmanWarehouseHistory::create($data);
     }
-// public function getTodayCustomerList($salesman_id)
-// {
-//     $today     = Carbon::now()->format('l');
-//     $todayDate = Carbon::now()->toDateString();
-//     $salesman = Salesman::find($salesman_id);
-//     if (!$salesman) {
-//         return collect();
-//     }
-//     $warehouseHistory = SalesmanWarehouseHistory::where('salesman_id', $salesman_id)
-//         ->whereDate('requested_date', $todayDate)
-//         ->latest('id')
-//         ->first();
-//     $warehouse = $warehouseHistory->warehouse_id ?? null;
-//     $allCustomers = collect();
-//     if ($salesman->type == 6 && $salesman->sub_type == 6) {
-//         if ($warehouse) {
-//             $allCustomers = CompanyCustomer::where('merchandiser_id', $salesman_id)
-//                 ->where('status', 1)
-//                 ->get()
-//                 ->merge(
-//                     AgentCustomer::whereRaw("? = ANY (string_to_array(warehouse::text, ','))", [$warehouse])->where('status', 1)->get()
-//                 );
-//                 }
-//         else {
-//             $allCustomers = CompanyCustomer::where('merchandiser_id', $salesman_id)->where('status', 1)->get();
-//         }}
-//     elseif ($salesman->type == 6 && $warehouse) {
-//         $allCustomers = AgentCustomer::whereRaw("? = ANY (string_to_array(warehouse::text, ','))", [$warehouse])->where('status', 1)->get();
-//     } elseif ($warehouse) {
-//         $allCustomers = AgentCustomer::whereRaw("? = ANY (string_to_array(warehouse::text, ','))", [$warehouse])->where('status', 1)->get();
-//     } else {
-//         $customerIds = AgentCustomer::where('route_id', $salesman->route_id)
-//             ->orWhere(function ($query) use ($salesman) {
-//                 $warehouseIds = explode(',', $salesman->warehouse_id);
-//                 foreach ($warehouseIds as $wid) {
-//                     $query->orWhereRaw("? = ANY (string_to_array(warehouse::text, ','))", [$wid]);
-//                 }})->pluck('id');
-//         $allCustomers = AgentCustomer::whereIn('id', $customerIds)
-//                                       ->where('status', 1)        
-//                                       ->get();
-//     }
-//     $customerIds = $allCustomers->pluck('id');
-//     $todayVisits = RouteVisit::where(function ($q) use ($customerIds, $warehouse) {
-//             $q->whereIn('customer_id', $customerIds);
-//             if ($warehouse) {
-//                 $q->orWhereRaw("? = ANY(string_to_array(warehouse::text, ','))", [$warehouse]);
-//             }
-//         })
-//         ->whereDate('to_date', '>=', now())
-//         ->where('status', 1)
-//         ->whereRaw("? = ANY(string_to_array(days, ','))", [now()->format('l')])
-//         ->pluck('customer_id')
-//         ->toArray();
-//     return $allCustomers->map(function ($customer) use ($todayVisits) {
-//         return [
-//             'customer_details' => $customer,
-//             'is_sequence'      => in_array($customer->id, $todayVisits) ? 1 : 0,
-//         ];
-//     });
-// }
 public function getTodayCustomerList($salesman_id)
     {
         $today     = now()->format('l');
@@ -195,16 +139,13 @@ public function getTodayCustomerList($salesman_id)
             ->whereDate('requested_date', $todayDate)
             ->latest('id')
             ->value('warehouse_id'); 
-        $allCustomers = collect();
+       $allCustomers = collect();
         if ($salesman->type == 6 && $salesman->sub_type == 6) {
             $companyCustomers = CompanyCustomer::where('merchandiser_id', $salesman_id)
                 ->where('status', 1)
                 ->get();
             if ($warehouse) {
-                $agentCustomers = AgentCustomer::whereRaw(
-                        "? = ANY(string_to_array(warehouse::text, ','))",
-                        [$warehouse]
-                    )
+                $agentCustomers = AgentCustomer::where('warehouse', $warehouse)
                     ->where('status', 1)
                     ->get();
                 $allCustomers = $companyCustomers->merge($agentCustomers);
@@ -212,28 +153,26 @@ public function getTodayCustomerList($salesman_id)
                 $allCustomers = $companyCustomers;
             }
         } elseif ($warehouse) {
-            $allCustomers = AgentCustomer::whereRaw(
-                    "? = ANY(string_to_array(warehouse::text, ','))",
-                    [$warehouse]
-                )
+            $allCustomers = AgentCustomer::where('warehouse', $warehouse)
                 ->where('status', 1)
                 ->get();
         } else {
             $warehouseIds = explode(',', $salesman->warehouse_id);
-            $customerIds = AgentCustomer::where('route_id', $salesman->route_id)->pluck('id');
+        if (!empty($salesman->route_id) && $salesman->route_id != 0) {
+            $customerIds = AgentCustomer::where('route_id', $salesman->route_id)
+                ->pluck('id');
             if ($customerIds->isEmpty() && !empty($warehouseIds)) {
-                $customerIds = AgentCustomer::where(function ($q) use ($warehouseIds) {
-                    foreach ($warehouseIds as $wid) {
-                        $q->orWhereRaw(
-                            "? = ANY(string_to_array(warehouse::text, ','))",
-                            [$wid]
-                        );
-                    }
-                })->pluck('id');
+                $customerIds = AgentCustomer::whereIn('warehouse', $warehouseIds)
+                    ->pluck('id');
             }
-            $allCustomers = AgentCustomer::whereIn('id', $customerIds)
-                ->where('status', 1)
-                ->get();}
+        } else {
+            $customerIds = AgentCustomer::whereIn('warehouse', $warehouseIds)
+                ->pluck('id');
+        }
+        $allCustomers = AgentCustomer::whereIn('id', $customerIds)
+            ->where('status', 1)
+            ->get();
+    }
         $customerIds = $allCustomers->pluck('id');
         $todayVisits = RouteVisit::where(function ($q) use ($customerIds, $warehouse) {
                 $q->whereIn('customer_id', $customerIds);
@@ -254,9 +193,12 @@ public function getTodayCustomerList($salesman_id)
             ];
         });
     }
-public function generateMasterFiles(int $warehouseId): array
-    {
-        $files = [];
+public function generateMasterFiles(int $warehouseId, int $routeId): array
+{
+    $files = [
+        'promotion_file_url' => null,
+        'delivery_file_url'  => null,
+    ];
     $warehouse = Warehouse::select('id','area_id','region_id','company')
         ->findOrFail($warehouseId);
     $locations = [
@@ -274,9 +216,8 @@ public function generateMasterFiles(int $warehouseId): array
         ])
         ->where(function ($query) use ($locations) {
             foreach ($locations as $key => $id) {
-                if (!$id) {
-                    continue;
-                }
+                if (!$id) continue;
+
                 $query->orWhere(function ($q) use ($key, $id) {
                     $q->where('key_location', $key)
                       ->whereRaw("? = ANY(string_to_array(location, ',')::int[])", [$id]);
@@ -288,13 +229,25 @@ public function generateMasterFiles(int $warehouseId): array
         ->whereNull('deleted_at')
         ->where('status', 1)
         ->get();
-        if ($promotionHeaders->isNotEmpty()) {
-            $json = PromotionHeaderResource::collection($promotionHeaders)
-                ->toJson(JSON_UNESCAPED_UNICODE);
-            $fileName = 'salesman_files/promotion_master_' . now()->format('Ymd_His') . '.txt';
-            Storage::disk('public')->put($fileName, $json);
-            $files['promotion_file_url'] = '/storage/' . $fileName;
-        }
-        return $files;
+    if ($promotionHeaders->isNotEmpty()) {
+        $json = PromotionHeaderResource::collection($promotionHeaders)
+            ->toJson(JSON_UNESCAPED_UNICODE);
+        $fileName = 'salesman_files/promotion_master_' . now()->format('Ymd_His') . '.txt';
+        Storage::disk('public')->put($fileName, $json);
+        $files['promotion_file_url'] = '/storage/' . $fileName;
     }
+    $deliveries = AgentDeliveryHeaders::with([ 'details',])
+        ->where('route_id', $routeId)
+        ->whereDate('delivery_date', Carbon::today())
+        ->get();
+    if ($deliveries->isNotEmpty()) {
+        $json = AgentDeliveryHeaderResource::collection($deliveries)
+            ->toJson(JSON_UNESCAPED_UNICODE);
+
+        $fileName = 'salesman_files/delivery_master_' . now()->format('Ymd_His') . '.txt';
+        Storage::disk('public')->put($fileName, $json);
+        $files['delivery_file_url'] = '/storage/' . $fileName;
+    }
+    return $files;
+}
 }

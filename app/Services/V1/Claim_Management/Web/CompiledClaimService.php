@@ -53,7 +53,11 @@ class CompiledClaimService
         $query = CompiledClaim::query();
 
         if (!empty($filters['warehouse_id'])) {
-            $query->where('warehouse_id', $filters['warehouse_id']);
+            $warehouseIds = is_array($filters['warehouse_id'])
+                ? $filters['warehouse_id']
+                : explode(',', $filters['warehouse_id']);
+
+            $query->whereIn('warehouse_id', $warehouseIds);
         }
 
         if (!empty($filters['claim_period'])) {

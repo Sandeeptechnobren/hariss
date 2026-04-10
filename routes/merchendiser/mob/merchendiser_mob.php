@@ -9,6 +9,7 @@ use App\Http\Controllers\V1\Merchendisher\Web\CompetitorInfoController;
 use App\Http\Controllers\V1\Merchendisher\Mob\ComplaintFeedbackController;
 use App\Http\Controllers\V1\Merchendisher\Mob\ShelfController;
 use App\Http\Controllers\V1\Hariss_Transaction\Mob\HtOrderController;
+use App\Http\Controllers\V1\Merchendisher\Web\StockInStoreController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('merchendisher_mob')->group(function () {
@@ -16,10 +17,11 @@ Route::prefix('merchendisher_mob')->group(function () {
         Route::get('shelve-list', [ShelveController::class, 'getShelvesByMerchandiser']);
         Route::get('planogramlist', [PlanogramPostController::class, 'downloadPlanogramIds']);
         Route::prefix('survey-header')->group(function () {
+             Route::post('add', [SurveyHeaderController::class, 'store']);
             Route::get('Survey-list', [SurveyHeaderController::class, 'getSurveyIdsFile']);
             Route::get('list', [SurveyHeaderController::class, 'index']);
+            Route::get('list/{id}', [SurveyHeaderController::class, 'getByMerchandiser']);
             Route::get('{id}', [SurveyHeaderController::class, 'show']);
-            Route::post('add', [SurveyHeaderController::class, 'store']);
             Route::put('{id}', [SurveyHeaderController::class, 'update']);
             Route::delete('{id}', [SurveyHeaderController::class, 'destroy']);
         });
@@ -44,11 +46,13 @@ Route::prefix('merchendisher_mob')->group(function () {
             Route::get('list', [CampaignInformationController::class, 'index']);
         });
         Route::prefix('shelf')->group(function () {
-            Route::post('damage-create', [ShelfController::class, 'damagestore']);
-            Route::post('expiry-create', [ShelfController::class, 'expirystore']);
-            Route::post('view-stock', [ShelfController::class, 'viewstock']);
+            Route::post('store_all', [ShelfController::class, 'storeAll']);
             Route::post('list', [ShelfController::class, 'index']);
 
+        });
+        Route::prefix('stock-post')->group(function () {
+            Route::post('create', [StockInStoreController::class, 'storepost']);
+            Route::post('stock-list', [StockInStoreController::class, 'getStockByMerchandiser']);
         });
         Route::prefix('order')->group(function () {
             Route::post('create', [HtOrderController::class, 'store']);

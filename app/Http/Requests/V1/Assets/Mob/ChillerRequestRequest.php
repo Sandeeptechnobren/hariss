@@ -30,6 +30,7 @@ class ChillerRequestRequest extends FormRequest
             'landmark' => 'nullable|string|max:255',
             'existing_coolers' => 'nullable|string|max:255',
             'outlet_weekly_sale_volume' => 'nullable|string|max:20',
+            'outlet_weekly_sale_volume_current' => 'nullable|string|max:20',
             'display_location' => 'nullable|string|max:255',
             'chiller_safty_grill' => 'nullable|string|max:255',
             'manager_sales_marketing' => 'nullable|integer',

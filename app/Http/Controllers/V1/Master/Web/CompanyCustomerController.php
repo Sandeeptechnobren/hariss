@@ -142,7 +142,7 @@ class CompanyCustomerController extends Controller
         ]);
     }
 
-    public function globalSearch(Request $request)
+public function globalSearch(Request $request)
     {
         $search = $request->input('query');
         $results = $this->service->globalSearch($search);
@@ -545,39 +545,65 @@ public function export()
     }
 
 
+    // public function customer(Request $request): JsonResponse
+    // {
+    //     try {
+    //         $perPage = $request->get('per_page', 50);
+    //         $customerType = $request->get('customer_type')?? ($request->get('type') === 'distributor' ? 2 : 4);
+    //         $customers = $this->service->getByCustomerType($customerType, $perPage);
+    //         return response()->json([
+    //             'status'     => 'success',
+    //             'code'       => 200,
+    //             'message'    => 'Customer list fetched successfully',
+    //             'data'       => CompanyCustomerResource::collection($customers->items()),
+    //             'pagination' => [
+    //                 'current_page' => $customers->currentPage(),
+    //                 'last_page'    => $customers->lastPage(),
+    //                 'per_page'     => $customers->perPage(),
+    //                 'total'        => $customers->total(),
+    //             ],
+    //         ]);
+    //     } catch (Throwable $e) {
+
+    //         return response()->json([
+    //             'status'  => 'error',
+    //             'message' => 'Failed to fetch customer list',
+    //             'error'   => $e->getMessage(),
+    //         ], 500);
+    //     }
+    // }
     public function customer(Request $request): JsonResponse
-    {
-        try {
-            $perPage = $request->get('per_page', 50);
+{
+    try {
+        $perPage = $request->get('per_page', 50);
+        $search = $request->get('query');
 
-            // Determine customer type logic
-            $customerType = $request->get('customer_type')
-                ?? ($request->get('type') === 'distributor' ? 2 : 4);
+        $customerType = $request->get('customer_type') 
+            ?? ($request->get('type') === 'distributor' ? 2 : 4);
 
-            // Pagination + filtering via service
-            $customers = $this->service->getByCustomerType($customerType, $perPage);
+        $customers = $this->service->getByCustomerType($customerType, $search, $perPage);
 
-            return response()->json([
-                'status'     => 'success',
-                'code'       => 200,
-                'message'    => 'Customer list fetched successfully',
-                'data'       => CompanyCustomerResource::collection($customers->items()),
-                'pagination' => [
-                    'current_page' => $customers->currentPage(),
-                    'last_page'    => $customers->lastPage(),
-                    'per_page'     => $customers->perPage(),
-                    'total'        => $customers->total(),
-                ],
-            ]);
-        } catch (Throwable $e) {
+        return response()->json([
+            'status'     => 'success',
+            'code'       => 200,
+            'message'    => 'Customer list fetched successfully',
+            'data'       => CompanyCustomerResource::collection($customers->items()),
+            'pagination' => [
+                'current_page' => $customers->currentPage(),
+                'last_page'    => $customers->lastPage(),
+                'per_page'     => $customers->perPage(),
+                'total'        => $customers->total(),
+            ],
+        ]);
+    } catch (Throwable $e) {
 
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Failed to fetch customer list',
-                'error'   => $e->getMessage(),
-            ], 500);
-        }
+        return response()->json([
+            'status'  => 'error',
+            'message' => 'Failed to fetch customer list',
+            'error'   => $e->getMessage(),
+        ], 500);
     }
+}
     public function activeTypeTwoCustomers()
     {
         $customers = CompanyCustomer::select('id','osa_code', 'business_name')

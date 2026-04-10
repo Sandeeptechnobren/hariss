@@ -11,6 +11,8 @@ use Illuminate\Http\Request;
 use App\Helpers\ResponseHelper;
 use App\Exports\ComplaintFeedbackExport;
 use Maatwebsite\Excel\Facades\Excel;
+
+
 use Maatwebsite\Excel\Excel as ExcelFormat;
 
 /**
@@ -337,26 +339,60 @@ class ComplaintFeedbackController extends Controller
  *     )
  * )
  */
-       public function export(Request $request)
-    {
-        $request->validate([
-            'start_date' => 'nullable|date_format:Y-m-d',
-            'end_date' => 'nullable|date_format:Y-m-d',
-            'format' => 'required|in:csv,xlsx',
-        ]);
+public function export(Request $request)
+{
+    $request->validate([
+        'start_date' => 'nullable|date_format:Y-m-d',
+        'end_date'   => 'nullable|date_format:Y-m-d|after_or_equal:start_date',
+        'format'     => 'nullable|in:csv,xlsx',
+        'file_type'  => 'nullable|in:csv,xlsx',
+        'search'     => 'nullable|string|max:255',
+    ]);
 
-        $startDate = $request->input('start_date');
-        $endDate = $request->input('end_date');
-        $format = $request->input('format'); 
+    $format     = $request->input('file_type') ?? $request->input('format', 'xlsx');
+    $startDate  = $request->input('start_date');
+    $endDate    = $request->input('end_date');
+    $searchTerm = $request->input('search');
 
-      $data = $this->service->exportFeedbacks($startDate, $endDate);
+    $hasData = ComplaintFeedback::when($startDate && $endDate, fn($q) =>
+                    $q->whereBetween('created_at', [
+                        Carbon::parse($startDate)->startOfDay(),
+                        Carbon::parse($endDate)->endOfDay(),
+                    ])
+                )
+                ->when(!empty($searchTerm), function ($q) use ($searchTerm) {
+                    $like = '%' . strtolower($searchTerm) . '%';
+                    $q->where(function ($inner) use ($like) {
+                        $inner->whereRaw('LOWER(complaint_title) LIKE ?', [$like])
+                              ->orWhereRaw('LOWER(complaint_code) LIKE ?', [$like])
+                              ->orWhereRaw('LOWER(complaint) LIKE ?', [$like]);
+                    });
+                })
+                ->exists();
 
-        $export = new ComplaintFeedbackExport($data);
-        $fileName = 'complaint_feedbacks_' . now()->format('Ymd_His') . '.' . $format;
-
-     if (ob_get_length()) {
-        ob_end_clean();
+    if (!$hasData) {
+        return response()->json([
+            'status'  => 'error',
+            'message' => 'No data found for the given filters.',
+        ], 404);
     }
-        return Excel::download($export, $fileName, $format === 'csv' ? ExcelFormat::CSV : ExcelFormat::XLSX);
+
+    $export   = new ComplaintFeedbackExport($startDate, $endDate, $searchTerm);
+    $fileName = 'complaint_feedbacks_' . now()->format('Ymd_His') . '.' . $format;
+    $path     = 'complaint_exports/' . $fileName;
+
+    if ($format === 'csv') {
+        Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
+    } else {
+        Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
     }
+
+    $downloadUrl = rtrim(config('app.url'), '/') . '/storage/app/public/' . $path;
+
+    return response()->json([
+        'status'       => 'success',
+        'message'      => 'Export file generated successfully',
+        'download_url' => $downloadUrl,
+    ]);
+}
 }

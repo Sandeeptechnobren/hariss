@@ -511,7 +511,6 @@ class AgentDeliveryHeaderController extends Controller
 
         // SAME LOCATION HELPER
         $warehouseIds = CommonLocationFilter::resolveWarehouseIds($filters);
-
         $export = new DeliveryHeaderExport(
             $fromDate,
             $toDate,

@@ -9,58 +9,41 @@ use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithEvents;
-use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Events\AfterSheet;
-use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
-use PhpOffice\PhpSpreadsheet\Style\Border;
 use Carbon\Carbon;
 use App\Helpers\DataAccessHelper;
 use Illuminate\Support\Facades\Auth;
 
-class UnloadCollapseExport implements
-    FromCollection,
-    WithHeadings,
-    ShouldAutoSize,
-    WithEvents,
-    WithStyles
+class UnloadCollapseExport implements FromCollection, WithHeadings, ShouldAutoSize, WithEvents
 {
     protected array $groupIndexes = [];
+
     protected $fromDate;
     protected $toDate;
     protected $warehouseIds;
     protected $routeIds;
     protected $salesmanIds;
 
-    public function __construct($fromDate = null, $toDate = null, $warehouseIds = [], $routeIds = [], $salesmanIds = [])
-    {
-        $today = now()->toDateString();
-        $this->fromDate = $fromDate ?: $today;
-        $this->toDate   = $toDate   ?: $today;
-        $this->warehouseIds = $warehouseIds;
-        $this->routeIds = $routeIds;
-        $this->salesmanIds = $salesmanIds;
-    }
     protected array $columns = [
-        'OSA Code',
+        // 'OSA Code',
         'Unload No',
         'Unload Date',
         'Unload Time',
-        'Warehouse',
+        'Load Date',
+        'Distributors',
         'Route',
         'Salesman',
-        'Load Date',
-        // 'Status',
-        'Item',
-        'UOM',
-        'Quantity',
-        // 'Detail Status',
     ];
 
-    protected function emptyRow(): array
+    public function __construct($fromDate = null, $toDate = null, $warehouseIds = [], $routeIds = [], $salesmanIds = [])
     {
-        return array_fill_keys($this->columns, '');
+        $this->fromDate = $fromDate;
+        $this->toDate   = $toDate;
+        $this->warehouseIds = $warehouseIds;
+        $this->routeIds = $routeIds;
+        $this->salesmanIds = $salesmanIds;
     }
 
     public function collection()
@@ -68,114 +51,111 @@ class UnloadCollapseExport implements
         $rows = [];
         $rowIndex = 2;
 
-        $query = UnloadHeader::with(['warehouse', 'route', 'salesman'])
-            ->when(
-                $this->fromDate && $this->toDate,
-                fn($q) =>
-                $q->whereBetween('created_at', [
-                    $this->fromDate . ' 00:00:00',
-                    $this->toDate . ' 23:59:59'
-                ])
-            )
+        $query = UnloadHeader::with(['warehouse', 'route', 'salesman']);
 
-            ->when(
-                !empty($this->salesmanIds),
-                fn($q) =>
-                $q->whereIn('salesman_id', $this->salesmanIds)
-            )
+        // ✅ DATE FILTER
+        if (!empty($this->warehouseIds)) {
+            $query->whereIn('warehouse_id', $this->warehouseIds);
+        }
 
-            ->when(
-                empty($this->salesmanIds) && !empty($this->routeIds),
-                fn($q) =>
-                $q->whereIn('route_id', $this->routeIds)
-            )
+        if (!empty($this->routeIds)) {
+            $query->whereIn('route_id', $this->routeIds);
+        }
 
-            ->when(
-                empty($this->salesmanIds) && empty($this->routeIds) && !empty($this->warehouseIds),
-                fn($q) =>
-                $q->whereIn('warehouse_id', $this->warehouseIds)
-            );
+        if (!empty($this->salesmanIds)) {
+            $query->whereIn('salesman_id', $this->salesmanIds);
+        }
 
-            $query = DataAccessHelper::filterAgentTransaction($query, Auth::user());
-            $headers = $query->get();
-            
+        // ✅ DATE FILTER (MATCH GLOBAL)
+        if (!empty($this->fromDate)) {
+            $query->whereDate('unload_date', '>=', $this->fromDate);
+        }
+
+        if (!empty($this->toDate)) {
+            $query->whereDate('unload_date', '<=', $this->toDate);
+        }
+
+        $query = DataAccessHelper::filterAgentTransaction($query, Auth::user());
+
+        $headers = $query->get();
+
         foreach ($headers as $header) {
 
-            $headerRowIndex = $rowIndex;
+            $headerRow = $rowIndex;
+
+            // ✅ HEADER
             $rows[] = [
-                'OSA Code'    => (string) ($header->osa_code ?? ''),
-                'Unload No'   => (string) ($header->unload_no ?? ''),
-
-                'Unload Date' => $header->unload_date
-                    ? Carbon::parse($header->unload_date)->format('d M Y')
+                // $header->osa_code,
+                $header->unload_no,
+                $header->unload_date
+                    ? \Carbon\Carbon::parse($header->unload_date)->format('d M Y')
                     : '',
 
-                'Unload Time' => $header->unload_time
-                    ? Carbon::parse($header->unload_time)->format('h:i A')
+                $header->unload_time
+                    ? \Carbon\Carbon::parse($header->unload_time)->format('h:i A')
                     : '',
-
-                'Warehouse' => trim(
+                $header->load_date
+                    ? \Carbon\Carbon::parse($header->load_date)->format('d M Y')
+                    : '',
+                trim(
                     ($header->warehouse->warehouse_code ?? '') . ' - ' .
                         ($header->warehouse->warehouse_name ?? '')
                 ),
 
-                'Route' => trim(
+                trim(
                     ($header->route->route_code ?? '') . ' - ' .
                         ($header->route->route_name ?? '')
                 ),
 
-                'Salesman' => trim(
+                trim(
                     ($header->salesman->osa_code ?? '') . ' - ' .
                         ($header->salesman->name ?? '')
                 ),
-
-                'Load Date' => (string) ($header->load_date ?? ''),
-                // 'Status'    => $header->status == 1 ? 'Active' : 'Inactive',
-                'Item'          => '',
-                'UOM'           => '',
-                'Quantity'      => '',
-                // 'Detail Status' => '',
+                '',
+                '',
+                ''
             ];
-
             $rowIndex++;
+
+            // ✅ DETAIL HEADING
+            $headingRow = $rowIndex;
+            $rows[] = ['', 'Item', 'UOM', 'Quantity', '', '', '', '', '', '', ''];
+            $rowIndex++;
+
+            // ✅ DETAILS
             $details = UnloadDetail::with(['item', 'uoms'])
                 ->where('header_id', $header->id)
                 ->get();
 
-            $detailRowIndexes = [];
-
-            foreach ($details as $detail) {
-
+            foreach ($details as $d) {
                 $rows[] = [
-                    'OSA Code'    => '',
-                    'Unload No'   => '',
-                    'Unload Date' => '',
-                    'Unload Time' => '',
-                    'Warehouse'   => '',
-                    'Route'       => '',
-                    'Salesman'    => '',
-                    'Load Date'   => '',
-                    // 'Status'      => '',
-                    'Item' => trim(
-                        ($detail->item->erp_code ?? '') . ' - ' .
-                            ($detail->item->name ?? '')
-                    ),
-
-                    'UOM'      => (string) ($detail->uoms->name ?? ''),
-                    'Quantity' => (float) ($detail->qty ?? 0),
-                    // 'Detail Status' => $detail->status == 1 ? 'Active' : 'Inactive',
+                    '',
+                    trim(($d->item->erp_code ?? '') . ' - ' . ($d->item->name ?? '')),
+                    $d->uoms->name ?? '',
+                    (float)$d->qty,
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    ''
                 ];
-
-                $detailRowIndexes[] = $rowIndex;
                 $rowIndex++;
             }
-            if ($detailRowIndexes) {
+
+            // ✅ GROUP
+            if ($details->count()) {
                 $this->groupIndexes[] = [
-                    'start' => $headerRowIndex + 1,
-                    'end'   => max($detailRowIndexes),
+                    'header_row' => $headerRow,
+                    'heading_row' => $headingRow,
+                    'start' => $headerRow + 1,
+                    'end' => $rowIndex - 1,
                 ];
             }
-            $rows[] = $this->emptyRow();
+
+            // ✅ GAP
+            $rows[] = array_fill(0, 11, '');
             $rowIndex++;
         }
 
@@ -187,50 +167,48 @@ class UnloadCollapseExport implements
         return $this->columns;
     }
 
-    public function styles(Worksheet $sheet)
-    {
-        $sheet->getStyle('A1:M1')->getFont()->setBold(true);
-        $sheet->getStyle('A1:M1')->getAlignment()
-            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-            ->setVertical(Alignment::VERTICAL_CENTER);
-    }
-
     public function registerEvents(): array
     {
         return [
-            AfterSheet::class => function (AfterSheet $event) {
+            AfterSheet::class => function ($event) {
 
                 $sheet = $event->sheet->getDelegate();
                 $lastColumn = $sheet->getHighestColumn();
+
+                // ✅ HEADER STYLE
                 $sheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
-                    'font' => [
-                        'bold'  => true,
-                        'color' => ['rgb' => 'FFFFFF'],
-                    ],
+                    'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
                     'alignment' => [
                         'horizontal' => Alignment::HORIZONTAL_CENTER,
-                        'vertical'   => Alignment::VERTICAL_CENTER,
+                        'vertical' => Alignment::VERTICAL_CENTER,
                     ],
                     'fill' => [
-                        'fillType'   => Fill::FILL_SOLID,
+                        'fillType' => Fill::FILL_SOLID,
                         'startColor' => ['rgb' => '993442'],
-                    ],
-                    'borders' => [
-                        'allBorders' => [
-                            'borderStyle' => Border::BORDER_THIN,
-                        ],
                     ],
                 ]);
 
-                $sheet->getRowDimension(1)->setRowHeight(25);
-                foreach ($this->groupIndexes as $group) {
-                    for ($i = $group['start']; $i <= $group['end']; $i++) {
-                        $sheet->getRowDimension($i)->setOutlineLevel(1);
-                        $sheet->getRowDimension($i)->setVisible(false);
+                foreach ($this->groupIndexes as $g) {
+
+                    // collapse
+                    for ($i = $g['start']; $i <= $g['end']; $i++) {
+                        $sheet->getRowDimension($i)
+                            ->setOutlineLevel(1)
+                            ->setVisible(false);
                     }
+
+                    // heading hidden
+                    $sheet->getRowDimension($g['heading_row'])
+                        ->setOutlineLevel(1)
+                        ->setVisible(false);
+
+                    // heading bold
+                    $sheet->getStyle("B{$g['heading_row']}:D{$g['heading_row']}")
+                        ->getFont()->setBold(true);
                 }
 
                 $sheet->setShowSummaryBelow(false);
+                $sheet->setShowSummaryRight(false);
             },
         ];
     }

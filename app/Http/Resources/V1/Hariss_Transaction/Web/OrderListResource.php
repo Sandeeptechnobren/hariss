@@ -7,6 +7,14 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class OrderListResource extends JsonResource
 {
+    private function getOrderAction($status): string
+    {
+        return match ((int) $status) {
+            0 => "In Progress",
+            1 => "Delivered by Salesman",
+            default => "Unknown",
+        };
+    }
     public function toArray(Request $request): array
     {
         return [
@@ -38,7 +46,7 @@ class OrderListResource extends JsonResource
 
             'delivery_date'       => $this->delivery_date?->format('Y-m-d'),
             'comment'             => $this->comment,
-            'status'              => $this->status,
+            'status' => $this->getOrderAction($this->status),
             'currency'            => $this->currency,
             'gross_total'         => (float) $this->gross_total,
             'pre_vat'             => (float) $this->pre_vat,
@@ -54,7 +62,7 @@ class OrderListResource extends JsonResource
 
             'po_id'               => $this->po_id,
             'order_date'          => $this->order_date,
-            
+
             'previous_uuid'       => $this->previous_uuid ?? null,
             'next_uuid'           => $this->next_uuid ?? null,
 

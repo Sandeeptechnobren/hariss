@@ -21,6 +21,7 @@ class PlanogramPost extends Model
         'before_image',
         'after_image',
         'uuid',
+        'feedback',
     ];
 
         public function planogram()

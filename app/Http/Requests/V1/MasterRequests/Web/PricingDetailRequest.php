@@ -53,7 +53,7 @@ class PricingDetailRequest extends FormRequest
 
             'customer_type_id' => 'nullable|array',
             'customer_type_id.*' => 'integer|exists:customer_types,id',
-            
+
 
             'outlet_channel_id' => 'nullable|array',
             'outlet_channel_id.*' => 'integer|exists:outlet_channel,id',
@@ -62,8 +62,8 @@ class PricingDetailRequest extends FormRequest
             'details' => 'nullable|array|min:1',
             'details.*.name' => 'nullable|string|max:150',
             'details.*.item_id' => 'nullable|integer|exists:items,id',
-            'details.*.buom_ctn_price' => 'nullable|numeric|min:0',
-            'details.*.auom_pc_price' => 'nullable|numeric|min:0',
+            'details.*.buom_pc_price' => 'nullable|numeric|min:0',
+            'details.*.auom_ctn_price' => 'nullable|numeric|min:0',
             'details.*.status' => 'nullable|integer|in:0,1',
         ];
     }

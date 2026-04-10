@@ -17,6 +17,7 @@ use Illuminate\Http\Request;
 use App\Helpers\LogHelper;
 use App\Helpers\CommonLocationFilter;
 use Illuminate\Pagination\Paginator;
+use App\Models\Agent_Transaction\CapsCollectionHeader;
 
 
 class CapsCollectionController extends Controller
@@ -738,31 +739,93 @@ class CapsCollectionController extends Controller
             'download_url' => $fullUrl,
         ]);
     }
-    public function exportCapsCollectionHeader(Request $request)
+    // public function exportCapsCollectionHeader(Request $request)
+    // {
+    //     $uuid = $request->input('uuid');
+    //     $format = strtolower($request->input('format', 'xlsx'));
+    //     $extension = $format === 'csv' ? 'csv' : 'xlsx';
+    //     $filename = 'caps_collection_header_export_' . now()->format('Ymd_His') . '.' . $extension;
+    //     $path = 'capscollectionexports/' . $filename;
+
+    //     $export = new CapsCollectionDetailHeaderExport($uuid);
+
+    //     if ($format === 'csv') {
+    //         Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
+    //     } else {
+    //         Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
+    //     }
+
+    //     $appUrl = rtrim(config('app.url'), '/');
+    //     $fullUrl = $appUrl . '/storage/app/public/' . $path;
+
+    //     return response()->json([
+    //         'status' => 'success',
+    //         'uuid' => $uuid,
+    //         'download_url' => $fullUrl,
+    //     ]);
+    // }
+
+    public function exportCapsCollectionPdf(Request $request)
     {
-        $uuid = $request->input('uuid');
+        $uuid   = $request->input('uuid');
         $format = strtolower($request->input('format', 'xlsx'));
-        $extension = $format === 'csv' ? 'csv' : 'xlsx';
-        $filename = 'caps_collection_header_export_' . now()->format('Ymd_His') . '.' . $extension;
-        $path = 'capscollectionexports/' . $filename;
 
-        $export = new CapsCollectionDetailHeaderExport($uuid);
+        $extension = $format === 'csv' ? 'csv' : ($format === 'pdf' ? 'pdf' : 'xlsx');
+        $deliveryHerader = CapsCollectionHeader::select('code')
+            ->where('uuid', $uuid)
+            ->first();
 
-        if ($format === 'csv') {
-            Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
-        } else {
-            Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
+        $code = $deliveryHerader?->code ?? 'UNKNOWN';
+        $code = preg_replace('/[^A-Za-z0-9\-]/', '', $code);
+
+        $filename = 'Caps_Collection_' . $code . '.' . $extension;
+        $path = 'exports/' . $filename;
+        // $filename  = 'agent_delivery_export_' . now()->format('Ymd_His') . '.' . $extension;
+        // $path      = 'exports/' . $filename;
+        if ($format === 'csv' || $format === 'xlsx') {
+
+            $export = new DeliveryFulllExport($uuid);
+
+            if ($format === 'csv') {
+                Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
+            } else {
+                Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
+            }
         }
+        if ($format === 'pdf') {
 
-        $appUrl = rtrim(config('app.url'), '/');
+            $delivery = CapsCollectionHeader::with([
+                'warehouse',
+                'customerdata',
+                'details.item',
+                'details.uom2'
+            ])->where('uuid', $uuid)->first();
+
+            if (!$delivery) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Caps not found.',
+                ]);
+            }
+
+            $deliveryDetails = $delivery->details;
+            $pdf = \PDF::loadView('capscollection', [
+                'delivery'         => $delivery,
+                'deliveryDetails'  => $deliveryDetails
+            ])->setPaper('A4');
+
+            \Storage::disk('public')->makeDirectory('exports');
+            \Storage::disk('public')->put($path, $pdf->output());
+        }
+        $appUrl  = rtrim(config('app.url'), '/');
         $fullUrl = $appUrl . '/storage/app/public/' . $path;
 
         return response()->json([
-            'status' => 'success',
-            'uuid' => $uuid,
+            'status'       => 'success',
             'download_url' => $fullUrl,
         ]);
     }
+
     public function exportCapsCollapse(Request $request)
     {
         $format = strtolower($request->input('format', 'xlsx'));
@@ -826,6 +889,7 @@ class CapsCollectionController extends Controller
         ]);
     }
 
+    
 
 
     public function globalFilter(Request $request): JsonResponse

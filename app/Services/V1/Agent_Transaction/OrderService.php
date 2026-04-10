@@ -408,251 +408,249 @@ class OrderService
     //             );
     //             return $orders;
     // }
-public function getAll(int $perPage, array $filters = [], bool $dropdown = false)
-{
-    $user = auth()->user();
+    public function getAll(int $perPage, array $filters = [], bool $dropdown = false)
+    {
+        $user = auth()->user();
 
-    $query = OrderHeader::with([
-        'warehouse',
-        'route',
-        'warehouse.getCompany',
-        'country',
-        'customer',
-        'salesman',
-        'createdBy',
-        'updatedBy',
-        'details.item.itemUoms.uom',
-        'details.uom',
-        'details.discount',
-        'details.promotion',
-        'details.parent',
-        'details.children'
-    ]);
-
-    $query = DataAccessHelper::filterAgentTransaction($query, $user);
-    if (!empty($filters['filter']) && is_array($filters['filter'])) {
-        $warehouseIds = CommonLocationFilter::resolveWarehouseIds([
-            'company'   => $filters['filter']['company_id']   ?? null,
-            'region'    => $filters['filter']['region_id']    ?? null,
-            'area'      => $filters['filter']['area_id']      ?? null,
-            'warehouse' => $filters['filter']['warehouse_id'] ?? null,
-            'route'     => $filters['filter']['route_id']     ?? null,
+        $query = OrderHeader::with([
+            'warehouse',
+            'route',
+            'warehouse.getCompany',
+            'country',
+            'customer',
+            'salesman',
+            'createdBy',
+            'updatedBy',
+            'details.item.itemUoms.uom',
+            'details.uom',
+            'details.discount',
+            'details.promotion',
+            'details.parent',
+            'details.children'
         ]);
-        if (!empty($warehouseIds)) {
-            $query->whereIn('warehouse_id', $warehouseIds);
+
+        $query = DataAccessHelper::filterAgentTransaction($query, $user);
+        if (!empty($filters['filter']) && is_array($filters['filter'])) {
+            $warehouseIds = CommonLocationFilter::resolveWarehouseIds([
+                'company'   => $filters['filter']['company_id']   ?? null,
+                'region'    => $filters['filter']['region_id']    ?? null,
+                'area'      => $filters['filter']['area_id']      ?? null,
+                'warehouse' => $filters['filter']['warehouse_id'] ?? null,
+                'route'     => $filters['filter']['route_id']     ?? null,
+            ]);
+            if (!empty($warehouseIds)) {
+                $query->whereIn('warehouse_id', $warehouseIds);
+            }
         }
-    }
-    if (isset($filters['order_flag'])) {
-        $query->where('order_flag', $filters['order_flag']);
-    }
-    if (!empty($filters['no_delivery']) && $filters['no_delivery'] == true) {
-        $query->where('order_flag', 1);
-    }
-    if (array_key_exists('is_promotional', $filters)) {
-        $isPromotional = filter_var(
-            $filters['is_promotional'],
-            FILTER_VALIDATE_BOOLEAN,
-            FILTER_NULL_ON_FAILURE
-        );
-        if (!is_null($isPromotional)) {
-            $query->whereHas('details', function ($q) use ($isPromotional) {
-                $q->where('is_promotional', $isPromotional);
+        if (isset($filters['order_flag'])) {
+            $query->where('order_flag', $filters['order_flag']);
+        }
+        if (!empty($filters['no_delivery']) && $filters['no_delivery'] == true) {
+            $query->where('order_flag', 1);
+        }
+        if (array_key_exists('is_promotional', $filters)) {
+            $isPromotional = filter_var(
+                $filters['is_promotional'],
+                FILTER_VALIDATE_BOOLEAN,
+                FILTER_NULL_ON_FAILURE
+            );
+            if (!is_null($isPromotional)) {
+                $query->whereHas('details', function ($q) use ($isPromotional) {
+                    $q->where('is_promotional', $isPromotional);
+                });
+            }
+        }
+        if (!empty($filters['search'])) {
+
+            $search = $filters['search'];
+
+            $query->where(function ($q) use ($search) {
+
+                $q->where('order_code', 'LIKE', "%$search%")
+                    ->orWhere('comment', 'LIKE', "%$search%")
+                    ->orWhere('status', 'LIKE', "%$search%")
+                    ->orWhere('delivery_date', 'LIKE', "%$search%")
+
+                    ->orWhereHas('warehouse', function ($q2) use ($search) {
+                        $q2->where('warehouse_code', 'LIKE', "%$search%")
+                            ->orWhere('warehouse_name', 'LIKE', "%$search%");
+                    })
+
+                    ->orWhereHas('customer', function ($q2) use ($search) {
+                        $q2->where('osa_code', 'LIKE', "%$search%")
+                            ->orWhere('name', 'LIKE', "%$search%");
+                    })
+
+                    ->orWhereHas('route', function ($q2) use ($search) {
+                        $q2->where('route_code', 'LIKE', "%$search%")
+                            ->orWhere('route_name', 'LIKE', "%$search%");
+                    })
+
+                    ->orWhereHas('salesman', function ($q2) use ($search) {
+                        $q2->where('osa_code', 'LIKE', "%$search%")
+                            ->orWhere('name', 'LIKE', "%$search%");
+                    });
             });
         }
-    }
-    if (!empty($filters['search'])) {
 
-        $search = $filters['search'];
+        if (!empty($filters['warehouse_id'])) {
 
-        $query->where(function ($q) use ($search) {
+            $warehouseIds = is_array($filters['warehouse_id'])
+                ? $filters['warehouse_id']
+                : explode(',', $filters['warehouse_id']);
 
-            $q->where('order_code', 'LIKE', "%$search%")
-                ->orWhere('comment', 'LIKE', "%$search%")
-                ->orWhere('status', 'LIKE', "%$search%")
-                ->orWhere('delivery_date', 'LIKE', "%$search%")
+            $warehouseIds = array_map('intval', $warehouseIds);
 
-                ->orWhereHas('warehouse', function ($q2) use ($search) {
-                    $q2->where('warehouse_code', 'LIKE', "%$search%")
-                        ->orWhere('warehouse_name', 'LIKE', "%$search%");
-                })
-
-                ->orWhereHas('customer', function ($q2) use ($search) {
-                    $q2->where('osa_code', 'LIKE', "%$search%")
-                        ->orWhere('name', 'LIKE', "%$search%");
-                })
-
-                ->orWhereHas('route', function ($q2) use ($search) {
-                    $q2->where('route_code', 'LIKE', "%$search%")
-                        ->orWhere('route_name', 'LIKE', "%$search%");
-                })
-
-                ->orWhereHas('salesman', function ($q2) use ($search) {
-                    $q2->where('osa_code', 'LIKE', "%$search%")
-                        ->orWhere('name', 'LIKE', "%$search%");
-                });
-        });
-    }
-
-    if (!empty($filters['warehouse_id'])) {
-
-        $warehouseIds = is_array($filters['warehouse_id'])
-            ? $filters['warehouse_id']
-            : explode(',', $filters['warehouse_id']);
-
-        $warehouseIds = array_map('intval', $warehouseIds);
-
-        $query->whereIn('warehouse_id', $warehouseIds);
-    }
-
-    if (!empty($filters['order_code'])) {
-        $query->where('order_code', 'LIKE', '%' . $filters['order_code'] . '%');
-    }
-
-    if (!empty($filters['customer_id'])) {
-        $query->where('customer_id', $filters['customer_id']);
-    }
-
-    if (!empty($filters['delivery_date'])) {
-        $query->where('delivery_date', $filters['delivery_date']);
-    }
-
-    if (!empty($filters['salesman_id'])) {
-
-        $salesmanIds = is_array($filters['salesman_id'])
-            ? $filters['salesman_id']
-            : explode(',', $filters['salesman_id']);
-
-        $salesmanIds = array_map('intval', $salesmanIds);
-
-        $query->whereIn('salesman_id', $salesmanIds);
-    }
-
-    if (!empty($filters['comment'])) {
-        $query->where('comment', 'LIKE', "%{$filters['comment']}%");
-    }
-
-    if (!empty($filters['status'])) {
-        $query->where('status', $filters['status']);
-    }
-
-    if (!empty($filters['from_date']) || !empty($filters['to_date'])) {
-
-        if (!empty($filters['from_date'])) {
-            $query->whereDate('created_at', '>=', $filters['from_date']);
+            $query->whereIn('warehouse_id', $warehouseIds);
         }
 
-        if (!empty($filters['to_date'])) {
-            $query->whereDate('created_at', '<=', $filters['to_date']);
+        if (!empty($filters['order_code'])) {
+            $query->where('order_code', 'LIKE', '%' . $filters['order_code'] . '%');
         }
 
-    } else {
-
-        if (empty($filters['filter'])) {
-            $query->whereDate('created_at', Carbon::today());
-        }
-    }
-
-    if (!empty($filters['country_id'])) {
-        $query->where('country_id', $filters['country_id']);
-    }
-
-    $sortBy = $filters['sort_by'] ?? 'created_at';
-    $sortOrder = $filters['sort_order'] ?? 'desc';
-
-    $query->orderBy($sortBy, $sortOrder);
-    // if ($dropdown) {
-
-    //     $query->where('status', 1);
-
-    //     return $query->get()->filter(function ($order) {
-
-    //         $workflowRequest = \App\Models\HtappWorkflowRequest::where('process_type', 'order')
-    //             ->where('process_id', $order->id)
-    //             ->latest('id')
-    //             ->first();
-
-    //         if (!$workflowRequest) {
-    //             return false;
-    //         }
-
-    //         $lastStep = \App\Models\HtappWorkflowRequestStep::where('workflow_request_id', $workflowRequest->id)
-    //             ->orderByDesc('step_order')
-    //             ->first();
-
-    //         return $lastStep && $lastStep->status === 'APPROVED';
-
-    //     })->values();
-    // }
-    if ($dropdown) {
-
-    $query->where('status', 1);
-
-    return $query->get()->filter(function ($order) {
-
-        $workflowRequest = \App\Models\HtappWorkflowRequest::where('process_type', 'order')
-            ->where('process_id', $order->id)
-            ->latest('id')
-            ->first();
-
-        // If no approval request exists → include the order
-        if (!$workflowRequest) {
-            return true;
+        if (!empty($filters['customer_id'])) {
+            $query->where('customer_id', $filters['customer_id']);
         }
 
-        $lastStep = \App\Models\HtappWorkflowRequestStep::where('workflow_request_id', $workflowRequest->id)
-            ->orderByDesc('step_order')
-            ->first();
+        if (!empty($filters['delivery_date'])) {
+            $query->where('delivery_date', $filters['delivery_date']);
+        }
 
-        // If request exists → include only if approved
-        return $lastStep && $lastStep->status === 'APPROVED';
+        if (!empty($filters['salesman_id'])) {
 
-    })->values();
-}
-    $orders = $query->paginate($perPage);
+            $salesmanIds = is_array($filters['salesman_id'])
+                ? $filters['salesman_id']
+                : explode(',', $filters['salesman_id']);
 
-    $orders->setCollection(
+            $salesmanIds = array_map('intval', $salesmanIds);
 
-        $orders->getCollection()->transform(function ($order) {
+            $query->whereIn('salesman_id', $salesmanIds);
+        }
 
-            $workflowRequest = \App\Models\HtappWorkflowRequest::where('process_type', 'order')
-                ->where('process_id', $order->id)
-                ->latest('id')
-                ->first();
+        if (!empty($filters['comment'])) {
+            $query->where('comment', 'LIKE', "%{$filters['comment']}%");
+        }
 
-            if (!$workflowRequest) {
-                return $order;
+        if (!empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        if (!empty($filters['from_date']) || !empty($filters['to_date'])) {
+
+            if (!empty($filters['from_date'])) {
+                $query->whereDate('created_at', '>=', $filters['from_date']);
             }
 
-            $currentStep = \App\Models\HtappWorkflowRequestStep::where('workflow_request_id', $workflowRequest->id)
-                ->whereIn('status', ['PENDING', 'IN_PROGRESS'])
-                ->orderBy('step_order')
-                ->first();
+            if (!empty($filters['to_date'])) {
+                $query->whereDate('created_at', '<=', $filters['to_date']);
+            }
+        } else {
 
-            $totalSteps = \App\Models\HtappWorkflowRequestStep::where('workflow_request_id', $workflowRequest->id)->count();
+            if (empty($filters['filter'])) {
+                $query->whereDate('created_at', Carbon::today());
+            }
+        }
 
-            $completedSteps = \App\Models\HtappWorkflowRequestStep::where('workflow_request_id', $workflowRequest->id)
-                ->where('status', 'APPROVED')
-                ->count();
+        if (!empty($filters['country_id'])) {
+            $query->where('country_id', $filters['country_id']);
+        }
 
-            $lastApprovedStep = \App\Models\HtappWorkflowRequestStep::where('workflow_request_id', $workflowRequest->id)
-                ->where('status', 'APPROVED')
-                ->orderByDesc('step_order')
-                ->first();
+        $sortBy = $filters['sort_by'] ?? 'created_at';
+        $sortOrder = $filters['sort_order'] ?? 'desc';
 
-            $order->approval_status = $lastApprovedStep ? $lastApprovedStep->message : 'Initiated';
+        $query->orderBy($sortBy, $sortOrder);
+        // if ($dropdown) {
 
-            $order->current_step = $currentStep ? $currentStep->title : null;
+        //     $query->where('status', 1);
 
-            $order->progress = $totalSteps > 0
-                ? ($completedSteps . '/' . $totalSteps)
-                : null;
+        //     return $query->get()->filter(function ($order) {
 
-            return $order;
-        })
-    );
+        //         $workflowRequest = \App\Models\HtappWorkflowRequest::where('process_type', 'order')
+        //             ->where('process_id', $order->id)
+        //             ->latest('id')
+        //             ->first();
 
-    return $orders;
-}
+        //         if (!$workflowRequest) {
+        //             return false;
+        //         }
+
+        //         $lastStep = \App\Models\HtappWorkflowRequestStep::where('workflow_request_id', $workflowRequest->id)
+        //             ->orderByDesc('step_order')
+        //             ->first();
+
+        //         return $lastStep && $lastStep->status === 'APPROVED';
+
+        //     })->values();
+        // }
+        if ($dropdown) {
+
+            $query->where('status', 1);
+
+            return $query->get()->filter(function ($order) {
+
+                $workflowRequest = \App\Models\HtappWorkflowRequest::where('process_type', 'order')
+                    ->where('process_id', $order->id)
+                    ->latest('id')
+                    ->first();
+
+                // If no approval request exists → include the order
+                if (!$workflowRequest) {
+                    return true;
+                }
+
+                $lastStep = \App\Models\HtappWorkflowRequestStep::where('workflow_request_id', $workflowRequest->id)
+                    ->orderByDesc('step_order')
+                    ->first();
+
+                // If request exists → include only if approved
+                return $lastStep && $lastStep->status === 'APPROVED';
+            })->values();
+        }
+        $orders = $query->paginate($perPage);
+
+        $orders->setCollection(
+
+            $orders->getCollection()->transform(function ($order) {
+
+                $workflowRequest = \App\Models\HtappWorkflowRequest::where('process_type', 'order')
+                    ->where('process_id', $order->id)
+                    ->latest('id')
+                    ->first();
+
+                if (!$workflowRequest) {
+                    return $order;
+                }
+
+                $currentStep = \App\Models\HtappWorkflowRequestStep::where('workflow_request_id', $workflowRequest->id)
+                    ->whereIn('status', ['PENDING', 'IN_PROGRESS'])
+                    ->orderBy('step_order')
+                    ->first();
+
+                $totalSteps = \App\Models\HtappWorkflowRequestStep::where('workflow_request_id', $workflowRequest->id)->count();
+
+                $completedSteps = \App\Models\HtappWorkflowRequestStep::where('workflow_request_id', $workflowRequest->id)
+                    ->where('status', 'APPROVED')
+                    ->count();
+
+                $lastApprovedStep = \App\Models\HtappWorkflowRequestStep::where('workflow_request_id', $workflowRequest->id)
+                    ->where('status', 'APPROVED')
+                    ->orderByDesc('step_order')
+                    ->first();
+
+                $order->approval_status = $lastApprovedStep ? $lastApprovedStep->message : 'Initiated';
+
+                $order->current_step = $currentStep ? $currentStep->title : null;
+
+                $order->progress = $totalSteps > 0
+                    ? ($completedSteps . '/' . $totalSteps)
+                    : null;
+
+                return $order;
+            })
+        );
+
+        return $orders;
+    }
 
     public function globalFilter(int $perPage, array $filters = [])
     {
@@ -698,14 +696,21 @@ public function getAll(int $perPage, array $filters = [], bool $dropdown = false
                 $query->whereIn('warehouse_id', $warehouseIds);
             }
         }
-        if (!empty($filter['warehouse_id'])) {
-            $warehouseIds = is_array($filter['warehouse_id'])
-                ? $filter['warehouse_id']
-                : explode(',', $filter['warehouse_id']);
+        // if (!empty($filter['warehouse_id'])) {
+        //     $warehouseIds = is_array($filter['warehouse_id'])
+        //         ? $filter['warehouse_id']
+        //         : explode(',', $filter['warehouse_id']);
 
-            $query->whereIn('warehouse_id', array_map('intval', $warehouseIds));
+        //     $query->whereIn('warehouse_id', array_map('intval', $warehouseIds));
+        // }
+
+        if (!empty($filter['route_id'])) {
+            $routeIds = is_array($filter['route_id'])
+                ? $filter['route_id']
+                : explode(',', $filter['route_id']);
+
+            $query->whereIn('route_id', array_map('intval', $routeIds));
         }
-
         if (!empty($filter['salesman_id'])) {
             $salesmanIds = is_array($filter['salesman_id'])
                 ? $filter['salesman_id']

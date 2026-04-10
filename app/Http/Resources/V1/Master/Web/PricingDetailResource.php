@@ -15,8 +15,8 @@ class PricingDetailResource extends JsonResource
     //         'header_id' => $this->header_id,
     //         'item_id' => $this->item_id,
     //         'name' => $this->name,
-    //         'buom_ctn_price' => $this->buom_ctn_price,
-    //         'auom_pc_price' => $this->auom_pc_price,
+    //         'buom_pc_price' => $this->buom_pc_price,
+    //         'auom_ctn_price' => $this->auom_ctn_price,
     //         'status' => $this->status,
     //         'created_user' => $this->created_user,
     //         'updated_user' => $this->updated_user,
@@ -74,8 +74,8 @@ class PricingDetailResource extends JsonResource
             // 🔥 UOM ARRAY OBJECT
             'uom'           => $uoms->toArray(),
 
-            'buom_ctn_price' => $this->buom_ctn_price,
-            'auom_pc_price'  => $this->auom_pc_price,
+            'buom_pc_price' => $this->buom_pc_price,
+            'auom_ctn_price'  => $this->auom_ctn_price,
             'status'         => $this->status,
         ];
     }

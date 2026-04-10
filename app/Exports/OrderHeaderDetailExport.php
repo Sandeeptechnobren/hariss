@@ -36,7 +36,7 @@ class OrderHeaderDetailExport implements FromCollection, WithHeadings, ShouldAut
                 'Order Code'     => (string) $header->order_code,
                 'Warehouse Name' => (string) ($header->warehouse->warehouse_name ?? ''),
                 'Customer Name'  => (string) ($header->customer->name ?? ''),
-                'Delivery Date'  => (string) ($header->delivery_date?->format('Y-m-d') ?? ''),
+                'Delivery Date'  => (string) ($header->delivery_date?->format('d-M-Y') ?? ''),
                 'Comment'        => (string) ($header->comment ?? ''),
                 'Status'         => (string) ($header->status == 1 ? 'Active' : 'Inactive'),
 
@@ -105,7 +105,7 @@ class OrderHeaderDetailExport implements FromCollection, WithHeadings, ShouldAut
     {
         return [
             'Order Code',
-            'Warehouse Name',
+            'Distributors Name',
             'Customer Name',
             'Delivery Date',
             'Comment',

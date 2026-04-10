@@ -88,7 +88,7 @@ class InvoiceHeaderResource extends JsonResource
 
         if ($workflowRequest) {
             $current = HtappWorkflowRequestStep::where('workflow_request_id', $workflowRequest->id)
-                ->whereIn('status', ['PENDING', 'IN_PROGRESS','RETURNED'])
+                ->whereIn('status', ['PENDING', 'IN_PROGRESS', 'RETURNED'])
                 ->orderBy('step_order')
                 ->first();
 
@@ -139,6 +139,7 @@ class InvoiceHeaderResource extends JsonResource
             'customer_id'     => $this->customer_id,
             'customer_code'   => $this->customer->osa_code ?? null,
             'customer_name'   => $this->customer->name ?? null,
+            'customer_contact' => $this->customer->contact_no ?? null,
             'customer_street' => $this->customer->street ?? null,
             'customer_town'   => $this->customer->town ?? null,
             'customer_landmark' => $this->customer->landmark ?? null,
@@ -148,6 +149,9 @@ class InvoiceHeaderResource extends JsonResource
             'salesman_id'     => $this->salesman_id,
             'salesman_code'   => $this->salesman->osa_code ?? null,
             'salesman_name'   => $this->salesman->name ?? null,
+            'salesman_contact'   => $this->salesman->contact_no ?? null,
+
+            'inovice_fdn_no'   => $this->ura_invoice_no ?? null,
 
             'invoice_date'    => Carbon::parse($this->invoice_date)->format('Y-m-d'),
             'invoice_time'    => Carbon::parse($this->invoice_time)->format('H:i:s'),

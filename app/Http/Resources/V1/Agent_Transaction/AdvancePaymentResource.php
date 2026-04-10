@@ -114,6 +114,7 @@ class AdvancePaymentResource extends JsonResource
             'cheque_no' => $this->cheque_no,
             'cheque_date' => $this->cheque_date?->format('Y-m-d'),
             'status' => $this->status,
+            'created_at' => $this->created_at,
 
             // ==========================================
             // 🚀 Approval Info Added

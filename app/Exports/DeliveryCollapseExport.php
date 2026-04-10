@@ -66,7 +66,7 @@ class DeliveryCollapseExport implements
                 'salesman:id,osa_code,name',
                 'customer:id,osa_code,name',
                 'details:id,header_id,item_id,uom_id,item_price,quantity,vat,discount,net_total,total',
-                'details.item:id,code,name',
+                'details.item:id,erp_code,name',
                 'details.Uom:id,name',
             ])
             ->when($this->fromDate && $this->toDate, function ($q) {
@@ -98,7 +98,7 @@ class DeliveryCollapseExport implements
                     $headerRow = $rowIndex;
                     $rows[] = [
                         $this->excelSafe($header->delivery_code ?? ''),
-                        optional($header->created_at)->format('Y-m-d'),
+                        optional($header->created_at)->format('d-M-Y'),
                         $this->excelSafe(
                             trim(($header->warehouse->warehouse_code ?? '') . ' - ' . ($header->warehouse->warehouse_name ?? ''))
                         ),
@@ -152,7 +152,7 @@ class DeliveryCollapseExport implements
                         $rows[] = [
                             '',
                             $this->excelSafe(
-                                trim(($detail->item->code ?? '') . ' - ' . ($detail->item->name ?? ''))
+                                trim(($detail->item->erp_code ?? '') . ' - ' . ($detail->item->name ?? ''))
                             ),
                             $detail->Uom->name ?? '',
                             (float) ($detail->quantity ?? 0),
@@ -192,7 +192,7 @@ class DeliveryCollapseExport implements
         return [
             'Delivery Code',
             'Delivery Date',
-            'Warehouse',
+            'Distributors',
             'Route',
             'Salesman',
             'Customer',

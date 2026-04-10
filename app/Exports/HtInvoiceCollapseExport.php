@@ -6,7 +6,6 @@ use App\Models\Hariss_Transaction\Web\HTInvoiceHeader;
 use App\Models\Hariss_Transaction\Web\HTInvoiceDetail;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
-use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithStyles;
@@ -14,14 +13,12 @@ use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
-use PhpOffice\PhpSpreadsheet\Style\Border;
 
-class HtInvoiceCollapseExport implements FromCollection, WithHeadings, ShouldAutoSize, WithEvents, WithStyles
+class HtInvoiceCollapseExport implements FromCollection, ShouldAutoSize, WithEvents, WithStyles
 {
-    protected array $groupIndexes = [];
+    protected $groupIndexes = [];
     protected $fromDate;
     protected $toDate;
-    protected $customerId;
     protected $warehouseIds;
     protected $salesmanIds;
 
@@ -40,183 +37,133 @@ class HtInvoiceCollapseExport implements FromCollection, WithHeadings, ShouldAut
     public function collection()
     {
         $rows = [];
-        $rowIndex = 2;
+        $rowIndex = 1;
 
-        $query = HTInvoiceHeader::with([
-            'customer',
-            'salesman',
-            'company',
-            'delivery',
-            'poorder',
-            'order',
-            'warehouse'
-        ]);
+        // 🔹 MAIN HEADER
+        $rows[] = [
+            'Invoice Code','Invoice Date','Customer','Salesman',
+            'Warehouse','VAT','Excise','Net','Total'
+        ];
+        $rowIndex++;
 
-        if (!empty($this->fromDate) && !empty($this->toDate)) {
-            $query->whereBetween('invoice_date', [$this->fromDate, $this->toDate]);
-        }
+        // ✅ APPLY FILTERS (IMPORTANT)
+        $headers = HTInvoiceHeader::with([
+                'customer:id,osa_code,business_name',
+                'salesman:id,osa_code,name',
+                'warehouse:id,warehouse_code,warehouse_name'
+            ])
+            ->whereBetween('invoice_date', [$this->fromDate, $this->toDate])
+            ->when(!empty($this->warehouseIds), fn($q) => $q->whereIn('warehouse_id', $this->warehouseIds))
+            ->when(!empty($this->salesmanIds), fn($q) => $q->whereIn('salesman_id', $this->salesmanIds))
+            ->get();
 
-        if (!empty($this->warehouseIds)) {
-            $query->whereIn('warehouse_id', $this->warehouseIds);
-        }
-
-        if (!empty($this->salesmanIds)) {
-            $query->whereIn('salesman_id', $this->salesmanIds);
-        }
-// dd($query->count());
-        $headers = $query->get();
+        // 🔥 DETAILS BULK LOAD (FAST)
+        $allDetails = HTInvoiceDetail::with([
+                'item:id,erp_code,name',
+                'uoms:id,name'
+            ])
+            ->whereIn('header_id', $headers->pluck('id'))
+            ->get()
+            ->groupBy('header_id');
 
         foreach ($headers as $header) {
-            $headerRowIndex = $rowIndex;
+
+            $details = $allDetails[$header->id] ?? collect();
+
+            // 🔹 HEADER ROW
             $rows[] = [
-                'Invoice Code'        => (string) $header->invoice_code,
-                'Invoice Date'        => optional($header->invoice_date)->format('Y-m-d'),
-                // 'PurchaseOrder Code'  => (string) ($header->poorder->order_code ?? ''),
-                // 'Order Code'          => (string) ($header->order->order_code ?? ''),
-                'Customer'       => trim(($header->customer->osa_code ?? '') . ' - ' . ($header->customer->business_name ?? '')),
-                'Salesman'       => trim(($header->salesman->osa_code ?? '') . ' - ' . ($header->salesman->name ?? '')),
-                'Warehouse'      => trim(($header->warehouse->warehouse_code ?? '') . ' - ' . ($header->warehouse->warehouse_name ?? '')),
-                'Order Number'        => (string) $header->order_number,
-                'Delivery Number'     => (string) $header->delivery_number,
-                // 'Delivery Code'       => (string) ($header->delivery->delivery_code ?? ''),
-                'Net'                 => (float) $header->net,
-                'VAT'                 => (float) $header->vat,
-                'Excise'              => (float) $header->excise,
-                'Total'               => (float) $header->total,
-
-                'Item'                => '',
-                'UOM Name'            => '',
-                'Quantity'            => '',
-                'Item Price'          => '',
-                'Discount'            => '',
-                'Net Detail'          => '',
-                'VAT Detail'          => '',
-                'Total Detail'        => '',
-                'Batch Number'        => '',
+                $header->invoice_code,
+                optional($header->invoice_date)->format('Y-m-d'),
+                trim(($header->customer->osa_code ?? '').' - '.($header->customer->business_name ?? '')),
+                trim(($header->salesman->osa_code ?? '').' - '.($header->salesman->name ?? '')),
+                trim(($header->warehouse->warehouse_code ?? '').' - '.($header->warehouse->warehouse_name ?? '')),
+                number_format($header->vat,2),
+                number_format($header->excise,2),
+                number_format($header->net,2),
+                number_format($header->total,2),
             ];
-
             $rowIndex++;
-            $details = HTInvoiceDetail::with(['item', 'uoms'])
-                ->where('header_id', $header->id)
-                ->get();
 
-            $detailRowIndexes = [];
+            // 🔥 DETAIL HEADER
+            $rows[] = [
+                '',
+                'Item','UOM','Price','Qty','Discount','VAT','Net','Total'
+            ];
+            $rowIndex++;
 
-            foreach ($details as $detail) {
+            $start = $rowIndex - 1;
+
+            // 🔹 DETAILS
+            foreach ($details as $d) {
                 $rows[] = [
-                    'Invoice Code'        => '',
-                    'Invoice Date'        => '',
-                    'Invoice Time'        => '',
-                    // 'PurchaseOrder Code'  => '',
-                    // 'Order Code'          => '',
-                    'Customer'       => '',
-                    'Salesman'       => '',
-                    'Warehouse'      => '',
-                    'Order Number'        => '',
-                    'Delivery Number'     => '',
-                    // 'Delivery Code'       => '',
-                    'Net'                 => '',
-                    'VAT'                 => '',
-                    'Excise'              => '',
-                    'Total'               => '',
-
-                    'Item'                => trim(($header->item->erp_code ?? '') . ' - ' . ($header->item->name ?? '')),
-                    'UOM Name'            => (string) ($detail->uoms->name ?? ''),
-                    'Quantity'            => (float) $detail->quantity,
-                    'Item Price'          => (float) $detail->item_price,
-                    'Discount'            => (float) $detail->discount,
-                    'Net Detail'          => (float) $detail->net,
-                    'VAT Detail'          => (float) $detail->vat,
-                    'Total Detail'        => (float) $detail->total,
-                    'Batch Number'        => (string) $detail->batch_number,
+                    '',
+                    trim(($d->item->erp_code ?? '').' - '.($d->item->name ?? '')),
+                    $d->uoms->name ?? '',
+                    number_format($d->item_price,2),
+                    $d->quantity,
+                    number_format($d->discount,2),
+                    number_format($d->vat,2),
+                    number_format($d->net,2),
+                    number_format($d->total,2),
                 ];
-
-                $detailRowIndexes[] = $rowIndex;
                 $rowIndex++;
             }
-            if (!empty($detailRowIndexes)) {
+
+            if ($details->count()) {
                 $this->groupIndexes[] = [
-                    'start' => $headerRowIndex + 1,
-                    'end'   => max($detailRowIndexes),
+                    'start'=>$start,
+                    'end'=>$rowIndex-1
                 ];
             }
-            $rows[] = array_fill_keys(array_keys($rows[0]), '');
+
+            $rows[] = [''];
             $rowIndex++;
         }
 
         return new Collection($rows);
     }
 
-    public function headings(): array
-    {
-        return [
-            'Invoice Code',
-            'Invoice Date',
-            'Invoice Time',
-            // 'PurchaseOrder Code',
-            // 'Order Code',
-            'Customer',
-            'Salesman',
-            'Warehouse',
-            'Order Number',
-            'Delivery Number',
-            // 'Delivery Code',
-            'Net',
-            'VAT',
-            'Excise',
-            'Total',
-            'Item',
-            'UOM Name',
-            'Quantity',
-            'Item Price',
-            'Discount',
-            'Net Detail',
-            'VAT Detail',
-            'Total Detail',
-            'Batch Number',
-        ];
-    }
-
     public function styles(Worksheet $sheet)
     {
-        $lastColumn = $sheet->getHighestColumn();
-        $sheet->getStyle("A1:{$lastColumn}1")->getFont()->setBold(true);
-        $sheet->getStyle("A1:{$lastColumn}1")
-            ->getAlignment()
+        $sheet->getStyle('A1:I1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:I1')->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_CENTER);
     }
 
     public function registerEvents(): array
     {
         return [
-            AfterSheet::class => function (AfterSheet $event) {
+            AfterSheet::class => function ($event) {
+
                 $sheet = $event->sheet->getDelegate();
-                $lastColumn = $sheet->getHighestColumn();
-                $sheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
-                    'font' => [
-                        'bold' => true,
-                        'color' => ['rgb' => 'F5F5F5'],
+                $lastRow = $sheet->getHighestRow();
+
+                $sheet->getStyle("A1:I1")->applyFromArray([
+                    'fill'=>[
+                        'fillType'=>Fill::FILL_SOLID,
+                        'startColor'=>['rgb'=>'993442']
                     ],
-                    'alignment' => [
-                        'horizontal' => Alignment::HORIZONTAL_CENTER,
-                        'vertical'   => Alignment::VERTICAL_CENTER,
-                    ],
-                    'fill' => [
-                        'fillType'   => Fill::FILL_SOLID,
-                        'startColor' => ['rgb' => '993442'],
-                    ],
-                    'borders' => [
-                        'allBorders' => [
-                            'borderStyle' => Border::BORDER_THIN,
-                        ],
+                    'font'=>[
+                        'bold'=>true,
+                        'color'=>['rgb'=>'FFFFFF']
                     ],
                 ]);
+
+                for ($i=2;$i<=$lastRow;$i++) {
+                    if ($sheet->getCell("B{$i}")->getValue()==='Item') {
+                        $sheet->getStyle("B{$i}:I{$i}")->getFont()->setBold(true);
+                        $sheet->getStyle("B{$i}:I{$i}")
+                            ->getAlignment()
+                            ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    }
+                }
 
                 foreach ($this->groupIndexes as $group) {
                     for ($i = $group['start']; $i <= $group['end']; $i++) {
                         $sheet->getRowDimension($i)
                             ->setOutlineLevel(1)
-                            ->setVisible(false);
+                            ->setVisible(false)
+                            ->setCollapsed(true);
                     }
                 }
 

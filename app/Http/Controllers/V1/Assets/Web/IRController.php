@@ -93,12 +93,20 @@ class IRController extends Controller
      *     )
      * )
      */
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $perPage = request()->get('limit', 50);
-        $page    = request()->get('page', 1);
+        $perPage = $request->get('limit', 50);
+        $page    = $request->get('page', 1);
 
-        $records = $this->service->list($perPage);
+        // ✅ IMPORTANT (filters pass karna)
+        $filters = $request->only([
+            'warehouse_id',
+            'osa_code',
+            'iro_id',
+            'status'
+        ]);
+
+        $records = $this->service->list($perPage, $filters);
 
         return response()->json([
             'status'  => 'success',
@@ -114,7 +122,6 @@ class IRController extends Controller
             ]
         ], 200);
     }
-
 
 
     /**

@@ -16,16 +16,27 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use App\Helpers\DataAccessHelper;
 use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 
-class ExchangeCollapseExport implements
-    FromCollection,
-    WithHeadings,
-    ShouldAutoSize,
-    WithEvents
+class ExchangeCollapseExport implements FromCollection, WithHeadings, ShouldAutoSize, WithEvents
 {
     protected array $groupIndexes = [];
 
-    /* ================= Excel Formula Safety ================= */
+    protected $fromDate;
+    protected $toDate;
+    protected $warehouseIds;
+    protected $routeIds;
+    protected $salesmanIds;
+
+    public function __construct($fromDate = null, $toDate = null, $warehouseIds = [], $routeIds = [], $salesmanIds = [])
+    {
+        $this->fromDate = $fromDate;
+        $this->toDate   = $toDate;
+        $this->warehouseIds = $warehouseIds;
+        $this->routeIds = $routeIds;
+        $this->salesmanIds = $salesmanIds;
+    }
+
     private function excelSafe($value)
     {
         if (is_string($value) && preg_match('/^[=+\-@]/', $value)) {
@@ -34,168 +45,215 @@ class ExchangeCollapseExport implements
         return $value;
     }
 
-  public function collection()
+    public function collection()
     {
         $rows = [];
         $rowIndex = 2;
 
         $query = ExchangeHeader::select([
-                'id','exchange_code','warehouse_id','customer_id','comment','status'
-            ])
+            'id',
+            'exchange_code',
+            'warehouse_id',
+            'customer_id',
+            'comment',
+            'status',
+            'created_at'
+        ])
             ->with([
-                'warehouse:id,warehouse_name',
+                'warehouse:id,warehouse_name,warehouse_code',
                 'customer:id,osa_code,name',
             ])
+
+            // ✅ DATE FILTER
+            ->when($this->fromDate && $this->toDate, function ($q) {
+                $q->whereBetween('created_at', [
+                    Carbon::parse($this->fromDate)->startOfDay(),
+                    Carbon::parse($this->toDate)->endOfDay(),
+                ]);
+            })
+
+            // ✅ WAREHOUSE FILTER
+            ->when(!empty($this->warehouseIds), fn($q) => $q->whereIn('warehouse_id', $this->warehouseIds))
+
+            // ✅ ROUTE FILTER
+            ->when(!empty($this->routeIds), fn($q) => $q->whereIn('route_id', $this->routeIds))
+
+            // ✅ SALESMAN FILTER
+            ->when(!empty($this->salesmanIds), fn($q) => $q->whereIn('salesman_id', $this->salesmanIds))
+
             ->orderBy('id', 'desc');
 
         $query = DataAccessHelper::filterAgentTransaction($query, Auth::user());
+
         $query->chunk(200, function ($headers) use (&$rows, &$rowIndex) {
 
-                foreach ($headers as $header) {
+            foreach ($headers as $header) {
 
-                    $headerRow = $rowIndex;
+                $sectionRows = []; // ✅ FIX
 
-                    /* ================= HEADER ROW ================= */
+                $headerRow = $rowIndex;
+
+                // HEADER
+                $rows[] = [
+                    $this->excelSafe($header->exchange_code),
+                    $this->excelSafe(
+                        optional($header->created_at)->format('d M Y')
+                    ),
+                    $this->excelSafe(($header->warehouse->warehouse_code ?? '') . ' - ' . ($header->warehouse->warehouse_name ?? '')),
+                    $this->excelSafe(
+                        ($header->customer->osa_code ?? '') . ' - ' . ($header->customer->name ?? '')
+                    ),
+                    $this->excelSafe($header->comment ?? ''),
+                    // $header->status == 1 ? 'Active' : 'Inactive',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                ];
+                $rowIndex++;
+
+                // COLLECT
+                $collects = ExchangeInReturn::with(['item', 'uoms'])
+                    ->where('header_id', $header->id)->get();
+
+                if ($collects->isNotEmpty()) {
+
+                    $sectionRows[] = $rowIndex;
+
                     $rows[] = [
-                        $this->excelSafe($header->exchange_code),
-                        $this->excelSafe($header->warehouse->warehouse_name ?? ''),
-                        $this->excelSafe($header->customer->osa_code ?? ''),
-                        $this->excelSafe($header->customer->name ?? ''),
-                        $this->excelSafe($header->comment ?? ''),
-                        $header->status == 1 ? 'Active' : 'Inactive',
-
-                        // padding
-                        '', '', '', '', '', '', '', '', '', '',
+                        'Collect',
+                        'Item',
+                        'UOM',
+                        'Price',
+                        'Quantity',
+                        'Total',
+                        'Reason',
+                        'Return Type',
+                        // 'Status',
+                        '',
+                        '',
+                        '',
+                        '',
+                        '',
                     ];
-
                     $rowIndex++;
 
-                    /* ================= COLLECT SECTION ================= */
-$collects = ExchangeInReturn::with(['item:id,code,name', 'uoms:id,name'])
-    ->where('header_id', $header->id)
-    ->get();
-
-if ($collects->isNotEmpty()) {
-
-    $sectionRows[] = $rowIndex; // Return label row
-    $rows[] = [
-        'Collect', // A
-        '', '', '', '', '', '', '', '', '',
-        '', '', '', '', '', '',
-    ];
-    $rowIndex++;
-
-$detailHeadingRow = $rowIndex;
-    $rows[] = [
-        '',          // A
-        'Item Code', // B
-        'Item Name', // C
-        'UOM',       // D
-        'Price',     // E
-        'Quantity',  // F
-        'Total',     // G
-        'Return Type',// H
-        'Region',    // I
-        'Status',    // J
-        '', '', '', '', '', '',
-    ];
-    $rowIndex++;
-
-    foreach ($collects as $detail) {
-        $rows[] = [
-            '', // A
-            $this->excelSafe($detail->item->code ?? ''),
-            $this->excelSafe($detail->item->name ?? ''),
-            $detail->uoms->name ?? '',
-            (float) $detail->item_price,
-            (float) $detail->item_quantity,
-            (float) $detail->total,
-            $detail->return_type ?? '',
-            $detail->region ?? '',
-            $detail->status == 1 ? 'Active' : 'Inactive',
-            '', '', '', '', '', '',
-        ];
-        $rowIndex++;
-    }
-}
-                   /* ================= RETURN SECTION ================= */
-$returns = ExchangeInInvoice::with(['item:id,code,name', 'uoms:id,name'])
-    ->where('header_id', $header->id)
-    ->get();
-
-if ($returns->isNotEmpty()) {
-
-    $sectionRows[] = $rowIndex; // Return label row
-    $rows[] = [
-        'Return', // A
-        '', '', '', '', '', '', '', '', '',
-        '', '', '', '', '', '',
-    ];
-    $rowIndex++;
-
-$detailHeadingRow = $rowIndex;
-    $rows[] = [
-        '',          // A
-        'Item Code', // B
-        'Item Name', // C
-        'UOM',       // D
-        'Price',     // E
-        'Quantity',  // F
-        'Total',     // G
-        '',          // H
-        '',          // I
-        'Status',    // J
-        '', '', '', '', '', '',
-    ];
-    $rowIndex++;
-
-    foreach ($returns as $detail) {
-        $rows[] = [
-            '', // A
-            $this->excelSafe($detail->item->code ?? ''),
-            $this->excelSafe($detail->item->name ?? ''),
-            $detail->uoms->name ?? '',
-            (float) $detail->item_price,
-            (float) $detail->item_quantity,
-            (float) $detail->total,
-            '',
-            '',
-            $detail->status == 1 ? 'Active' : 'Inactive',
-            '', '', '', '', '', '',
-        ];
-        $rowIndex++;
-    }
-}
-                    /* ================= GROUP COLLAPSE ================= */
-                    if ($rowIndex > $headerRow + 1) {
-                        $this->groupIndexes[] = [
-                            'header_row' => $headerRow,
-                            'start'      => $headerRow + 1,
-                            'end'        => $rowIndex - 1,
-                            'detail_headings'   => [$detailHeadingRow], 
-                            'section_rows'    => $sectionRows,
+                    foreach ($collects as $d) {
+                        $rows[] = [
+                            '',
+                            $this->excelSafe(($d->item->code ?? '') . ' - ' . ($d->item->name ?? '')),
+                            $d->uoms->name ?? '',
+                            (float)$d->item_price,
+                            (float)$d->item_quantity,
+                            (float)$d->total,
+                            $this->getReturnCategory($d->return_type ?? ''),
+                            $this->getReturnTypeLabel($d->region ?? ''),
+                            // $d->status == 1 ? 'Active' : 'Inactive',
+                            '',
+                            '',
+                            '',
+                            '',
+                            '',
                         ];
+                        $rowIndex++;
                     }
-
-                    /* ================= BLANK ROW ================= */
-                    $rows[] = array_fill(0, 16, '');
-                    $rowIndex++;
                 }
-            });
+
+                // RETURN
+                $returns = ExchangeInInvoice::with(['item', 'uoms'])
+                    ->where('header_id', $header->id)->get();
+
+                if ($returns->isNotEmpty()) {
+
+                    $sectionRows[] = $rowIndex;
+
+                    $rows[] = [
+                        'Return',
+                        'Item',
+                        'UOM',
+                        'Price',
+                        'Quantity',
+                        'Total',
+                        '',
+                        '',
+                        // 'Status',
+                        '',
+                        '',
+                        '',
+                        '',
+                        '',
+                        ''
+                    ];
+                    $rowIndex++;
+
+                    foreach ($returns as $d) {
+                        $rows[] = [
+                            '',
+                            $this->excelSafe(($d->item->code ?? '') . ' - ' . ($d->item->name ?? '')),
+                            $d->uoms->name ?? '',
+                            (float)$d->item_price,
+                            (float)$d->item_quantity,
+                            (float)$d->total,
+                            '',
+                            '',
+                            // $d->status == 1 ? 'Active' : 'Inactive',
+                            '',
+                            '',
+                            '',
+                            '',
+                            '',
+                            ''
+                        ];
+                        $rowIndex++;
+                    }
+                }
+
+                // GROUP
+                if ($rowIndex > $headerRow + 1) {
+                    $this->groupIndexes[] = [
+                        'header_row' => $headerRow,
+                        'start' => $headerRow + 1,
+                        'end'   => $rowIndex - 1,
+                        'section_rows' => $sectionRows,
+                    ];
+                }
+
+                // GAP
+                $rows[] = array_fill(0, 16, '');
+                $rowIndex++;
+            }
+        });
 
         return new Collection($rows);
     }
 
-    /* ================= HEADER ONLY ================= */
+    private function getReturnCategory($value)
+    {
+        if (in_array($value, ["1", "2"])) return "Good";
+        if (in_array($value, ["3", "4"])) return "Bad";
+        return "-";
+    }
+
+    private function getReturnTypeLabel($value)
+    {
+        if ($value === "1") return "Near By Expiry"; // Good
+        if ($value === "2") return "Package Issue"; // Good
+        if ($value === "3") return "Damage";        // Bad
+        if ($value === "4") return "Expiry";        // Bad
+        return "-";
+    }
     public function headings(): array
     {
         return [
-            'Exchange Code',
-            'Warehouse Name',
-            'Customer Code',
-            'Customer Name',
+            'Exchange No',
+            'Date',
+            'Distributors',
+            'Customer',
             'Comment',
-            'Status',
         ];
     }
 
@@ -207,15 +265,14 @@ $detailHeadingRow = $rowIndex;
                 $sheet = $event->sheet->getDelegate();
                 $lastColumn = $sheet->getHighestColumn();
 
-                /* ===== HEADER STYLE ===== */
-                $sheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
+                $sheet->getStyle("A1:E1")->applyFromArray([
                     'font' => ['bold' => true, 'color' => ['rgb' => 'F5F5F5']],
                     'alignment' => [
                         'horizontal' => Alignment::HORIZONTAL_CENTER,
-                        'vertical'   => Alignment::VERTICAL_CENTER,
+                        'vertical' => Alignment::VERTICAL_CENTER,
                     ],
                     'fill' => [
-                        'fillType'   => Fill::FILL_SOLID,
+                        'fillType' => Fill::FILL_SOLID,
                         'startColor' => ['rgb' => '993442'],
                     ],
                     'borders' => [
@@ -223,41 +280,20 @@ $detailHeadingRow = $rowIndex;
                     ],
                 ]);
 
-                $sheet->getRowDimension(1)->setRowHeight(25);
-                $sheet->freezePane('A2');
+                foreach ($this->groupIndexes as $g) {
 
-                foreach ($this->groupIndexes as $group) {
-
-                    // Header always visible
-                    $sheet->getRowDimension($group['header_row'])
-                        ->setOutlineLevel(0)
-                        ->setVisible(true);
-
-                    // Collapse details
-                    for ($i = $group['start']; $i <= $group['end']; $i++) {
+                    for ($i = $g['start']; $i <= $g['end']; $i++) {
                         $sheet->getRowDimension($i)
                             ->setOutlineLevel(1)
                             ->setVisible(false);
-
-                        $sheet->getStyle("B{$i}")
-                            ->getAlignment()
-                            ->setIndent(1);
                     }
 
-                    // ✅ Bold section rows (Collect / Return)
-                    foreach ($group['section_rows'] as $row) {
-                        $sheet->getStyle("A{$row}")
-                            ->getFont()
-                            ->setBold(true);
-                    }
-
-                    // ✅ Bold ONLY detail heading rows
-                    foreach ($group['detail_headings'] as $row) {
-                        $sheet->getStyle("B{$row}:J{$row}")
-                            ->getFont()
-                            ->setBold(true);
+                    foreach ($g['section_rows'] as $row) {
+                        $sheet->getStyle("A{$row}:J{$row}")
+                            ->getFont()->setBold(true);
                     }
                 }
+
                 $sheet->setShowSummaryBelow(false);
             }
         ];

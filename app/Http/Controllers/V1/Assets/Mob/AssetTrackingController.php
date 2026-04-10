@@ -4,6 +4,7 @@ namespace App\Http\Controllers\V1\Assets\Mob;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\V1\Assets\Mob\AssetTrackingRequest;
 use App\Services\V1\Assets\Mob\AssetTrackingService;
+use App\Models\Warehouse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use OpenApi\Annotations as OA; 
@@ -94,56 +95,91 @@ public function store(AssetTrackingRequest $request)
         ], 500);
     }
 }
-    /**
-     * @OA\Get(
-     *     path="/mob/technician_mob/asset-tracking/asm-details",
-     *     tags={"Assets Tracking"},
-     *     summary="Get ASM details dropdown",
-     *     description="Fetch ASM details, dump response into a text file, store it, and return file path",
-     *     operationId="getAsmDetails",
-     *
-     *     @OA\Response(
-     *         response=200,
-     *         description="Model numbers fetched and file created successfully",
-     *         @OA\JsonContent(
-     *             type="object",
-     *             @OA\Property(property="status", type="boolean", example=true),
-     *             @OA\Property(
-     *                 property="file_path",
-     *                 type="string",
-     *                 example="/var/www/project/storage/app/model_number/model_numbers_20260102_153000.txt"
-     *             ),
-     *             @OA\Property(
-     *                 property="message",
-     *                 type="string",
-     *                 example="Model numbers file generated successfully"
-     *             )
-     *         )
-     *     ),
-     *
-     *     @OA\Response(
-     *         response=500,
-     *         description="Internal server error"
-     *     )
-     * )
-     */
-public function asmdetails()
-    {
+  /**
+ * @OA\Post(
+ *     path="/mob/technician_mob/asset-tracking/asm-details",
+ *     tags={"Assets Tracking"},
+ *     summary="Get ASM details dropdown based on warehouse",
+ *     description="Fetch ASM details based on warehouse_id, dump response into a text file, store it, and return file path",
+ *     operationId="getAsmDetails",
+ *
+ *     @OA\RequestBody(
+ *         required=true,
+ *         @OA\JsonContent(
+ *             required={"warehouse_id"},
+ *             @OA\Property(
+ *                 property="warehouse_id",
+ *                 type="integer",
+ *                 example=5
+ *             )
+ *         )
+ *     ),
+ *
+ *     @OA\Response(
+ *         response=200,
+ *         description="ASM details file generated successfully",
+ *         @OA\JsonContent(
+ *             type="object",
+ *             @OA\Property(property="status", type="boolean", example=true),
+ *             @OA\Property(
+ *                 property="file_path",
+ *                 type="string",
+ *                 example="storage/asm_details/asm_details_20260102_153000.txt"
+ *             ),
+ *             @OA\Property(
+ *                 property="message",
+ *                 type="string",
+ *                 example="ASM details file generated successfully"
+ *             )
+ *         )
+ *     ),
+ *
+ *     @OA\Response(
+ *         response=404,
+ *         description="Warehouse not found"
+ *     ),
+ *
+ *     @OA\Response(
+ *         response=500,
+ *         description="Internal server error"
+ *     )
+ * )
+ */
+public function asmdetails(Request $request)
+{
+    try {
+        $warehouseId = $request->warehouse_id;
+        $warehouse = Warehouse::select('id', 'area_id')
+            ->where('id', $warehouseId)
+            ->first();
+        if (!$warehouse) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Warehouse not found'
+            ], 404);
+        }
         $models = User::query()
             ->select('id', 'name')
             ->where('status', 1)
             ->where('role', 91)
+            ->whereJsonContains('area', $warehouse->area_id)
             ->orderBy('id', 'asc')
             ->get();
-         $textData = json_encode([
-        'status' => true,
-        'data'   => $models
+        $textData = json_encode([
+            'status' => true,
+            'data'   => $models
         ], JSON_PRETTY_PRINT);
-        $fileName = 'asm_details' . now()->format('Ymd_His') . '.txt';
+        $fileName = 'asm_details_' . now()->format('Ymd_His') . '.txt';
         Storage::disk('public')->put('asm_details/' . $fileName, $textData);
         return response()->json([
             'status'    => true,
             'file_path' => 'storage/asm_details/' . $fileName
         ], 200);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status'  => false,
+            'message' => $e->getMessage()
+        ], 500);
     }
+}
 }

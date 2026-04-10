@@ -268,7 +268,7 @@ class AgentDeliveryHeaderService
                 ->where('process_id', $order->id)
                 // ->where('status', 'APPROVED')
                 ->first();
-                // dd($approval_status);
+            // dd($approval_status);
 
             if ($approval_status && $approval_status->status !== 'APPROVED') {
                 throw new \Exception('Approval pending for this order');
@@ -283,6 +283,7 @@ class AgentDeliveryHeaderService
                 'country_id'    => $data['country_id'] ?? null,
                 'route_id'      => $data['route_id'] ?? null,
                 'salesman_id'   => $data['salesman_id'] ?? null,
+                'delivery_date'   => $data['delivery_date'] ?? null,
                 'gross_total'   => $data['gross_total'] ?? null,
                 'vat'           => $data['vat'] ?? null,
                 'discount'      => $data['discount'] ?? null,
@@ -319,7 +320,7 @@ class AgentDeliveryHeaderService
                 'warehouse_id'  => $data['warehouse_id'],
                 'customer_id'   => $data['customer_id'],
                 'salesman_id'   => $data['salesman_id'],
-                'delivery_date' => now(),
+                'delivery_date' =>  $data['delivery_date'],
                 'gross_total'   => $data['gross_total'] ?? null,
                 'vat'           => $data['vat'],
                 'net_amount'    => $data['net_amount'],
@@ -564,6 +565,22 @@ class AgentDeliveryHeaderService
                 if (!empty($warehouseIds)) {
                     $query->whereIn('warehouse_id', $warehouseIds);
                 }
+            }
+
+            //     if (!empty($filter['warehouse_id'])) {
+            //     $warehouseIds = is_array($filter['warehouse_id'])
+            //         ? $filter['warehouse_id']
+            //         : explode(',', $filter['warehouse_id']);
+
+            //     $query->whereIn('warehouse_id', array_map('intval', $warehouseIds));
+            // }
+
+            if (!empty($filter['route_id'])) {
+                $routeIds = is_array($filter['route_id'])
+                    ? $filter['route_id']
+                    : explode(',', $filter['route_id']);
+
+                $query->whereIn('route_id', array_map('intval', $routeIds));
             }
 
             if (!empty($filter['salesman_id'])) {

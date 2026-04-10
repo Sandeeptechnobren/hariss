@@ -43,35 +43,36 @@ class CompetitorInfoService
 
 public function store(CompetitorInfoRequest $request): array
 {
-    $data = $request->validated();
-
-    $images = [];
-
-    $storeImage = function(?UploadedFile $file) {
-        if (!$file) return null;
-
-        $filename = $file->hashName(); 
-        $file->move(public_path('competitor_images'), $filename);
-        return 'competitor_images/' . $filename;
-    };
-
-    if ($request->hasFile('image1') && $request->file('image1') instanceof UploadedFile) {
-        $images['image1'] = '/' . $storeImage($request->file('image1'));
+    try {
+        $data = $request->validated();
+        $images = [];
+        $storeImage = function (?UploadedFile $file) {
+            if (!$file) return null;
+            $filename = $file->hashName();
+            $file->move(public_path('competitor_images'), $filename);
+            return 'competitor_images/' . $filename;
+        };
+        if ($request->hasFile('image1') && $request->file('image1') instanceof UploadedFile) {
+            $images['image1'] = '/' . $storeImage($request->file('image1'));
+        }
+        if ($request->hasFile('image2') && $request->file('image2') instanceof UploadedFile) {
+            $images['image2'] = '/' . $storeImage($request->file('image2'));
+        }
+        $data['image'] = $images;
+        $competitorInfo = CompetitorInfo::create($data);
+        return [
+            'status' => true,
+            'message' => 'Competitor info created successfully.',
+            'data' => $competitorInfo,
+        ];
+    } catch (\Exception $e) {
+        Log::error('Competitor Store Error: ' . $e->getMessage());
+        return [
+            'status' => false,
+            'message' => 'Something went wrong while creating competitor info.',
+            'data' => null,
+        ];
     }
-
-    if ($request->hasFile('image2') && $request->file('image2') instanceof UploadedFile) {
-        $images['image2'] = '/' . $storeImage($request->file('image2'));
-    }
-
-    $data['image'] = $images;
-
-    $competitorInfo = CompetitorInfo::create($data);
-
-    return [
-        'success' => true,
-        'message' => 'Competitor info created successfully.',
-        'data' => $competitorInfo,
-    ];
 }
 
 public function getFilteredData($startDate = null, $endDate = null)

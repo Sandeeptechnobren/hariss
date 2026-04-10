@@ -79,7 +79,7 @@ class OrderHeaderFullExport implements
 
             $rows[] = [
                 'Order Code' => (string) $order->order_code,
-                'Order Date' => (string) optional($order->created_at)->format('Y-m-d'),
+                'Order Date' => (string) optional($order->created_at)->format('d-M-Y'),
                 'Warehouse' => trim(
                     ($order->warehouse->warehouse_code ?? '') . ' - ' .
                         ($order->warehouse->warehouse_name ?? '')
@@ -100,7 +100,7 @@ class OrderHeaderFullExport implements
                         ($order->route->route_name ?? '')
                 ),
 
-                'Delivery Date' => (string) optional($order->delivery_date)->format('Y-m-d'),
+                'Delivery Date' => (string) optional($order->delivery_date)->format('d-M-Y'),
                 'Comment'       => (string) ($order->comment ?? ''),
                 'Vat'           => (float) $order->vat,
                 'Net'           => (float) $order->net_amount,
@@ -117,7 +117,7 @@ class OrderHeaderFullExport implements
         return [
             'Order Code',
             'Order Date',
-            'Warehouse',
+            'Distributors',
             'Customer',
             'Salesman',
             'Route',

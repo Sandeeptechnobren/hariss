@@ -536,7 +536,7 @@ public function export(\Illuminate\Http\Request $request)
     $filePath = "exports/{$filename}";
 // dd($filters);
     $query = \App\Models\Route::with([
-        'warehouse:id,warehouse_name',
+        'warehouse:id,warehouse_code,warehouse_name',
         'vehicle:id,vehicle_code',
         'getrouteType:id,route_type_name',
     ]);

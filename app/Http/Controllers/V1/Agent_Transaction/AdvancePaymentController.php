@@ -11,6 +11,7 @@ use App\Services\V1\Agent_Transaction\AdvancePaymentService;
 use App\Exports\AdvancePaymentsFullExport;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Helpers\LogHelper;
+use App\Models\Agent_Transaction\AdvancePayment;
 
 class AdvancePaymentController extends Controller
 {
@@ -268,5 +269,65 @@ public function exportAdvancePaymentHeader(Request $request)
         'download_url' => $fullUrl,
     ]);
 }
+
+    public function exportadancepaymentpdf(Request $request)
+    {
+        $uuid   = $request->input('uuid');
+        $format = strtolower($request->input('format', 'xlsx'));
+
+        $extension = $format === 'csv' ? 'csv' : ($format === 'pdf' ? 'pdf' : 'xlsx');
+        $deliveryHerader = AdvancePayment::select('osa_code')
+            ->where('uuid', $uuid)
+            ->first();
+
+        $code = $deliveryHerader?->osa_code ?? 'UNKNOWN';
+        $code = preg_replace('/[^A-Za-z0-9\-]/', '', $code);
+
+        $filename = 'Advance_payment_' . $code . '.' . $extension;
+        $path = 'exports/' . $filename;
+        // $filename  = 'agent_delivery_export_' . now()->format('Ymd_His') . '.' . $extension;
+        // $path      = 'exports/' . $filename;
+        if ($format === 'csv' || $format === 'xlsx') {
+
+            $export = new DeliveryFulllExport($uuid);
+
+            if ($format === 'csv') {
+                Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
+            } else {
+                Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
+            }
+        }
+        if ($format === 'pdf') {
+
+            $delivery = AdvancePayment::with([
+                'companyBank',
+                'agent',
+            ])->where('uuid', $uuid)->first();
+
+            if (!$delivery) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Advance Payment not found.',
+                ]);
+            }
+
+            $deliveryDetails = $delivery->details;
+            $pdf = \PDF::loadView('advancepayment', [
+                'delivery'         => $delivery,
+                'deliveryDetails'  => $deliveryDetails
+            ])->setPaper('A4');
+
+            \Storage::disk('public')->makeDirectory('exports');
+            \Storage::disk('public')->put($path, $pdf->output());
+        }
+        $appUrl  = rtrim(config('app.url'), '/');
+        $fullUrl = $appUrl . '/storage/app/public/' . $path;
+
+        return response()->json([
+            'status'       => 'success',
+            'download_url' => $fullUrl,
+        ]);
+    }
+
 
 }

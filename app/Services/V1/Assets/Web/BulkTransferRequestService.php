@@ -40,43 +40,55 @@ class BulkTransferRequestService
     //     }
     // }
     public function getAll(int $perPage = 20, array $filters = [])
-        {
-            try {
-                $query = BulkTransferRequest::query();
-                foreach ($filters as $field => $value) {
-                    if (!empty($value)) {
-                        if (in_array($field, ['osa_code', 'status'])) {
-                            $query->whereRaw(
-                                "LOWER({$field}) LIKE ?",
-                                ['%' . strtolower($value) . '%']
-                            );
-                        } else {
-                            $query->where($field, $value);
-                        }
+    {
+        try {
+            $query = BulkTransferRequest::query();
+            if (!empty($filters['warehouse_id'])) {
+
+                $warehouseIds = is_array($filters['warehouse_id'])
+                    ? $filters['warehouse_id']
+                    : explode(',', $filters['warehouse_id']);
+
+                $warehouseIds = array_filter(array_map('intval', $warehouseIds));
+
+                $query->whereIn('warehouse_id', $warehouseIds);
+            }
+            foreach ($filters as $field => $value) {
+                if (!empty($value)) {
+                    if (empty($value) || $field === 'warehouse_id') {
+                        continue;
+                    }
+                    if (in_array($field, ['osa_code', 'status'])) {
+                        $query->whereRaw(
+                            "LOWER({$field}) LIKE ?",
+                            ['%' . strtolower($value) . '%']
+                        );
+                    } else {
+                        $query->where($field, $value);
                     }
                 }
-                $result = $query->latest()->paginate($perPage);
-                $result->getCollection()->transform(function ($item) {
-                    return \App\Helpers\ApprovalHelper::attach(
-                        $item,
-                        'bulk_transfer'
-                    );
-                });
-
-                return $result;
-
-            } catch (Throwable $e) {
-
-                Log::error("Failed to fetch Bulk Transfer Request records", [
-                    'error'   => $e->getMessage(),
-                    'filters' => $filters
-                ]);
-
-                throw new \Exception("Unable to fetch records at this time. Try again later.");
             }
-        }
+            $result = $query->latest()->paginate($perPage);
+            $result->getCollection()->transform(function ($item) {
+                return \App\Helpers\ApprovalHelper::attach(
+                    $item,
+                    'bulk_transfer'
+                );
+            });
 
-public function generateOsaCode(): string
+            return $result;
+        } catch (Throwable $e) {
+
+            Log::error("Failed to fetch Bulk Transfer Request records", [
+                'error'   => $e->getMessage(),
+                'filters' => $filters
+            ]);
+
+            throw new \Exception("Unable to fetch records at this time. Try again later.");
+        }
+    }
+
+    public function generateOsaCode(): string
     {
         try {
             do {
@@ -95,9 +107,9 @@ public function generateOsaCode(): string
             throw new \Exception("Unable to generate unique OSA code. Please try again.");
         }
     }
-public function store(array $data)
+    public function store(array $data)
     {
-        
+
         DB::beginTransaction();
         try {
             $data = array_merge($data, [
@@ -129,7 +141,7 @@ public function store(array $data)
             throw new \Exception("Unable to create Bulk Transfer Request. Try again.");
         }
     }
-public function findByUuid(string $uuid): BulkTransferRequest
+    public function findByUuid(string $uuid): BulkTransferRequest
     {
         $record = BulkTransferRequest::where('uuid', $uuid)->first();
 
@@ -138,7 +150,7 @@ public function findByUuid(string $uuid): BulkTransferRequest
         }
 
         // return $record;
-        return ApprovalHelper::attach($record,'bulk_transfer');
+        return ApprovalHelper::attach($record, 'bulk_transfer');
     }
 
 

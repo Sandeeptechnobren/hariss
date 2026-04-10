@@ -125,17 +125,24 @@ class NewCustomerController extends Controller
      *     )
      * )
      */
-    public function store(NewCustomerRequest $request)
-    {
+public function store(NewCustomerRequest $request)
+{
+    try {
         $data = $request->validated();
-        $customer = NewCustomer::create($data);
-
+        $customer = $this->service->createCustomer($data);
         return response()->json([
-            'status' => true,
+            'status'  => true,
             'message' => 'Customer created successfully',
-            'data' => $customer
+            'data'    => $customer
         ], 201);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status'  => false,
+            'message' => 'Something went wrong',
+            'error'   => $e->getMessage()
+        ], 500);
     }
+}
  /**
      * @OA\Put(
      *     path="/mob/master_mob/new_customers/update/{uuid}",
@@ -190,20 +197,19 @@ class NewCustomerController extends Controller
     }
 /**
  * @OA\Put(
- *     path="/mob/master_mob/new_customers/edit/{uuid}",
+ *     path="/mob/master_mob/new_customers/edit/{id}",
  *     tags={"New Customer Mob"},
- *     summary="Update customer by UUID",
- *     description="Updates customer details using customer UUID. Only provided fields will be updated.",
+ *     summary="Update customer by ID",
+ *     description="Updates customer details using customer ID. Only provided fields will be updated.",
  *
  *     @OA\Parameter(
- *         name="uuid",
+ *         name="id",
  *         in="path",
  *         required=true,
- *         description="Customer UUID",
+ *         description="Customer ID",
  *         @OA\Schema(
- *             type="string",
- *             format="uuid",
- *             example="9d1f8c12-9f22-4e91-b99f-8899abcd1234"
+ *             type="integer",
+ *             example=101
  *         )
  *     ),
  *
@@ -255,20 +261,26 @@ class NewCustomerController extends Controller
  *     )
  * )
  */
-
-public function updatecustomer(UpdateCustomerRequest $request, string $uuid)
+public function updatecustomer(UpdateCustomerRequest $request, int $id)
 {
-    $customer = $this->service->updateByUuid(
-        $uuid,
-        $request->validated()
-    );
-    return response()->json([
-        'status'  => true,
-        'code'    => 200,
-        'message' => 'Customer updated successfully',
-        'data'    => $customer,
-    ]);
+    try {
+        $customer = $this->service->updateById(
+            $id,
+            $request->validated()
+        );
+        return response()->json([
+            'status'  => true,
+            'code'    => 200,
+            'message' => 'Customer updated successfully',
+            'data'    => $customer,
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status'  => false,
+            'code'    => 500,
+            'message' => $e->getMessage(),
+        ], 500);
+    }
 }
-
 }
 

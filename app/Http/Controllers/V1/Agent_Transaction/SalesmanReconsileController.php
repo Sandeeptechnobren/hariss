@@ -12,6 +12,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Throwable;
 use App\Helpers\LogHelper;
+use App\Exports\SalesmanReconsileHeaderExport;
+use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Facades\Storage;
 
 class SalesmanReconsileController extends Controller
 {
@@ -95,15 +98,15 @@ class SalesmanReconsileController extends Controller
                 ], 200);
             }
             if ($response) {
-            LogHelper::store(
-                '13',                        
-                '125',                        
-                'add',                          
-                null,                    
-                $response->getAttributes(),        
-                auth()->id()                      
-            );
-        }
+                LogHelper::store(
+                    '13',
+                    '125',
+                    'add',
+                    null,
+                    $response->getAttributes(),
+                    auth()->id()
+                );
+            }
 
             // 🔹 Created successfully (HEADER + DETAILS)
             return response()->json([
@@ -213,5 +216,71 @@ class SalesmanReconsileController extends Controller
                 'message' => 'Failed to fetch salesman reconciliation',
             ], 500);
         }
+    }
+
+
+    public function exportHeader(Request $request)
+    {
+        $format    = strtolower($request->input('format', 'xlsx'));
+        $extension = $format === 'csv' ? 'csv' : 'xlsx';
+        $date = now()->format('dmY');
+        $baseName = 'Salesman_Reconsile_' . $date;
+
+        $directory = 'salesmanexports/';
+
+        // ✅ get existing files
+        $files = Storage::disk('public')->files($directory);
+
+        $existingNumbers = [];
+
+        foreach ($files as $file) {
+            if (preg_match('/' . $date . '_(\d+)/', $file, $matches)) {
+                $existingNumbers[] = (int) $matches[1];
+            }
+        }
+
+        // ✅ next count
+        $next = empty($existingNumbers) ? 1 : max($existingNumbers) + 1;
+
+        // ✅ format 01, 02
+        $counter = str_pad($next, 2, '0', STR_PAD_LEFT);
+
+        $filename = $baseName . '_' . $counter . '.' . $extension;
+        $path = $directory . $filename;
+
+        // 🔹 filters
+
+        $filters = $request->input('filter', []);
+
+        $fromDate = $filters['from_date'] ?? null;
+        $toDate   = $filters['to_date'] ?? null;
+
+        $warehouseIds = !empty($filters['warehouse_id'])
+            ? explode(',', $filters['warehouse_id'])
+            : [];
+
+        $salesmanIds = !empty($filters['salesman_id'])
+            ? explode(',', $filters['salesman_id'])
+            : [];
+
+        $export = new SalesmanReconsileHeaderExport(
+            $fromDate,
+            $toDate,
+            $warehouseIds,
+            $salesmanIds
+        );
+
+        if ($format === 'csv') {
+            Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
+        } else {
+            Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
+        }
+
+        $fullUrl = rtrim(config('app.url'), '/') . '/storage/app/public/' . $path;
+
+        return response()->json([
+            'status' => 'success',
+            'download_url' => $fullUrl,
+        ]);
     }
 }

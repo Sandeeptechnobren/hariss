@@ -15,6 +15,7 @@ use Exception;
 use App\Helpers\DataAccessHelper;
 use App\Helpers\CommonLocationFilter;
 use Illuminate\Pagination\Paginator;
+use Carbon\Carbon;
 
 class NewCustomerService
 {
@@ -45,7 +46,6 @@ class NewCustomerService
     // }
     public function getAll(int $perPage = 50, array $filters = [])
     {
-        // dd($filters);
         try {
             $query = NewCustomer::with([
                 'route',
@@ -89,6 +89,17 @@ class NewCustomerService
             // 🔹 Route
             if (!empty($filters['route_id'])) {
                 $query->where('route_id', $filters['route_id']);
+            }
+
+            if (!empty($filters['from_date']) && !empty($filters['to_date'])) {
+                $fromDate = Carbon::parse($filters['from_date'])->startOfDay();
+                $toDate   = Carbon::parse($filters['to_date'])->endOfDay();
+
+                $query->whereBetween('created_at', [$fromDate, $toDate]);
+            } else {
+
+                $query->whereMonth('created_at', Carbon::now()->month)
+                    ->whereYear('created_at', Carbon::now()->year);
             }
 
             return $query->paginate($perPage);
@@ -816,6 +827,22 @@ class NewCustomerService
                 $query->whereIn('warehouse', $warehouseIds);
             }
 
+            if (!empty($filter['route_id'])) {
+                $routeIds = is_array($filter['route_id'])
+                    ? $filter['route_id']
+                    : explode(',', $filter['route_id']);
+
+                $query->whereIn('route_id', array_map('intval', $routeIds));
+            }
+            // ✅ Salesman filter
+            if (!empty($filter['salesman_id'])) {
+                $salesmanIds = is_array($filter['salesman_id'])
+                    ? $filter['salesman_id']
+                    : explode(',', $filter['salesman_id']);
+
+                $query->whereIn('salesman_id', array_map('intval', $salesmanIds));
+            }
+
             // ✅ Approval status filter
             if (isset($filter['approval_status'])) {
 
@@ -823,8 +850,17 @@ class NewCustomerService
 
                 $query->whereIn('approval_status', $approvalStatuses);
             }
-        }
 
+            // ✅ ADD DATE FILTER (IMPORTANT)
+            if (!empty($filter['from_date'])) {
+                $query->whereDate('created_at', '>=', $filter['from_date']);
+            }
+
+            if (!empty($filter['to_date'])) {
+                $query->whereDate('created_at', '<=', $filter['to_date']);
+            }
+        }
+        // dd($query->count());
         return $query->paginate($perPage);
     }
 }

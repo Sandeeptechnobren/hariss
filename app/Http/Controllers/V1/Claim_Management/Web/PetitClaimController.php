@@ -11,6 +11,9 @@ use Exception;
 use App\Models\Claim_Management\Web\PetitClaim;
 use App\Exports\PetitClaimExport;
 use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\JsonResponse;
+use App\Helpers\CommonLocationFilter;
 
 
 class PetitClaimController extends Controller
@@ -38,6 +41,30 @@ class PetitClaimController extends Controller
             ]
         ]);
     }
+
+    public function showByUuid($uuid): JsonResponse
+    {
+        try {
+            $claim = $this->service->getByUuid($uuid);
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Petit claim fetched successfully',
+                'data' => new PetitClaimResource($claim), // ✅ FIX
+            ], 200);
+        } catch (ModelNotFoundException $e) {
+            return response()->json([
+                'status' => false,
+                'message' => $e->getMessage()
+            ], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Something went wrong',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
     public function store(PetitClaimRequest $request)
     {
         try {
@@ -62,36 +89,75 @@ class PetitClaimController extends Controller
         }
     }
 
-    public function export()
+    // public function export()
+    // {
+    //     $filters = request()->input('filters', []);
+    //     $format = strtolower(request()->input('format', 'csv'));
+
+    //     $filename = 'petit_claims_' . now()->format('Ymd_His');
+    //     $filePath = "exports/{$filename}";
+    //     $query = PetitClaim::with('warehouse');
+    //     if (!empty($filters['warehouse_id'])) {
+    //         $query->where('warehouse_id', $filters['warehouse_id']);
+    //     }
+    //     if (!empty($filters['status'])) {
+    //         $query->where('status', $filters['status']);
+    //     }
+    //     if (!empty($filters['claim_type'])) {
+    //         $query->where('claim_type', $filters['claim_type']);
+    //     }
+    //     if (!empty($filters['from_date'])) {
+    //         $query->whereDate('created_at', '>=', $filters['from_date']);
+    //     }
+    //     if (!empty($filters['to_date'])) {
+    //         $query->whereDate('created_at', '<=', $filters['to_date']);
+    //     }
+    //     $data = $query->get();
+
+    //     if ($data->isEmpty()) {
+    //         return response()->json(['message' => 'No data available for export'], 404);
+    //     }
+    //     $export = new PetitClaimExport($data);
+    //     $filePath .= $format === 'xlsx' ? '.xlsx' : '.csv';
+    //     Excel::store(
+    //         $export,
+    //         $filePath,
+    //         'public',
+    //         $format === 'xlsx'
+    //             ? \Maatwebsite\Excel\Excel::XLSX
+    //             : \Maatwebsite\Excel\Excel::CSV
+    //     );
+    //     $appUrl = rtrim(config('app.url'), '/');
+    //     $fullUrl = $appUrl . '/storage/app/public/' . $filePath;
+    //     return response()->json(['url' => $fullUrl], 200);
+    // }
+
+
+    public function export(Request $request)
     {
-        $filters = request()->input('filters', []);
-        $format = strtolower(request()->input('format', 'csv'));
+        $filters = $request->input('filter', []);
+        $format = strtolower($request->input('format', 'xlsx'));
 
-        $filename = 'petit_claims_' . now()->format('Ymd_His');
+        $filename = 'PetitPromotion_' . now()->format('Ymd_His');
         $filePath = "exports/{$filename}";
-        $query = PetitClaim::with('warehouse');
-        if (!empty($filters['warehouse_id'])) {
-            $query->where('warehouse_id', $filters['warehouse_id']);
-        }
-        if (!empty($filters['status'])) {
-            $query->where('status', $filters['status']);
-        }
-        if (!empty($filters['claim_type'])) {
-            $query->where('claim_type', $filters['claim_type']);
-        }
-        if (!empty($filters['from_date'])) {
-            $query->whereDate('created_at', '>=', $filters['from_date']);
-        }
-        if (!empty($filters['to_date'])) {
-            $query->whereDate('created_at', '<=', $filters['to_date']);
-        }
-        $data = $query->get();
 
-        if ($data->isEmpty()) {
-            return response()->json(['message' => 'No data available for export'], 404);
-        }
-        $export = new PetitClaimExport($data);
-        $filePath .= $format === 'xlsx' ? '.xlsx' : '.csv';
+        $fromDate = $filters['from_date'] ?? null;
+        $toDate   = $filters['to_date'] ?? null;
+
+        // $salesmanIds = !empty($filters['salesman_id'])
+        //     ? explode(',', $filters['salesman_id'])
+        //     : [];
+
+        $warehouseIds = CommonLocationFilter::resolveWarehouseIds($filters);
+
+        $export = new PetitClaimExport(
+            $fromDate,
+            $toDate,
+            $warehouseIds
+        );
+
+        $filePath .= $format === 'csv' ? '.xlsx' : '.xlsx';
+
         Excel::store(
             $export,
             $filePath,

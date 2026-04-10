@@ -68,7 +68,8 @@ class NewCustomerResource extends JsonResource
             'longitude' => $this->longitude,
             'approval_status' => $this->approval_status,
             'reject_reason' => $this->reject_reason,
-            'status' => $this->status
+            'status' => $this->status,
+            'created_at' => $this->created_at
         ];
     }
 }

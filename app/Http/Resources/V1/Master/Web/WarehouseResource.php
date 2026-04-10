@@ -18,15 +18,27 @@ class WarehouseResource extends JsonResource
             'owner_email'                 => $this->owner_email,
             'warehouse_manager'           => $this->warehouse_manager,
             'warehouse_manager_contact'   => $this->warehouse_manager_contact,
-            'agreed_stock_capital'=> $this->agreed_stock_capital,
+            'agreed_stock_capital' => $this->agreed_stock_capital,
             'warehouse_type'              => $this->warehouse_type,
             'city'                        => $this->city,
+            'getCompanyCustomer' => $this->getCompanyCustomer ? [
+                'id' => $this->getCompanyCustomer->id,
+                'code' => $this->getCompanyCustomer->osa_code,
+                'business_name' => $this->getCompanyCustomer->business_name,
+                'contact_number' => $this->getCompanyCustomer->contact_number
+            ] : null,
             'location' => $this->locationRelation ? [
                 'id' => $this->locationRelation->id,
                 'code' => $this->locationRelation->code,
                 'name' => $this->locationRelation->name
             ] : null,
-            'company'                     => $this->getCompany,
+            // 'company'                     => $this->getCompany,
+            'company' => $this->getCompany ? [
+                'id' => $this->getCompany->id,
+                'code' => $this->getCompany->company_code,
+                'name' => $this->getCompany->company_name,
+                'email' => $this->getCompany->email
+            ] : null,
             'region' => $this->region ? [
                 'id' => $this->region->id,
                 'code' => $this->region->region_code,
@@ -43,20 +55,21 @@ class WarehouseResource extends JsonResource
             'landmark'                    => $this->landmark,
             'latitude'                    => $this->latitude,
             'longitude'                   => $this->longitude,
-            'tin_no'                      => $this->tin_no, 
+            'tin_no'                      => $this->tin_no,
             'p12_file'                    => $this->p12_file,
-            'password'                    => $this->password,
+            'device_no'                   => $this->device_no,
+            // 'password'                    => $this->password,
             'status'                      => $this->status,
             'is_efris'                    => $this->is_efris,
             'is_branch'                   => $this->is_branch,
             'tin_no'                      => $this->tin_no,
         ];
     }
-            // 'registation_no'              => $this->registation_no,
-            // 'business_type'               => $this->business_type,
-            // 'address'                     => $this->address,
-            // 'invoice_sync'                => $this->invoice_sync,
-            // 'branch_id'                   => $this->branch_id,
+    // 'registation_no'              => $this->registation_no,
+    // 'business_type'               => $this->business_type,
+    // 'address'                     => $this->address,
+    // 'invoice_sync'                => $this->invoice_sync,
+    // 'branch_id'                   => $this->branch_id,
 
     // 'getCompanyCustomer' => $this->getCompanyCustomer ? [
     //     'id' => $this->getCompanyCustomer->id,
@@ -67,6 +80,6 @@ class WarehouseResource extends JsonResource
     // 'stock_capital'               => $this->stock_capital,
     // 'deposite_amount'             => $this->deposite_amount,
     // 'district'                    => $this->district,
-                // 'threshold_radius'            => $this->threshold_radius,
-            // 'device_no'                   => $this->device_no,
+    // 'threshold_radius'            => $this->threshold_radius,
+    // 'device_no'                   => $this->device_no,
 }

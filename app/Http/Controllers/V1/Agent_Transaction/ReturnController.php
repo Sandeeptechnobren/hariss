@@ -620,7 +620,7 @@ class ReturnController extends Controller
             'download_url' => $fullUrl,
         ]);
     }
-    public function exportReturnAll(Request $request)
+public function exportReturnAll(Request $request)
     {
         $uuid   = $request->input('uuid');
         $format = strtolower($request->input('format', 'xlsx'));
@@ -628,19 +628,12 @@ class ReturnController extends Controller
         $returnHerader = ReturnHeader::select('osa_code')
             ->where('uuid', $uuid)
             ->first();
-
         $code = $returnHerader?->osa_code ?? 'UNKNOWN';
         $code = preg_replace('/[^A-Za-z0-9\-]/', '', $code);
-
         $filename = 'Agent_return_' . $code . '.' . $extension;
         $path = 'returnexports/' . $filename;
-        // $filename  = 'return_all_export_' . now()->format('Ymd_His') . '.' . $extension;
-        // $path      = 'returnexports/' . $filename;
-
         if ($format === 'csv' || $format === 'xlsx') {
-
             $export = new ReturnHeaderDetailExport($uuid);
-
             if ($format === 'csv') {
                 Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
             } else {
@@ -668,10 +661,8 @@ class ReturnController extends Controller
             \Storage::disk('public')->makeDirectory('returnexports');
             \Storage::disk('public')->put($path, $pdf->output());
         }
-
         $appUrl  = rtrim(config('app.url'), '/');
         $fullUrl = $appUrl . '/storage/app/public/' . $path;
-
         return response()->json([
             'status'       => 'success',
             'download_url' => $fullUrl,

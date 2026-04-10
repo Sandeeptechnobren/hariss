@@ -219,52 +219,25 @@ class ChillerController extends Controller
             ], 404);
         }
     }
-
-    // /**
-    //  * @OA\Delete(
-    //  *     path="/api/assets/chiller/{uuid}",
-    //  *     tags={"Chiller"},
-    //  *     summary="Delete a chiller by UUID",
-    //  *     security={{"bearerAuth":{}}},
-    //  *     @OA\Parameter(name="uuid", in="path", required=true, @OA\Schema(type="string")),
-    //  *     @OA\Response(response=200, description="Chiller deleted successfully"),
-    //  *     @OA\Response(response=404, description="Chiller not found")
-    //  * )
-    //  */
-    // public function destroy(string $uuid): JsonResponse
-    // {
-    //     if ($resp = $this->authorizeRoleAccess(__FUNCTION__)) return $resp;
-
-    //     try {
-    //         $this->service->deleteByUuid($uuid);
-    //         return $this->success(null, 'Chiller deleted successfully');
-    //     } catch (\Exception $e) {
-    //         return $this->fail($e->getMessage(), 404);
-    //     }
-    // }
-
-
-    public function exportChillers(Request $request)
-    {
-        $uuid = $request->input('uuid'); // optional filter
+public function exportChillers(Request $request)
+{
+    try {
+        $uuid = $request->input('uuid');
         $format = strtolower($request->input('format', 'xlsx'));
+
         $extension = $format === 'csv' ? 'csv' : 'xlsx';
+        $writerType = $format === 'csv'
+            ? \Maatwebsite\Excel\Excel::CSV
+            : \Maatwebsite\Excel\Excel::XLSX;
 
         $filename = 'Fridge_' . now()->format('Ymd_His') . '.' . $extension;
         $path = 'addchillerexports/' . $filename;
 
-
         $filters = $request->input('filter', []);
-        $model   = $filters['model_id'] ?? null;
-        $status = $filters['status'] ?? [];
-        if (!empty($status)) {
-            if (!is_array($status)) {
-                $status = explode(',', $status);
-            }
-            $status = array_filter(array_map('intval', $status));
-        } else {
-            $status = []; // ✅ no default [null]
-        }
+
+        $status = $this->parseArrayFilter($filters['status'] ?? []);
+        $model  = $this->parseArrayFilter($filters['model_id'] ?? []);
+
         $warehouseIds = CommonLocationFilter::resolveWarehouseIds($filters);
 
         $export = new AddChillerFullExport(
@@ -274,49 +247,40 @@ class ChillerController extends Controller
             $model
         );
 
-        Excel::store(
-            $export,
-            $path,
-            'public',
-            $format === 'csv'
-                ? \Maatwebsite\Excel\Excel::CSV
-                : \Maatwebsite\Excel\Excel::XLSX
-        );
-
-        // FIXED PATH SAME STYLE AS YOUR CODE
+        Excel::store($export, $path, 'public', $writerType);
         $fullUrl = rtrim(config('app.url'), '/') . '/storage/app/public/' . $path;
 
         return response()->json([
             'status' => 'success',
-            'uuid' => $uuid,
             'download_url' => $fullUrl,
         ]);
+
+    } catch (\Throwable $e) {
+
+        \Log::error('Chiller Export Failed', [
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+        ]);
+
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Export failed. Please try again.',
+        ], 500);
+    }
+}
+
+private function parseArrayFilter($value): array
+{
+    if (empty($value)) return [];
+
+    if (!is_array($value)) {
+        $value = explode(',', $value);
     }
 
+    return array_values(array_filter(array_map('intval', $value)));
+}
 
-    // public function getChiller(Request $request)
-    // {
-    //     $serial = $request->get('serial_number');
-
-    //     $records = $this->service->getBySerialNo($serial);
-
-    //     if ($records->isEmpty()) {
-    //         return response()->json([
-    //             'status'  => false,
-    //             'message' => 'No records found',
-    //         ], 404);
-    //     }
-
-    //     return response()->json([
-    //         'status'  => true,
-    //         'message' => 'Records fetched successfully',
-    //         'data'    => $records
-    //     ], 200);
-    // }
-
-
-
-    public function globalSearch(Request $request)
+public function globalSearch(Request $request)
     {
         $query = $request->get('query');
 
@@ -332,7 +296,7 @@ class ChillerController extends Controller
         return ChillerResource::collection($records);
     }
 
-    public function transfer(Request $request)
+public function transfer(Request $request)
     {
         $request->validate([
             'from_warehouse_id' => 'required|integer|exists:tbl_warehouse,id',
@@ -351,7 +315,7 @@ class ChillerController extends Controller
         ]);
     }
 
-    public function transferindex(Request $request): JsonResponse
+public function transferindex(Request $request): JsonResponse
     {
         $request->validate([
             'warehouse_id'      => 'nullable|integer',
@@ -379,13 +343,11 @@ class ChillerController extends Controller
             'pagination' => $pagination
         ]);
     }
-    public function filterByStatus(Request $request): JsonResponse
+
+public function filterByStatus(Request $request): JsonResponse
     {
-        // dd($request);
         $perPage = (int) $request->input('per_page', 10);
-
         $data = $this->service->filterByStatus($request->all(), $perPage);
-
         return response()->json([
             'status'     => 'success',
             'code'       => 200,
@@ -400,13 +362,10 @@ class ChillerController extends Controller
         ]);
     }
 
-    public function filterData(Request $request): JsonResponse
+public function filterData(Request $request): JsonResponse
     {
-        // dd($request);
         $perPage = (int) $request->input('per_page', 50);
-
         $data = $this->service->filterData($request->all(), $perPage);
-
         return response()->json([
             'status'     => 'success',
             'code'       => 200,
@@ -421,32 +380,18 @@ class ChillerController extends Controller
         ]);
     }
 
-
-    public function getByWarehouse(Request $request): JsonResponse
+public function getByWarehouse(Request $request): JsonResponse
     {
         $request->validate([
             'warehouse_id' => ['required']
         ]);
-
         $perPage = (int) $request->input('per_page', 10);
-
-        /**
-         * Normalize warehouse_id
-         * Supports:
-         * - warehouse_id=68
-         * - warehouse_id=68,69
-         * - warehouse_id[]=68&warehouse_id[]=69
-         */
         $warehouseIds = $request->input('warehouse_id');
-
         if (is_string($warehouseIds)) {
             $warehouseIds = explode(',', $warehouseIds);
         }
-
         $warehouseIds = array_map('intval', (array) $warehouseIds);
-
         $data = $this->service->getByWarehouseId($warehouseIds, $perPage);
-
         return response()->json([
             'status'     => 'success',
             'code'       => 200,
@@ -460,23 +405,16 @@ class ChillerController extends Controller
             ]
         ]);
     }
-
-
-    public function import(Request $request): JsonResponse
+public function import(Request $request): JsonResponse
     {
-        // 🔹 Safe limits for large CSV
         ini_set('memory_limit', '512M');
         set_time_limit(0);
-
         $request->validate([
             'file' => ['required', 'mimes:csv,txt']
         ]);
-
         $file   = $request->file('file');
         $userId = auth()->id();
-
         $handle = fopen($file->getRealPath(), 'r');
-
         if (!$handle) {
             return response()->json([
                 'status'  => 'error',
@@ -484,10 +422,6 @@ class ChillerController extends Controller
                 'message' => 'Unable to read CSV file'
             ]);
         }
-
-        /**
-         * ✅ EXACT DB COLUMNS (tbl_add_chillers)
-         */
         $tableColumns = [
             'osa_code',
             'serial_number',
@@ -516,10 +450,6 @@ class ChillerController extends Controller
             'print_status',
             'created_at',
         ];
-
-        /**
-         * 🔹 NUMERIC / INTEGER COLUMNS (PostgreSQL strict)
-         */
         $numericColumns = [
             'assets_category',
             'manufacturer',
@@ -534,21 +464,12 @@ class ChillerController extends Controller
             'is_assign',
             'branding',
         ];
-
-        /**
-         * 🔹 Read & clean CSV header
-         */
         $rawHeader = fgetcsv($handle);
         $rawHeader = array_map('trim', $rawHeader);
         $rawHeader = array_filter($rawHeader);           // remove empty headers
         $rawHeader = array_diff($rawHeader, ['id']);     // ignore auto id
         $header    = array_values($rawHeader);
-
-        /**
-         * 🔹 Validate headers (block only unknown columns)
-         */
         $invalidHeaders = array_diff($header, $tableColumns);
-
         if (!empty($invalidHeaders)) {
             fclose($handle);
             return response()->json([
@@ -558,43 +479,29 @@ class ChillerController extends Controller
                 'errors'  => array_values($invalidHeaders)
             ]);
         }
-
         DB::beginTransaction();
-
         $inserted = 0;
         $skipped  = 0;
         $batch    = [];
-
         try {
             while (($row = fgetcsv($handle)) !== false) {
-
-                // 🔹 Normalize row length
                 $row = array_slice($row, 0, count($header));
                 $row = array_pad($row, count($header), null);
-
                 $rowData = array_combine($header, $row);
-
                 if (!$rowData) {
                     $skipped++;
                     continue;
                 }
-
                 unset($rowData['id']);
-
-                // 🔹 Keep only DB columns
                 $payload = array_intersect_key(
                     $rowData,
                     array_flip($tableColumns)
                 );
-
-                // 🔹 Convert empty strings to NULL
                 foreach ($payload as $key => $value) {
                     if ($value === '') {
                         $payload[$key] = null;
                     }
                 }
-
-                // 🔹 Cast numeric columns safely
                 foreach ($numericColumns as $col) {
                     if (array_key_exists($col, $payload)) {
                         $payload[$col] = is_numeric($payload[$col])
@@ -602,8 +509,6 @@ class ChillerController extends Controller
                             : null;
                     }
                 }
-
-                // 🔹 Fix acquisition date (d-m-Y → Y-m-d)
                 if (!empty($payload['acquisition'])) {
                     try {
                         $payload['acquisition'] = \Carbon\Carbon::createFromFormat(
@@ -614,41 +519,29 @@ class ChillerController extends Controller
                         $payload['acquisition'] = null;
                     }
                 }
-
-                // 🔹 Handle scientific notation / large numbers
                 if (!empty($payload['serial_number'])) {
                     $payload['serial_number'] = (string) $payload['serial_number'];
                 }
-
-                // 🔹 Skip fully empty rows
                 if (empty(array_filter($payload))) {
                     $skipped++;
                     continue;
                 }
-
-                // 🔹 System fields
                 $payload['uuid']         = (string) \Illuminate\Support\Str::uuid();
                 $payload['created_user'] = $userId;
                 $payload['created_at']   = now();
 
                 $batch[] = $payload;
                 $inserted++;
-
-                // 🔥 Batch insert (500 rows)
                 if (count($batch) >= 500) {
                     AddChiller::insert($batch);
                     $batch = [];
                 }
             }
-
-            // Insert remaining rows
             if (!empty($batch)) {
                 AddChiller::insert($batch);
             }
-
             fclose($handle);
             DB::commit();
-
             return response()->json([
                 'status'  => 'success',
                 'code'    => 200,
@@ -659,10 +552,8 @@ class ChillerController extends Controller
                 ]
             ]);
         } catch (\Throwable $e) {
-
             DB::rollBack();
             fclose($handle);
-
             return response()->json([
                 'status'  => 'error',
                 'code'    => 500,

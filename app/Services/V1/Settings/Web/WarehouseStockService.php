@@ -36,11 +36,9 @@ class WarehouseStockService
                 'filters' => $filters,
                 'error' => $e->getMessage(),
             ]);
-
             throw new \Exception("Unable to fetch warehouse stock list. Please try again later.");
         }
     }
-
     public function generateCode(): string
     {
         do {
@@ -48,7 +46,6 @@ class WarehouseStockService
             $next = $last ? ((int) preg_replace('/\D/', '', $last->osa_code)) + 1 : 1;
             $osa_code = 'WHS' . str_pad($next, 3, '0', STR_PAD_LEFT);
         } while (WarehouseStock::withTrashed()->where('osa_code', $osa_code)->exists());
-
         return $osa_code;
     }
 
@@ -80,30 +77,23 @@ class WarehouseStockService
     public function create(array $data)
     {
         DB::beginTransaction();
-
         try {
-            // ✅ Only generate if not provided
             $data = array_merge($data, [
                 'uuid' => $data['uuid'] ?? Str::uuid()->toString(),
                 'osa_code' => $data['osa_code'] ?? $this->generateCode(),
             ]);
             $stock = WarehouseStock::create($data);
-
             DB::commit();
             return $stock;
         } catch (Throwable $e) {
             DB::rollBack();
-
             Log::error("❌ Failed to create Warehouse Stock", [
                 'data' => $data,
                 'error' => $e->getMessage(),
             ]);
-
             throw new \Exception('Unable to create Warehouse Stock. Please try again later.');
         }
     }
-
-
     public function getByUuid(string $uuid)
     {
         try {
@@ -113,22 +103,14 @@ class WarehouseStockService
                 'uuid' => $uuid,
                 'error' => $e->getMessage(),
             ]);
-
             throw new \Exception("Warehouse stock not found.");
         }
     }
-
-
-    /**
-     * Update warehouse stock by UUID
-     */
     public function update(string $uuid, array $data)
     {
         DB::beginTransaction();
-
         try {
             $stock = WarehouseStock::withTrashed()->where('uuid', $uuid)->firstOrFail();
-
             if (isset($data['item_id'])) {
                 $keepingUom = ItemUom::where('item_id', $data['item_id'])
                     ->where('is_stock_keeping', true)
@@ -136,10 +118,8 @@ class WarehouseStockService
 
                 $data['qty'] = $keepingUom ? $keepingUom->keeping_quantity : 0;
             }
-
             $stock->update($data);
             DB::commit();
-
             return [
                 'status' => true,
                 'message' => '✅ Warehouse Stock updated successfully.',
@@ -147,13 +127,11 @@ class WarehouseStockService
             ];
         } catch (Throwable $e) {
             DB::rollBack();
-
             Log::error("❌ [WarehouseStockService] Failed to update Warehouse Stock", [
                 'uuid' => $uuid,
                 'data' => $data,
                 'error' => $e->getMessage(),
             ]);
-
             return [
                 'status' => false,
                 'message' => 'Unable to update Warehouse Stock. Please try again later.',
@@ -161,11 +139,6 @@ class WarehouseStockService
             ];
         }
     }
-
-
-    /**
-     * Soft delete warehouse stock
-     */
     public function softDelete(string $uuid)
     {
         try {
@@ -190,10 +163,6 @@ class WarehouseStockService
             ];
         }
     }
-
-    /**
-     * Restore soft-deleted warehouse stock
-     */
     public function restore(string $uuid)
     {
         try {
@@ -218,7 +187,6 @@ class WarehouseStockService
             ];
         }
     }
-
     /**
      * Permanently delete warehouse stock
      */
@@ -245,12 +213,10 @@ class WarehouseStockService
             ];
         }
     }
-
     public function warehouseStocklist(Request $request, $id)
     {
         $query = $request->query('query');
         $perPage = $request->get('per_page', 50);
-
         return WarehouseStock::with([
             'warehouse:id,warehouse_name,warehouse_code',
             'item:id,code,name,erp_code'
@@ -276,10 +242,8 @@ class WarehouseStockService
             ->orderByDesc('id')
             ->paginate($perPage);
     }
-
     public function checkStockAvailability($itemId, $uomId, $quantity, $warehouseId)
     {
-
         $item = Item::find($itemId);
         if (!$item) {
             return [
@@ -287,32 +251,21 @@ class WarehouseStockService
                 'message' => 'Item not found.'
             ];
         }
-
         $itemUom = ItemUOM::where('item_id', $itemId)
             ->where('uom_id', $uomId)
             ->first();
-
         if (!$itemUom) {
             return [
                 'status' => 'error',
                 'message' => 'UOM not found for this item.'
             ];
         }
-
-
         $stock = WarehouseStock::where('item_id', $itemId)
             ->where('warehouse_id', $warehouseId)
             ->value('qty') ?? 0;
-
-
         $upc = is_numeric($item->upc) ? (int) $item->upc : 1;
-
-        // dd($upc);
-
         $requiredPcs = $quantity * $upc;
         $availablePcs = $stock * $upc;
-
-
         if ($availablePcs < $requiredPcs) {
             return [
                 'status' => 'error',
@@ -321,11 +274,7 @@ class WarehouseStockService
                 'required_stock_in_pcs' => $requiredPcs
             ];
         }
-
-
         $pricePerPcs = $itemUom->price / $upc;
-        // $totalPrice = $requiredPcs * $pricePerPcs;
-
         return [
             'status' => 'success',
             'message' => 'Stock is available for the given Warehouse.',
@@ -335,7 +284,6 @@ class WarehouseStockService
             // 'total_price' => round($totalPrice, 2),
         ];
     }
-
     public function getWarehouseValuation($warehouseId)
     {
         $result = DB::table('tbl_warehouse_stocks as ws')
@@ -353,11 +301,7 @@ class WarehouseStockService
     public function getLoadedStockDetails($warehouseId)
     {
         $today = Carbon::today()->toDateString();
-        $headerIds = DB::table('tbl_load_header')
-            ->where('warehouse_id', $warehouseId)
-            ->whereDate('created_at', $today)
-            ->pluck('id');
-
+        $headerIds = DB::table('tbl_load_header')->where('warehouse_id', $warehouseId)->whereDate('created_at', $today)->pluck('id');
         if ($headerIds->isEmpty()) {
             return [
                 'total_loaded_qty' => 0,
@@ -370,7 +314,6 @@ class WarehouseStockService
             ->groupBy('item_id')
             ->get();
         $totalLoadedQty = $details->sum('loaded_qty');
-
         return [
             'total_loaded_qty' => $totalLoadedQty,
             'details' => $details
@@ -415,16 +358,13 @@ class WarehouseStockService
     {
         $stockDateFilter = null;
         $salesDateFilter = null;
-
         if (!empty($days)) {
             $stockDateFilter = now()->subDays($days);
             $salesDateFilter = now()->subDays($days);
         }
-
         if (!empty($months)) {
             $start = now()->subMonths($months)->startOfMonth();
             $end   = now()->subMonths($months)->endOfMonth();
-
             $stockDateFilter = [$start, $end];
             $salesDateFilter = [$start, $end];
         }
@@ -432,8 +372,8 @@ class WarehouseStockService
             ->join('pricing_headers as ph', 'ph.id', '=', 'pd.header_id')
             ->select(
                 'pd.item_id',
-                'pd.buom_ctn_price',
-                'pd.auom_pc_price',
+                'pd.buom_pc_price',
+                'pd.auom_ctn_price',
                 'ph.applicable_for'
             )
             ->where('ph.applicable_for', 'Secondary')
@@ -445,8 +385,8 @@ class WarehouseStockService
         // $latestPricing = DB::table('pricing_details')
         //     ->select(
         //         'item_id',
-        //         'buom_ctn_price',
-        //         'auom_pc_price'
+        //         'buom_pc_price',
+        //         'auom_ctn_price'
         //     )
         //     ->whereIn('id', function ($q) {
         //         $q->select(DB::raw('MAX(id)'))
@@ -469,27 +409,21 @@ class WarehouseStockService
                 'ws.warehouse_id',
                 'w.warehouse_name as warehouse_name',
                 'w.warehouse_code as warehouse_code',
-                'pd.buom_ctn_price',
-                'pd.auom_pc_price',
+                'pd.buom_pc_price',
+                'pd.auom_ctn_price',
                 'pd.applicable_for'
-            )
-            ->where('ws.warehouse_id', $warehouseId);
-
+            )->where('ws.warehouse_id', $warehouseId);
         if (!is_null($isPromo)) {
             $stocks->where('i.is_promotional', filter_var($isPromo, FILTER_VALIDATE_BOOLEAN));
         }
-
         if (!empty($days)) {
             $stocks->whereDate('ws.created_at', '>=', $stockDateFilter);
         }
-
         if (!empty($months)) {
             $stocks->whereBetween('ws.created_at', $stockDateFilter);
         }
-
         $stocks = $stocks->get();
-        $uoms = DB::table('item_uoms as iu')
-            ->join('uom as u', 'u.id', '=', 'iu.uom_id') // only addition
+        $uoms = DB::table('item_uoms as iu')->join('uom as u', 'u.id', '=', 'iu.uom_id')
             ->select(
                 'iu.id',
                 'iu.item_id',
@@ -498,17 +432,12 @@ class WarehouseStockService
                 'iu.upc',
                 'iu.price',
                 'iu.uom_id'
-            )
-            ->orderBy('iu.uom_type', 'asc')
-            ->get()
-            ->groupBy('item_id');
-
+            )->orderBy('iu.uom_type', 'asc')->get()->groupBy('item_id');
         // $uoms = DB::table('item_uoms')
         //     ->select('id', 'item_id', 'name', 'uom_type', 'upc', 'price', 'uom_id')
         //     ->orderBy('uom_type', 'asc')
         //     ->get()
         //     ->groupBy('item_id');
-
         $sales = DB::table('agent_order_headers as aoh')
             ->join('agent_order_details as aod', 'aoh.id', '=', 'aod.header_id')
             ->where('aoh.warehouse_id', $warehouseId);
@@ -516,11 +445,9 @@ class WarehouseStockService
         if (!empty($days)) {
             $sales->whereDate('aoh.created_at', '>=', $salesDateFilter);
         }
-
         if (!empty($months)) {
             $sales->whereBetween('aoh.created_at', $salesDateFilter);
         }
-
         $sales = $sales->select(
             'aod.item_id',
             DB::raw('SUM(aod.quantity) as total_sold')
@@ -528,23 +455,147 @@ class WarehouseStockService
             ->groupBy('aod.item_id')
             ->get()
             ->keyBy('item_id');
-
         $final = $stocks->map(function ($item) use ($sales, $uoms) {
-
             $item->uoms = $uoms[$item->item_id] ?? [];
-
             $item->total_sold_qty = $sales[$item->item_id]->total_sold ?? 0;
-
             $item->purchase = 0;
-
             return $item;
         });
 
         return $final;
     }
+    // public function getWarehouseStockHealthWithPurchase($warehouseId, $range = null)
+    //     {
+    //         $range = $range ?? request('range', 'yesterday');
+    //         switch ($range) {
+    //             case 'today':
+    //                 $startDate = now()->startOfDay();
+    //                 break;
+    //             case '3days':
+    //                 $startDate = now()->subDays(3)->startOfDay();
+    //                 break;
+    //             case '7days':
+    //                 $startDate = now()->subDays(7)->startOfDay();
+    //                 break;
+    //             case 'lastmonth':
+    //                 $startDate = now()->subMonth()->startOfMonth();
+    //                 break;
+    //             default:
+    //                 $startDate = now()->subDay()->startOfDay();
+    //         }
+    //         $endDate = now()->endOfDay();
+    //         $avgFrom = now()->subDays(15)->startOfDay();
+    //         $salesSub = DB::table('invoice_details as idt')
+    //             ->join('invoice_headers as ih', 'idt.header_id', '=', 'ih.id')
+    //             ->join('item_uoms as iu', function ($j) {
+    //                 $j->on('iu.item_id', '=', 'idt.item_id')
+    //                     ->on('iu.uom_id', '=', 'idt.uom');
+    //             })
+    //             ->where('ih.warehouse_id', $warehouseId)
+    //             ->whereBetween('ih.created_at', [$startDate, $endDate])
+    //             ->groupBy('idt.item_id')
+    //             ->select(
+    //                 'idt.item_id',
+    //                 DB::raw("SUM(
+    //                 CASE 
+    //                     WHEN iu.uom_type = 'secondary' 
+    //                         THEN idt.quantity * CAST(iu.upc AS numeric)
+    //                     ELSE idt.quantity
+    //                 END
+    //             ) as total_sales")
+    //             );
+    //         $purchaseSub = DB::table('ht_delivery_detail as hdd')
+    //             ->join('ht_delivery_header as hdh', 'hdd.header_id', '=', 'hdh.id')
+    //             ->join('item_uoms as iu', function ($j) {
+    //                 $j->on('iu.item_id', '=', 'hdd.item_id')
+    //                     ->on('iu.uom_id', '=', 'hdd.uom_id');
+    //             })
+    //             ->where('hdh.warehouse_id', $warehouseId)
+    //             ->whereBetween('hdh.created_at', [$startDate, $endDate])
+    //             ->groupBy('hdd.item_id')
+    //             ->select(
+    //                 'hdd.item_id',
+    //                 DB::raw("SUM(
+    //                 CASE 
+    //                     WHEN iu.uom_type = 'secondary' 
+    //                         THEN hdd.quantity * CAST(iu.upc AS numeric)
+    //                     ELSE hdd.quantity
+    //                 END
+    //             ) as purchase_qty")
+    //             );
+    //         $avgSalesSub = DB::table('invoice_details as idt')
+    //             ->join('invoice_headers as ih', 'idt.header_id', '=', 'ih.id')
+    //             ->join('item_uoms as iu', function ($j) {
+    //                 $j->on('iu.item_id', '=', 'idt.item_id')
+    //                     ->on('iu.uom_id', '=', 'idt.uom');
+    //             })
+    //             ->where('ih.warehouse_id', $warehouseId)
+    //             ->whereBetween('ih.created_at', [$avgFrom, now()])
+    //             ->groupBy('idt.item_id')
+    //             ->select(
+    //                 'idt.item_id',
+    //                 DB::raw("SUM(
+    //                 CASE 
+    //                     WHEN iu.uom_type = 'secondary' 
+    //                         THEN idt.quantity * CAST(iu.upc AS numeric)
+    //                     ELSE idt.quantity
+    //                 END
+    //             )/15 as avg_per_day")
+    //             );
+    //         $items = DB::table('tbl_warehouse_stocks as ws')
+    //             ->join('items as i', 'ws.item_id', '=', 'i.id')
+    //             ->leftJoinSub($salesSub, 'sales', fn($j) => $j->on('sales.item_id', '=', 'ws.item_id'))
+    //             ->leftJoinSub($purchaseSub, 'purchase', fn($j) => $j->on('purchase.item_id', '=', 'ws.item_id'))
+    //             ->leftJoinSub($avgSalesSub, 'avg_sales', fn($j) => $j->on('avg_sales.item_id', '=', 'ws.item_id'))
+    //             ->where('ws.warehouse_id', $warehouseId)
+    //             ->where('ws.status', 1)
+    //             ->whereNull('ws.deleted_at')
+    //             ->select(
+    //                 'ws.item_id',
+    //                 'i.name as item_name',
+    //                 'i.code as item_code',
+    //                 'i.erp_code as erp_code',
+    //                 'ws.qty as available_stock_qty',
+    //                 DB::raw('COALESCE(sales.total_sales,0) as total_sales'),
+    //                 DB::raw('COALESCE(purchase.purchase_qty,0) as purchase_qty'),
+    //                 DB::raw('COALESCE(avg_sales.avg_per_day,0) as avg_per_day'),
+    //                 DB::raw('(COALESCE(avg_sales.avg_per_day,0)*4) as required_qty')
+    //             )
+    //             ->orderBy('i.name')
+    //             ->get();
+    //         $stable = 0;
+    //         $avg = 0;
+    //         $low = 0;
+    //         foreach ($items as $item) {
+    //             if ($item->available_stock_qty < 750) {
+    //                 $item->health_flag = 3;
+    //                 $low++;
+    //                 continue;
+    //             }
+    //             if ($item->available_stock_qty >= $item->required_qty) {
+    //                 $item->health_flag = 1;
+    //                 $stable++;
+    //             } elseif ($item->available_stock_qty >= ($item->required_qty * 0.7)) {
+    //                 $item->health_flag = 2;
+    //                 $avg++;
+    //             } else {
+    //                 $item->health_flag = 3;
+    //                 $low++;
+    //             }
+    //         }
+    //         return [
+    //             "range"        => $range,
+    //             "warehouse_id" => $warehouseId,
+    //             "stable_count" => $stable,
+    //             "avg_count"    => $avg,
+    //             "low_count"    => $low,
+    //             "items"        => $items
+    //         ];
+    //     }
     public function getWarehouseStockHealthWithPurchase($warehouseId, $range = null)
     {
         $range = $range ?? request('range', 'yesterday');
+
         switch ($range) {
             case 'today':
                 $startDate = now()->startOfDay();
@@ -561,8 +612,11 @@ class WarehouseStockService
             default:
                 $startDate = now()->subDay()->startOfDay();
         }
+
         $endDate = now()->endOfDay();
         $avgFrom = now()->subDays(15)->startOfDay();
+
+        $perPage = request('per_page', 50);
         $salesSub = DB::table('invoice_details as idt')
             ->join('invoice_headers as ih', 'idt.header_id', '=', 'ih.id')
             ->join('item_uoms as iu', function ($j) {
@@ -582,6 +636,8 @@ class WarehouseStockService
                 END
             ) as total_sales")
             );
+
+        // 🔹 PURCHASE SUBQUERY
         $purchaseSub = DB::table('ht_delivery_detail as hdd')
             ->join('ht_delivery_header as hdh', 'hdd.header_id', '=', 'hdh.id')
             ->join('item_uoms as iu', function ($j) {
@@ -601,6 +657,8 @@ class WarehouseStockService
                 END
             ) as purchase_qty")
             );
+
+        // 🔹 AVG SALES SUBQUERY
         $avgSalesSub = DB::table('invoice_details as idt')
             ->join('invoice_headers as ih', 'idt.header_id', '=', 'ih.id')
             ->join('item_uoms as iu', function ($j) {
@@ -620,6 +678,8 @@ class WarehouseStockService
                 END
             )/15 as avg_per_day")
             );
+
+        // 🔹 MAIN QUERY WITH PAGINATION
         $items = DB::table('tbl_warehouse_stocks as ws')
             ->join('items as i', 'ws.item_id', '=', 'i.id')
             ->leftJoinSub($salesSub, 'sales', fn($j) => $j->on('sales.item_id', '=', 'ws.item_id'))
@@ -640,16 +700,20 @@ class WarehouseStockService
                 DB::raw('(COALESCE(avg_sales.avg_per_day,0)*4) as required_qty')
             )
             ->orderBy('i.name')
-            ->get();
+            ->paginate($perPage);
+
+        // 🔹 HEALTH FLAG CALCULATION
         $stable = 0;
         $avg = 0;
         $low = 0;
-        foreach ($items as $item) {
+
+        foreach ($items->items() as $item) {
             if ($item->available_stock_qty < 750) {
                 $item->health_flag = 3;
                 $low++;
                 continue;
             }
+
             if ($item->available_stock_qty >= $item->required_qty) {
                 $item->health_flag = 1;
                 $stable++;
@@ -661,13 +725,21 @@ class WarehouseStockService
                 $low++;
             }
         }
+
+        // 🔹 FINAL RESPONSE
         return [
             "range"        => $range,
             "warehouse_id" => $warehouseId,
             "stable_count" => $stable,
             "avg_count"    => $avg,
             "low_count"    => $low,
-            "items"        => $items
+            "pagination"   => [
+                "page" => $items->currentPage(),
+                "last_page"    => $items->lastPage(),
+                "per_page"     => $items->perPage(),
+                "total"        => $items->total()
+            ],
+            "items" => $items->items()
         ];
     }
     // public function getWarehouseStockFullDetails($warehouseId, $days = null, $months = null, $isPromo = null)
@@ -702,8 +774,8 @@ class WarehouseStockService
     //             'ws.warehouse_id',
     //             'w.warehouse_name as warehouse_name',
     //             'w.warehouse_code as warehouse_code',
-    //             'pd.buom_ctn_price',
-    //             'pd.auom_pc_price'
+    //             'pd.buom_pc_price',
+    //             'pd.auom_ctn_price'
     //         )
     //         ->where('ws.warehouse_id', $warehouseId);
     //     if (!is_null($isPromo)) {
@@ -763,20 +835,22 @@ class WarehouseStockService
     // }
 
 
-    public function listByWarehouse(int $warehouseId): Collection
+    public function warehouseByItemStock(int $warehouseId): Collection
     {
         try {
-
             return WarehouseStock::query()
                 ->with([
                     'warehouse:id,warehouse_name,warehouse_code',
-                    'item:id,name,erp_code'
+                    'item:id,name,erp_code',
+                    'item.itemUoms:id,item_id,uom_id,upc', // 👈 no name here
+                    'item.itemUoms.uom:id,name'
                 ])
                 ->where('warehouse_id', $warehouseId)
                 ->whereNull('deleted_at')
                 ->orderBy('id', 'desc')
                 ->get()
                 ->map(function ($stock) {
+                    $itemUoms = $stock->item->itemUoms ?? collect();
                     return [
                         'id'   => $stock->id,
                         'warehouse'  => [
@@ -788,6 +862,13 @@ class WarehouseStockService
                             'id'       => $stock->item->id ?? null,
                             'name'     => $stock->item->name ?? null,
                             'erp_code' => $stock->item->erp_code ?? null,
+                            'uoms' => $itemUoms->map(function ($itemUoms) {
+                                return [
+                                    'uom_id' => $itemUoms->uom_id,
+                                    'name'   => $itemUoms->uom->name ?? null, // 👈 from UOM table
+                                    'upc'    => $itemUoms->upc ?? null,
+                                ];
+                            })->values()
                         ],
                         'qty'        => $stock->qty,
                         'status'     => $stock->status,
@@ -799,7 +880,6 @@ class WarehouseStockService
                 'warehouse_id' => $warehouseId,
                 'error'        => $e->getMessage(),
             ]);
-
             throw new \Exception(
                 'Unable to fetch warehouse stock data. Please try again later.'
             );
@@ -987,9 +1067,7 @@ class WarehouseStockService
     public function bulkTransferStock(array $data): array
     {
         DB::beginTransaction();
-
         try {
-
             $user = auth()->user();
             $header = StockTransferHeader::create([
                 'osa_code'          => $this->generateTransferCode(),
@@ -1000,29 +1078,24 @@ class WarehouseStockService
             ]);
             $results = [];
             foreach ($data['items'] as $item) {
-
                 $fromStock = WarehouseStock::where('warehouse_id', $data['from_warehouse'])
                     ->where('item_id', $item['item_id'])
                     ->whereNull('deleted_at')
                     ->lockForUpdate()
                     ->first();
-
                 if (!$fromStock) {
                     throw new \Exception(
                         "Stock not found for item_id {$item['item_id']} in source warehouse."
                     );
                 }
-
                 if ($fromStock->qty < $item['qty']) {
                     throw new \Exception(
                         "Insufficient stock for item_id {$item['item_id']}."
                     );
                 }
-
                 $fromStock->update([
                     'qty' => $fromStock->qty - $item['qty']
                 ]);
-
                 $toStock = WarehouseStock::where('warehouse_id', $data['to_warehouse'])
                     ->where('item_id', $item['item_id'])
                     ->whereNull('deleted_at')
@@ -1040,48 +1113,33 @@ class WarehouseStockService
                         'created_user' => $user->id,
                     ]);
                 }
-
                 StockTransferDetail::create([
                     'header_id'      => $header->id,
                     'item_id'        => $item['item_id'],
                     'transfer_qty'   => $item['qty'],
+                    'uom_id'         => $item['uom_id'],
                     'created_user'   => $user->id,
                 ]);
-
                 $results[] = [
                     'item_id'         => $item['item_id'],
                     'transferred_qty' => $item['qty'],
                     'available_qty'   => $fromStock->qty,
                 ];
             }
-
             DB::commit();
-
-            /**
-             * ======================================================
-             * 🚀 APPLY WORKFLOW (SAVED GLOBAL PATTERN)
-             * ======================================================
-             */
             $workflow = DB::table('htapp_workflow_assignments')
                 ->where('process_type', 'Distributor_Stock_Transfer')
                 ->where('is_active', true)
                 ->first();
-
             if ($workflow) {
-
                 $approvalService = app(
                     \App\Services\V1\Approval_process\HtappWorkflowApprovalService::class
                 );
-
                 $approvalResult = $approvalService->startApproval([
                     'workflow_id'  => $workflow->workflow_id,
                     'process_type' => 'Distributor_Stock_Transfer',
                     'process_id'   => $header->id
                 ]);
-
-                /**
-                 * ✅ AUTO-APPROVE IF ROLE = 1
-                 */
                 if ($user->role == 1 && isset($approvalResult['workflow_request_id'])) {
                     $approvalService->autoApproveAllSteps(
                         $approvalResult['workflow_request_id'],
@@ -1089,7 +1147,6 @@ class WarehouseStockService
                     );
                 }
             }
-
             return [
                 'id'              => $header->id,
                 'osa_code'        => $header->osa_code,
@@ -1098,9 +1155,7 @@ class WarehouseStockService
                 'items'           => $results,
             ];
         } catch (Throwable $e) {
-
             DB::rollBack();
-
             Log::error('[WarehouseStockService] Bulk stock transfer failed', [
                 'payload' => $data,
                 'error'   => $e->getMessage(),
@@ -1118,11 +1173,9 @@ class WarehouseStockService
             $last = StockTransferHeader::withTrashed()
                 ->latest('id')
                 ->first();
-
             $next = $last
                 ? ((int) preg_replace('/\D/', '', $last->osa_code)) + 1
                 : 1;
-
             $osa_code = 'STH' . str_pad($next, 5, '0', STR_PAD_LEFT);
         } while (
             StockTransferHeader::withTrashed()
@@ -1131,31 +1184,25 @@ class WarehouseStockService
         );
         return $osa_code;
     }
-
     public function dayYesterdayMonthWisefilter(string $dateFilter = null, $isPromo = null)
     {
         $stockDateFilter = null;
-        // dd($dateFilter);
         switch ($dateFilter) {
             case 'today':
                 $stockDateFilter = [now()->startOfDay(), now()->endOfDay()];
                 break;
-
             case 'yesterday':
                 $stockDateFilter = [
                     now()->subDay()->startOfDay(),
                     now()->subDay()->endOfDay()
                 ];
                 break;
-
             case 'last_3_days':
                 $stockDateFilter = [now()->subDays(3)->startOfDay(), now()->endOfDay()];
                 break;
-
             case 'last_7_days':
                 $stockDateFilter = [now()->subDays(7)->startOfDay(), now()->endOfDay()];
                 break;
-
             case 'last_month':
                 $stockDateFilter = [
                     now()->subMonth()->startOfMonth(),
@@ -1163,21 +1210,13 @@ class WarehouseStockService
                 ];
                 break;
         }
-
-        /**
-         * 🔹 Latest Pricing
-         */
         $latestPricing = DB::table('pricing_details')
-            ->select('item_id', 'buom_ctn_price', 'auom_pc_price')
+            ->select('item_id', 'buom_pc_price', 'auom_ctn_price')
             ->whereIn('id', function ($q) {
                 $q->select(DB::raw('MAX(id)'))
                     ->from('pricing_details')
                     ->groupBy('item_id');
             });
-
-        /**
-         * 🔹 Warehouse Stock (NO warehouse filter)
-         */
         $stocks = DB::table('tbl_warehouse_stocks as ws')
             ->join('items as i', 'ws.item_id', '=', 'i.id')
             ->join('tbl_warehouse as w', 'ws.warehouse_id', '=', 'w.id')
@@ -1194,32 +1233,21 @@ class WarehouseStockService
                 'ws.warehouse_id',
                 'w.warehouse_name',
                 'w.warehouse_code',
-                'pd.buom_ctn_price',
-                'pd.auom_pc_price'
+                'pd.buom_pc_price',
+                'pd.auom_ctn_price'
             );
-
         if ($stockDateFilter) {
             $stocks->whereBetween('ws.created_at', $stockDateFilter);
         }
-
         if (!is_null($isPromo)) {
             $stocks->where('i.is_promotional', filter_var($isPromo, FILTER_VALIDATE_BOOLEAN));
         }
-
         $stocks = $stocks->get();
-
-        /**
-         * 🔹 UOMs
-         */
         $uoms = DB::table('item_uoms')
             ->select('id', 'item_id', 'name', 'uom_type', 'upc', 'price', 'uom_id')
             ->orderBy('uom_type', 'asc')
             ->get()
             ->groupBy('item_id');
-
-        /**
-         * 🔹 Final Response Mapping (same structure)
-         */
         return $stocks->map(function ($item) use ($uoms) {
             $item->uoms = $uoms[$item->item_id] ?? [];
             $item->total_sold_qty = 0;
@@ -1227,73 +1255,240 @@ class WarehouseStockService
             return $item;
         });
     }
+    public function getOverallStockHealthWithPurchase($range = null, $filters = [])
+    {
+        $range = $range ?? request('range', 'yesterday');
+        switch ($range) {
+            case 'today':
+                $startDate = now()->startOfDay();
+                break;
+            case '3days':
+                $startDate = now()->subDays(3)->startOfDay();
+                break;
+            case '7days':
+                $startDate = now()->subDays(7)->startOfDay();
+                break;
+            case 'lastmonth':
+                $startDate = now()->subMonth()->startOfMonth();
+                break;
+            default:
+                $startDate = now()->subDay()->startOfDay();
+        }
+        $endDate = now()->endOfDay();
+        $avgFrom = now()->subDays(15)->startOfDay();
+        $salesSub = DB::table('invoice_details as idt')
+            ->join('invoice_headers as ih', 'idt.header_id', '=', 'ih.id')
+            ->join('item_uoms as iu', function ($j) {
+                $j->on('iu.item_id', '=', 'idt.item_id')
+                    ->on('iu.uom_id', '=', 'idt.uom');
+            })
+            ->whereBetween('ih.created_at', [$startDate, $endDate])
+            ->groupBy('idt.item_id')
+            ->select(
+                'idt.item_id',
+                DB::raw("SUM(
+                    CASE 
+                        WHEN iu.uom_type = 'secondary' 
+                            THEN idt.quantity * CAST(iu.upc AS numeric)
+                        ELSE idt.quantity
+                    END
+                ) as total_sales")
+            );
+        $purchaseSub = DB::table('ht_delivery_detail as hdd')
+            ->join('ht_delivery_header as hdh', 'hdd.header_id', '=', 'hdh.id')
+            ->join('item_uoms as iu', function ($j) {
+                $j->on('iu.item_id', '=', 'hdd.item_id')
+                    ->on('iu.uom_id', '=', 'hdd.uom_id');
+            })
+            ->whereBetween('hdh.created_at', [$startDate, $endDate])
+            ->groupBy('hdd.item_id')
+            ->select(
+                'hdd.item_id',
+                DB::raw("SUM(
+                    CASE 
+                        WHEN iu.uom_type = 'secondary' 
+                            THEN hdd.quantity * CAST(iu.upc AS numeric)
+                        ELSE hdd.quantity
+                    END
+                ) as purchase_qty")
+            );
+        $avgSalesSub = DB::table('invoice_details as idt')
+            ->join('invoice_headers as ih', 'idt.header_id', '=', 'ih.id')
+            ->join('item_uoms as iu', function ($j) {
+                $j->on('iu.item_id', '=', 'idt.item_id')
+                    ->on('iu.uom_id', '=', 'idt.uom');
+            })
+            ->whereBetween('ih.created_at', [$avgFrom, now()])
+            ->groupBy('idt.item_id')
+            ->select(
+                'idt.item_id',
+                DB::raw("SUM(
+                    CASE 
+                        WHEN iu.uom_type = 'secondary' 
+                            THEN idt.quantity * CAST(iu.upc AS numeric)
+                        ELSE idt.quantity
+                    END
+                )/15 as avg_per_day")
+            );
+        $query = DB::table('tbl_warehouse_stocks as ws')
+            ->join('items as i', 'ws.item_id', '=', 'i.id')
+            ->leftJoinSub($salesSub, 'sales', fn($j) => $j->on('sales.item_id', '=', 'ws.item_id'))
+            ->leftJoinSub($purchaseSub, 'purchase', fn($j) => $j->on('purchase.item_id', '=', 'ws.item_id'))
+            ->leftJoinSub($avgSalesSub, 'avg_sales', fn($j) => $j->on('avg_sales.item_id', '=', 'ws.item_id'))
+            ->where('ws.status', 1)
+            ->whereNull('ws.deleted_at');
+        if (!empty($filters['item_id'])) {
+            $query->where('ws.item_id', $filters['item_id']);
+        }
+        if (!empty($filters['search'])) {
+            $search = $filters['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('i.name', 'ILIKE', "%$search%")
+                    ->orWhere('i.code', 'ILIKE', "%$search%")
+                    ->orWhere('i.erp_code', 'ILIKE', "%$search%");
+            });
+        }
+        $query->groupBy(
+            'ws.item_id',
+            'i.name',
+            'i.code',
+            'i.erp_code',
+            'sales.total_sales',
+            'purchase.purchase_qty',
+            'avg_sales.avg_per_day'
+        );
+        $query->select(
+            'ws.item_id',
+            'i.name as item_name',
+            'i.code as item_code',
+            'i.erp_code as erp_code',
+            DB::raw('SUM(ws.qty) as available_stock_qty'),
+            DB::raw('COALESCE(sales.total_sales,0) as total_sales'),
+            DB::raw('COALESCE(purchase.purchase_qty,0) as purchase_qty'),
+            DB::raw('COALESCE(avg_sales.avg_per_day,0) as avg_per_day'),
+            DB::raw('(COALESCE(avg_sales.avg_per_day,0)*4) as required_qty')
+        );
+        $query->orderBy('i.name');
+        $perPage = $filters['per_page'] ?? 50;
+        $paginated = $query->paginate($perPage);
+        $stable = 0;
+        $avg = 0;
+        $low = 0;
+        foreach ($paginated->items() as $item) {
+            if ($item->available_stock_qty < 750) {
+                $item->health_flag = 3;
+                $low++;
+                continue;
+            }
+            if ($item->available_stock_qty >= $item->required_qty) {
+                $item->health_flag = 1;
+                $stable++;
+            } elseif ($item->available_stock_qty >= ($item->required_qty * 0.7)) {
+                $item->health_flag = 2;
+                $avg++;
+            } else {
+                $item->health_flag = 3;
+                $low++;
+            }
+        }
+        return [
+            "range"        => $range,
+            "stable_count" => $stable,
+            "avg_count"    => $avg,
+            "low_count"    => $low,
+            "pagination"   => [
+                "current_page" => $paginated->currentPage(),
+                "last_page"    => $paginated->lastPage(),
+                "per_page"     => $paginated->perPage(),
+                "total"        => $paginated->total()
+            ],
+            "items" => $paginated->items()
+        ];
+    }
+    public function getOverallStockHealthExport($range = null, $filters = [])
+    {
+        $data = $this->getOverallStockHealthWithPurchase($range, array_merge($filters, [
+            'per_page' => 100000
+        ]));
 
+        return $data['items'];
+    }
+    public function getOverallWarehouseValuation()
+    {
+        $result = DB::table('tbl_warehouse_stocks as ws')
+            ->join('item_uoms as iu', 'ws.item_id', '=', 'iu.item_id')
+            ->where('iu.uom_type', 'primary')
+            ->selectRaw('SUM(ws.qty * iu.price) as total_valuation')
+            ->selectRaw('SUM(ws.qty) as total_qty')
+            ->first();
 
-    // public function dayYesterdayMonthWisefilter(array $filters = [])
-    // {
-    //     $query = WarehouseStock::query()
-    //         ->select([
-    //             'id',
-    //             'uuid',
-    //             'osa_code',
-    //             'warehouse_id',
-    //             'item_id',
-    //             'qty as stock_qty',  
-    //             'status',
-    //             'created_at',
-    //         ])
-    //         ->with([
-    //             'warehouse:id,warehouse_code,warehouse_name',
-    //             'item:id,erp_code,name'
-    //         ])
-    //         ->whereNull('deleted_at');
+        return [
+            'total_qty' => $result->total_qty ?? 0,
+            'total_valuation' => $result->total_valuation ?? 0
+        ];
+    }
+    public function getOverallLoadedStockDetails()
+    {
+        $today = Carbon::today()->toDateString();
 
-    //     if (!empty($filters['date_filter'])) {
-    //         switch ($filters['date_filter']) {
+        $headerIds = DB::table('tbl_load_header')
+            ->whereDate('created_at', $today)
+            ->pluck('id');
 
-    //             case 'today':
-    //                 $query->whereDate('created_at', Carbon::today());
-    //                 break;
+        if ($headerIds->isEmpty()) {
+            return [
+                'total_loaded_qty' => 0,
+                'details' => []
+            ];
+        }
 
-    //             case 'yesterday':
-    //                 $query->whereDate('created_at', Carbon::yesterday());
-    //                 break;
+        $details = DB::table('tbl_load_details')
+            ->whereIn('header_id', $headerIds)
+            ->select('item_id', DB::raw('SUM(qty) AS loaded_qty'))
+            ->groupBy('item_id')
+            ->get();
 
-    //             case 'last_3_days':
-    //                 $query->whereBetween('created_at', [
-    //                     Carbon::now()->subDays(2)->startOfDay(),
-    //                     Carbon::now()->endOfDay(),
-    //                 ]);
-    //                 break;
+        return [
+            'total_loaded_qty' => $details->sum('loaded_qty'),
+            'details' => $details
+        ];
+    }
+    public function getOverallSalesValuation($days = null)
+    {
+        $query = DB::table('agent_order_headers');
 
-    //             case 'last_7_days':
-    //                 $query->whereBetween('created_at', [
-    //                     Carbon::now()->subDays(6)->startOfDay(),
-    //                     Carbon::now()->endOfDay(),
-    //                 ]);
-    //                 break;
+        if ($days) {
+            $startDate = Carbon::today()->subDays($days)->toDateString();
+            $query->whereDate('created_at', '>=', $startDate);
+        }
 
-    //             case 'last_month':
-    //                 $query->whereBetween('created_at', [
-    //                     Carbon::now()->subMonth()->startOfMonth(),
-    //                     Carbon::now()->subMonth()->endOfMonth(),
-    //                 ]);
-    //                 break;
-    //         }
-    //     }
+        $orderIds = $query->pluck('id');
 
-    //     if (!empty($filters['warehouse_id'])) {
-    //         $query->where('warehouse_id', $filters['warehouse_id']);
-    //     }
+        if ($orderIds->isEmpty()) {
+            return [
+                'total_valuation' => 0,
+                'details' => []
+            ];
+        }
 
-    //     if (!empty($filters['item_id'])) {
-    //         $query->where('item_id', $filters['item_id']);
-    //     }
+        $details = DB::table('agent_order_details as aod')
+            ->join('item_uoms as iu', function ($join) {
+                $join->on('aod.item_id', '=', 'iu.item_id')
+                    ->where('iu.uom_type', 'primary');
+            })
+            ->whereIn('aod.header_id', $orderIds)
+            ->select(
+                'aod.item_id',
+                DB::raw('SUM(aod.quantity) as total_qty'),
+                'iu.price',
+                DB::raw('(SUM(aod.quantity) * iu.price) as valuation')
+            )
+            ->groupBy('aod.item_id', 'iu.price')
+            ->get();
 
-    //     if (!empty($filters['status'])) {
-    //         $query->where('status', $filters['status']);
-    //     }
-
-    //     return $query->orderBy('id', 'desc')->get();
-    // }
+        return [
+            'total_valuation' => $details->sum('valuation'),
+            'details' => $details
+        ];
+    }
 }

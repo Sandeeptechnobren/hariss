@@ -6,7 +6,6 @@ use App\Models\Hariss_Transaction\Web\HtCapsHeader;
 use App\Models\Hariss_Transaction\Web\HtCapsDetail;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
-use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithStyles;
@@ -14,188 +13,175 @@ use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
-use PhpOffice\PhpSpreadsheet\Style\Border;
 
 class HTCapsCollapseExport implements
     FromCollection,
-    WithHeadings,
     ShouldAutoSize,
     WithEvents,
     WithStyles
 {
     protected array $groupIndexes = [];
+
     protected $startDate;
     protected $endDate;
+    protected $warehouseIds;
 
-    public function __construct($startDate = null, $endDate = null)
-    {
-        $this->startDate = $startDate;
-        $this->endDate   = $endDate;
+    public function __construct(
+        $startDate = null,
+        $endDate = null,
+        $warehouseIds = [],
+        $salesmanIds = []
+    ) {
+        $this->startDate   = $startDate ?: now()->subMonth()->toDateString();
+        $this->endDate     = $endDate ?: now()->toDateString();
+        $this->warehouseIds = (array) $warehouseIds;
     }
 
     public function collection()
     {
         $rows = [];
-        $rowIndex = 2;
+        $rowIndex = 1;
 
-        $headers = HtCapsHeader::with(['warehouse', 'driverinfo'])
-            ->when($this->startDate && $this->endDate, function ($q) {
-                $q->whereBetween('claim_date', [$this->startDate, $this->endDate]);
-            })
-            ->get();
+        $rows[] = [
+            'OSA Code','Distributors Code','Distributors Name',
+            'Driver Code','Driver Name','Driver Contact',
+            'Truck No','Claim No','Claim Date','Claim Amount'
+        ];
+        $rowIndex++;
+
+        $query = HtCapsHeader::with([
+            'warehouse:id,warehouse_code,warehouse_name',
+            'driverinfo:id,osa_code,driver_name,contactno'
+        ]);
+
+        if ($this->startDate) {
+            $query->whereDate('claim_date', '>=', $this->startDate);
+        }
+
+        if ($this->endDate) {
+            $query->whereDate('claim_date', '<=', $this->endDate);
+        }
+
+        if (!empty($this->warehouseIds)) {
+            $query->whereIn('warehouse_id', $this->warehouseIds);
+        }
+
+        if (!empty($this->routeIds)) {
+            $query->whereIn('route_id', $this->routeIds);
+        }
+
+        if (!empty($this->salesmanIds)) {
+            $query->whereIn('salesman_id', $this->salesmanIds);
+        }
+
+        $headers = $query->get();
+
+        $allDetails = HtCapsDetail::with([
+                'item:id,code,name',
+                'uoms:id,name'
+            ])
+            ->whereIn('header_id', $headers->pluck('id'))
+            ->get()
+            ->groupBy('header_id');
 
         foreach ($headers as $header) {
 
-            $headerRowIndex = $rowIndex;
+            $details = $allDetails[$header->id] ?? collect();
 
-            // HEADER ROW
             $rows[] = [
-                'OSA Code'        => (string) $header->osa_code,
-                'Warehouse Code'  => (string) ($header->warehouse->warehouse_code ?? ''),
-                'Warehouse Name'  => (string) ($header->warehouse->warehouse_name ?? ''),
-                'Driver Code'     => (string) ($header->driverinfo->osa_code ?? ''),
-                'Driver Name'     => (string) ($header->driverinfo->driver_name ?? ''),
-                'Driver Contact'  => (string) ($header->driverinfo->contactno ?? ''),
-                'Truck No'        => (string) $header->truck_no,
-                'Claim No'        => (string) $header->claim_no,
-                'Claim Date'      => (string) $header->claim_date,
-                'Claim Amount'    => (float)  $header->claim_amount,
-
-                'Item Code'       => '',
-                'Item Name'       => '',
-                'UOM Name'        => '',
-                'Quantity'        => '',
-                'Receive Qty'     => '',
-                'Receive Amount'  => '',
-                'Receive Date'    => '',
-                'Remarks'         => '',
-                'Remarks2'        => '',
+                $header->osa_code ?? '',
+                optional($header->warehouse)->warehouse_code ?? '',
+                optional($header->warehouse)->warehouse_name ?? '',
+                optional($header->driverinfo)->osa_code ?? '',
+                optional($header->driverinfo)->driver_name ?? '',
+                optional($header->driverinfo)->contactno ?? '',
+                $header->truck_no ?? '',
+                $header->claim_no ?? '',
+                $header->claim_date ?? '',
+                $header->claim_amount ?? '',
             ];
-
             $rowIndex++;
 
-            // DETAIL ROWS
-            $details = HtCapsDetail::with(['item', 'uoms'])
-                ->where('header_id', $header->id)
-                ->get();
+            $rows[] = [
+                '',
+                'Item Code','Item Name','UOM','Qty','Receive Qty',
+                'Receive Amt','Receive Date','Remarks','Remarks2'
+            ];
+            $rowIndex++;
 
-            $detailRowIndexes = [];
+            $start = $rowIndex - 1;
 
-            foreach ($details as $detail) {
+            foreach ($details as $d) {
                 $rows[] = [
-                    'OSA Code'        => '',
-                    'Warehouse Code'  => '',
-                    'Warehouse Name'  => '',
-                    'Driver Code'     => '',
-                    'Driver Name'     => '',
-                    'Driver Contact'  => '',
-                    'Truck No'        => '',
-                    'Claim No'        => '',
-                    'Claim Date'      => '',
-                    'Claim Amount'    => '',
-
-                    'Item Code'       => (string) ($detail->item->code ?? ''),
-                    'Item Name'       => (string) ($detail->item->name ?? ''),
-                    'UOM Name'        => (string) ($detail->uoms->name ?? ''),
-                    'Quantity'        => (float) $detail->quantity,
-                    'Receive Qty'     => (float) $detail->receive_qty,
-                    'Receive Amount'  => (float) $detail->receive_amount,
-                    'Receive Date'    => (string) $detail->receive_date,
-                    'Remarks'         => (string) $detail->remarks,
-                    'Remarks2'        => (string) $detail->remarks2,
+                    '',
+                    optional($d->item)->code ?? '',
+                    optional($d->item)->name ?? '',
+                    optional($d->uoms)->name ?? '',
+                    $d->quantity ?? '',
+                    $d->receive_qty ?? '',
+                    $d->receive_amount ?? '',
+                    $d->receive_date ?? '',
+                    $d->remarks ?? '',
+                    $d->remarks2 ?? '',
                 ];
-
-                $detailRowIndexes[] = $rowIndex;
                 $rowIndex++;
             }
 
-            // GROUP DETAILS
-            if ($detailRowIndexes) {
+            if ($details->count()) {
                 $this->groupIndexes[] = [
-                    'start' => $headerRowIndex + 1,
-                    'end'   => max($detailRowIndexes),
+                    'start' => $start,
+                    'end'   => $rowIndex - 1
                 ];
             }
 
-            // BLANK SEPARATOR ROW (SAFE)
-            $rows[] = array_fill_keys(array_keys($rows[0]), '');
+            $rows[] = [''];
             $rowIndex++;
         }
 
         return new Collection($rows);
     }
 
-    public function headings(): array
-    {
-        return [
-            'OSA Code',
-            'Warehouse Code',
-            'Warehouse Name',
-            'Driver Code',
-            'Driver Name',
-            'Driver Contact',
-            'Truck No',
-            'Claim No',
-            'Claim Date',
-            'Claim Amount',
-            'Item Code',
-            'Item Name',
-            'UOM Name',
-            'Quantity',
-            'Receive Qty',
-            'Receive Amount',
-            'Receive Date',
-            'Remarks',
-            'Remarks2',
-        ];
-    }
-
-    // ✅ FIXED: NO HARD-CODED COLUMNS
     public function styles(Worksheet $sheet)
     {
-        $lastColumn = $sheet->getHighestColumn();
-
-        $sheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
-            'font' => ['bold' => true],
-            'alignment' => [
-                'horizontal' => Alignment::HORIZONTAL_CENTER,
-            ],
-        ]);
+        $sheet->getStyle('A1:J1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:J1')->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER);
     }
 
     public function registerEvents(): array
     {
         return [
-            AfterSheet::class => function (AfterSheet $event) {
+            AfterSheet::class => function ($event) {
 
                 $sheet = $event->sheet->getDelegate();
-                $lastColumn = $sheet->getHighestColumn();
+                $lastRow = $sheet->getHighestRow();
 
-                $sheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
-                    'font' => [
-                        'bold' => true,
-                        'color' => ['rgb' => 'F5F5F5'],
+                $sheet->getStyle("A1:J1")->applyFromArray([
+                    'fill'=>[
+                        'fillType'=>Fill::FILL_SOLID,
+                        'startColor'=>['rgb'=>'993442']
                     ],
-                    'alignment' => [
-                        'horizontal' => Alignment::HORIZONTAL_CENTER,
-                        'vertical'   => Alignment::VERTICAL_CENTER,
-                    ],
-                    'fill' => [
-                        'fillType'   => Fill::FILL_SOLID,
-                        'startColor' => ['rgb' => '993442'],
-                    ],
-                    'borders' => [
-                        'allBorders' => [
-                            'borderStyle' => Border::BORDER_THIN,
-                        ],
+                    'font'=>[
+                        'bold'=>true,
+                        'color'=>['rgb'=>'FFFFFF']
                     ],
                 ]);
+
+                for ($i=2;$i<=$lastRow;$i++) {
+                    if ($sheet->getCell("B{$i}")->getValue()==='Item Code') {
+                        $sheet->getStyle("B{$i}:J{$i}")->getFont()->setBold(true);
+                        $sheet->getStyle("B{$i}:J{$i}")
+                            ->getAlignment()
+                            ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    }
+                }
 
                 foreach ($this->groupIndexes as $group) {
                     for ($i = $group['start']; $i <= $group['end']; $i++) {
                         $sheet->getRowDimension($i)
-                              ->setOutlineLevel(1)
-                              ->setVisible(false);
+                            ->setOutlineLevel(1)
+                            ->setVisible(false)
+                            ->setCollapsed(true);
                     }
                 }
 

@@ -21,6 +21,7 @@ class PlanogramPostRequest extends FormRequest
             'shelf_id'         => 'required|integer',
             'before_image'     => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'after_image'      => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+            'feedback'         => 'nullable|string',
         ];
     }
 }

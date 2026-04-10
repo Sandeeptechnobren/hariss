@@ -27,6 +27,7 @@ use App\Exports\InvoiceAgentCustomerExport;
 use App\Helpers\LogHelper;
 use App\Exports\InvoiceWarehouseCollapseExport;
 use App\Helpers\CommonLocationFilter;
+use App\Exports\InvoicePromotionExport;
 
 class InvoiceController extends Controller
 {
@@ -227,91 +228,129 @@ class InvoiceController extends Controller
         }
     }
 
-// public function index(Request $request): JsonResponse
-// {
-//     try {
-//         $perPage = $request->get('limit', 50);
-//         $dropdown = filter_var($request->get('dropdown', false), FILTER_VALIDATE_BOOLEAN);
-//         $filters = $request->except(['limit', 'dropdown']);
-//         $invoices = $this->service->getAll($perPage, $filters, $dropdown);
-//         if ($dropdown) {
-//             return response()->json([
-//                 'status' => 'success',
-//                 'code'   => 200,
-//                 'data'   => $invoices,
-//             ]);
-//         }
-//         $pagination = [
-//             'page'         => $invoices->currentPage(),
-//             'limit'        => $invoices->perPage(),
-//             'totalPages'   => $invoices->lastPage(),
-//             'totalRecords' => $invoices->total(),
-//         ];
-//         return response()->json([
-//             'status'  => 'success',
-//             'code'    => 200,
-//             'message' => 'Invoices fetched successfully',
-//             'data'    => InvoiceHeaderResource::collection($invoices),
-//             // 'data'    => $invoices,
+    // public function index(Request $request): JsonResponse
+    // {
+    //     try {
+    //         $perPage = $request->get('limit', 50);
+    //         $dropdown = filter_var($request->get('dropdown', false), FILTER_VALIDATE_BOOLEAN);
+    //         $filters = $request->except(['limit', 'dropdown']);
+    //         $invoices = $this->service->getAll($perPage, $filters, $dropdown);
+    //         if ($dropdown) {
+    //             return response()->json([
+    //                 'status' => 'success',
+    //                 'code'   => 200,
+    //                 'data'   => $invoices,
+    //             ]);
+    //         }
+    //         $pagination = [
+    //             'page'         => $invoices->currentPage(),
+    //             'limit'        => $invoices->perPage(),
+    //             'totalPages'   => $invoices->lastPage(),
+    //             'totalRecords' => $invoices->total(),
+    //         ];
+    //         return response()->json([
+    //             'status'  => 'success',
+    //             'code'    => 200,
+    //             'message' => 'Invoices fetched successfully',
+    //             'data'    => InvoiceHeaderResource::collection($invoices),
+    //             // 'data'    => $invoices,
 
-//             'meta'    => $pagination,
-//         ]);
-//     } catch (\Throwable $e) {
-//         return response()->json([
-//             'status'  => 'error',
-//             'code'    => 500,
-//             'message' => 'Failed to retrieve invoices',
-//             'error'   => $e->getMessage(),
-//         ]);
-//     }
-// }
-// public function index(Request $request): JsonResponse
-// {
-//     try {
-//         $perPage = $request->get('limit', 50);
-//         $dropdown = filter_var($request->get('dropdown', false), FILTER_VALIDATE_BOOLEAN);
-//         $filters = $request->except(['limit', 'dropdown']);
-//         $invoices = $this->service->getAll($perPage, $filters, $dropdown);
-//         if ($dropdown) {
-//             return response()->json([
-//                 'status' => 'success',
-//                 'code'   => 200,
-//                 'data'   => $invoices,
-//             ]);
-//         }
-//         if ($invoices instanceof \Illuminate\Pagination\LengthAwarePaginator) {
-//             $invoices->setCollection(
-//                 collect($invoices->items())->map(function ($row) {
-//                     $model = new \App\Models\Agent_Transaction\InvoiceHeader((array) $row);
-//                     $model->exists = true;
-//                     return $model;
-//                 })
-//             );
-//         }
-//         $pagination = [
-//             'page'         => $invoices->currentPage(),
-//             'limit'        => $invoices->perPage(),
-//             'totalPages'   => $invoices->lastPage(),
-//             'totalRecords' => $invoices->total(),
-//         ];
-//         return response()->json([
-//             'status'  => 'success',
-//             'code'    => 200,
-//             'message' => 'Invoices fetched successfully',
-//             'data'    => \App\Http\Resources\V1\Agent_Transaction\InvoiceHeaderResource::collection($invoices),
-//             'meta'    => $pagination,
-//         ]);
-//     } catch (\Throwable $e) {
-//         \Log::error('Invoice fetch failed: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-//         return response()->json([
-//             'status'  => 'error',
-//             'code'    => 500,
-//             'message' => 'Failed to retrieve invoices',
-//             'error'   => $e->getMessage(),
-//         ]);
-//     }
-// }
+    //             'meta'    => $pagination,
+    //         ]);
+    //     } catch (\Throwable $e) {
+    //         return response()->json([
+    //             'status'  => 'error',
+    //             'code'    => 500,
+    //             'message' => 'Failed to retrieve invoices',
+    //             'error'   => $e->getMessage(),
+    //         ]);
+    //     }
+    // }
+    // public function index(Request $request): JsonResponse
+    // {
+    //     try {
+    //         $perPage = $request->get('limit', 50);
+    //         $dropdown = filter_var($request->get('dropdown', false), FILTER_VALIDATE_BOOLEAN);
+    //         $filters = $request->except(['limit', 'dropdown']);
+    //         $invoices = $this->service->getAll($perPage, $filters, $dropdown);
+    //         if ($dropdown) {
+    //             return response()->json([
+    //                 'status' => 'success',
+    //                 'code'   => 200,
+    //                 'data'   => $invoices,
+    //             ]);
+    //         }
+    //         if ($invoices instanceof \Illuminate\Pagination\LengthAwarePaginator) {
+    //             $invoices->setCollection(
+    //                 collect($invoices->items())->map(function ($row) {
+    //                     $model = new \App\Models\Agent_Transaction\InvoiceHeader((array) $row);
+    //                     $model->exists = true;
+    //                     return $model;
+    //                 })
+    //             );
+    //         }
+    //         $pagination = [
+    //             'page'         => $invoices->currentPage(),
+    //             'limit'        => $invoices->perPage(),
+    //             'totalPages'   => $invoices->lastPage(),
+    //             'totalRecords' => $invoices->total(),
+    //         ];
+    //         return response()->json([
+    //             'status'  => 'success',
+    //             'code'    => 200,
+    //             'message' => 'Invoices fetched successfully',
+    //             'data'    => \App\Http\Resources\V1\Agent_Transaction\InvoiceHeaderResource::collection($invoices),
+    //             'meta'    => $pagination,
+    //         ]);
+    //     } catch (\Throwable $e) {
+    //         \Log::error('Invoice fetch failed: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+    //         return response()->json([
+    //             'status'  => 'error',
+    //             'code'    => 500,
+    //             'message' => 'Failed to retrieve invoices',
+    //             'error'   => $e->getMessage(),
+    //         ]);
+    //     }
+    // }
+    public function exportInvoiceByPromotionCollapse(Request $request)
+    {
+        $request->validate([
+            'promotion_id' => 'required|integer',
+            'from' => 'nullable|date',
+            'to' => 'nullable|date',
+            'format' => 'nullable|string|in:xlsx,csv',
+        ]);
 
+        $promotionId = $request->input('promotion_id');
+
+        $format = strtolower($request->input('format', 'xlsx'));
+        $extension = $format === 'csv' ? 'csv' : 'xlsx';
+
+        $filename = 'invoice_headers_promotion_' . $promotionId . '_' . now()->format('Ymd_His') . '.' . $extension;
+        $path = 'invoiceexports/' . $filename;
+
+        // Create export instance
+        $export = new InvoicePromotionExport(
+            $request->input('from'),
+            $request->input('to'),
+            $promotionId
+        );
+
+        // Store file
+        if ($format === 'csv') {
+            Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
+        } else {
+            Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
+        }
+
+        $appUrl = rtrim(config('app.url'), '/');
+        $fullUrl = $appUrl . '/storage/app/public/' . $path;
+
+        return response()->json([
+            'status'       => 'success',
+            'download_url' => $fullUrl,
+        ]);
+    }
     /**
      * @OA\Get(
      *     path="/api/agent_transaction/invoices/show/{uuid}",
@@ -612,44 +651,57 @@ class InvoiceController extends Controller
     {
         $format    = strtolower($request->input('format', 'xlsx'));
         $extension = $format === 'csv' ? 'csv' : 'xlsx';
-        $filename = 'Agent_invoice_header' . '.' . $extension;
-        $path     = 'invoiceexports/' . $filename;
+        $date = now()->format('Ymd_His'); // 20260408_143210
+        $random = rand(1000, 9999);
+
+        $filename = "Agent_invoice_header_{$date}_{$random}.{$extension}";
+        $path = 'invoiceexports/' . $filename;
+
         $filters = $request->input('filter', []);
 
         $fromDate = $filters['from_date'] ?? null;
         $toDate   = $filters['to_date'] ?? null;
 
-        $routeIds    = !empty($filters['route_id'])
-            ? explode(',', $filters['route_id'])
+        // ✅ Parse route & salesman
+        $routeIds = !empty($filters['route_id'])
+            ? array_map('intval', explode(',', $filters['route_id']))
             : [];
 
         $salesmanIds = !empty($filters['salesman_id'])
-            ? explode(',', $filters['salesman_id'])
+            ? array_map('intval', explode(',', $filters['salesman_id']))
             : [];
 
-        // Location filter already tumne bana rakha hai
-        $warehouseIds = CommonLocationFilter::resolveWarehouseIds($filters);
+        $resolvedWarehouseIds = CommonLocationFilter::resolveWarehouseIds($filters);
+
+        $inputWarehouseIds = !empty($filters['warehouse_id'])
+            ? array_map('intval', explode(',', $filters['warehouse_id']))
+            : [];
+
+        if (!empty($inputWarehouseIds)) {
+            $warehouseIds = array_values(array_intersect($resolvedWarehouseIds, $inputWarehouseIds));
+        } else {
+            $warehouseIds = $resolvedWarehouseIds;
+        }
 
 
         $export = new InvoiceHeaderExport(
             $fromDate,
             $toDate,
             $warehouseIds,
-            $routeIds,
+            [],
             $salesmanIds
         );
-        // $export = new InvoiceHeaderExport($fromDate, $toDate);
 
         if ($format === 'csv') {
-            Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
+            \Maatwebsite\Excel\Facades\Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
         } else {
-            Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
+            \Maatwebsite\Excel\Facades\Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
         }
 
         $fullUrl = rtrim(config('app.url'), '/') . '/storage/app/public/' . $path;
 
         return response()->json([
-            'status'       => 'success',
+            'status' => 'success',
             'download_url' => $fullUrl,
         ]);
     }
@@ -657,39 +709,61 @@ class InvoiceController extends Controller
 
     public function exportInvoiceCollapse(Request $request)
     {
-
         $format = strtolower($request->input('format', 'xlsx'));
         $extension = $format === 'csv' ? 'csv' : 'xlsx';
+
         $filters = $request->input('filter', []);
+
         $from = $filters['from_date'] ?? null;
         $to   = $filters['to_date'] ?? null;
 
-        $routeIds    = CommonLocationFilter::normalizeIds($filters['route_id'] ?? []);
+        // ✅ Normalize IDs
+        $routeIds = CommonLocationFilter::normalizeIds($filters['route_id'] ?? []);
         $salesmanIds = CommonLocationFilter::normalizeIds($filters['salesman_id'] ?? []);
-        $warehouseIds = CommonLocationFilter::resolveWarehouseIds($filters);
 
-        $filename = 'Agent_invoice_collapse' . '.' . $extension;
+        // 🔥 STEP 1: resolve (broad)
+        $resolvedWarehouseIds = CommonLocationFilter::resolveWarehouseIds($filters);
+
+        // 🔥 STEP 2: exact warehouse from payload
+        $inputWarehouseIds = CommonLocationFilter::normalizeIds($filters['warehouse_id'] ?? []);
+
+        // 🔥 STEP 3: FINAL warehouseIds (intersection)
+        if (!empty($inputWarehouseIds)) {
+            $warehouseIds = array_values(array_intersect($resolvedWarehouseIds, $inputWarehouseIds));
+        } else {
+            $warehouseIds = $resolvedWarehouseIds;
+        }
+
+        // 🔥 Filename with date + random
+        $date = now()->format('Ymd_His'); // 20260408_143210
+        $random = rand(1000, 9999);
+
+        $filename = "Agent_invoice_collapse_{$date}_{$random}.{$extension}";
         $path = 'invoiceexports/' . $filename;
+
+        // ❌ routeIds remove (already resolved via warehouse)
         $export = new InvoiceCollapseExport(
             $from,
             $to,
             $warehouseIds,
-            $routeIds,
+            [], // important
             $salesmanIds
         );
+
         if ($format === 'csv') {
-            Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
+            \Maatwebsite\Excel\Facades\Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
         } else {
-            Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
+            \Maatwebsite\Excel\Facades\Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
         }
+
         $appUrl = rtrim(config('app.url'), '/');
         $fullUrl = $appUrl . '/storage/app/public/' . $path;
+
         return response()->json([
             'status' => 'success',
             'download_url' => $fullUrl,
         ]);
     }
-
     /**
      * @OA\Get(
      *     path="/api/agent_transaction/invoices/exportFull",
@@ -736,7 +810,8 @@ class InvoiceController extends Controller
             ->where('uuid', $uuid)
             ->first();
 
-        $code = $invoiceHeader?->invoice_code ?? 'UNKNOWN';
+        // $code = $invoiceHeader?->invoice_code ?? 'UNKNOWN';
+        $code = $invoiceHeader?->invoice_code ?? 'INV-' . time();
         $code = preg_replace('/[^A-Za-z0-9\-]/', '', $code);
 
         if ($extension === 'pdf') {
@@ -980,5 +1055,41 @@ class InvoiceController extends Controller
             'start_date' => $startDate,
             'end_date' => $endDate,
         ]);
+    }
+
+    public function InvoicesByPromotion(Request $request)
+    {
+        try {
+            $request->validate([
+                'promotion_id' => 'required|integer'
+            ]);
+
+            $perPage = $request->get('per_page', 10);
+
+            $invoices = $this->service
+                ->getInvoicesByPromotion($request->promotion_id, $perPage);
+
+            $pagination = [
+                'current_page' => $invoices->currentPage(),
+                'last_page'    => $invoices->lastPage(),
+                'per_page'     => $invoices->perPage(),
+                'total'        => $invoices->total(),
+            ];
+
+            return response()->json([
+                'status'  => 'success',
+                'code'    => 200,
+                'message' => 'Invoices fetched successfully',
+                'data'    => InvoiceHeaderResource::collection($invoices),
+                'pagination'  => $pagination,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status'  => 'error',
+                'code'    => 500,
+                'message' => 'Failed to retrieve invoices',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 }

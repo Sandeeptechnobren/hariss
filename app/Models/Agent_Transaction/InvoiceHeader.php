@@ -15,6 +15,7 @@ use App\Models\Salesman;
 use App\Models\User;
 use App\Models\Company;
 use App\Models\Agent_Transaction\OrderHeader;
+use App\Models\PromotionHeader;
 use App\Models\Agent_Transaction\AgentDeliveryHeaders;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
@@ -194,4 +195,10 @@ class InvoiceHeader extends Model
     {
         return $this->hasMany(ReturnHeader::class, 'invoice_id');
     }
+
+    // public function promotion_data()
+    // {
+    //     return $this->belongsTo(PromotionHeader::class, 'promotion_id');
+    // } 
+ 
 }

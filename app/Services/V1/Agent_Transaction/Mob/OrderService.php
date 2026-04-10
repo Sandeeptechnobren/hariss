@@ -335,6 +335,7 @@ private function createDelivery(OrderHeader $order, array $details)
         'comment'       => $order->comment,
         'latitude'      => $order->latitude,
         'longitude'     => $order->longitude,
+        'delivery_date' => $order->delivery_date,
         'status'        => 1,
     ]);
     foreach ($details as $detail) {
@@ -354,7 +355,7 @@ private function createDelivery(OrderHeader $order, array $details)
         ]);
     }
     $order->update([
-        'status' => 2, 
+        'order_flag' => 2, 
     ]);
     return $delivery;
 }

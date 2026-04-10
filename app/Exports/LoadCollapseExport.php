@@ -3,7 +3,6 @@
 namespace App\Exports;
 
 use App\Models\Agent_Transaction\LoadHeader;
-use App\Models\Agent_Transaction\LoadDetail;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
@@ -20,6 +19,7 @@ use Illuminate\Support\Facades\Auth;
 class LoadCollapseExport implements FromCollection, WithHeadings, ShouldAutoSize, WithEvents
 {
     protected array $groupIndexes = [];
+
     protected $fromDate;
     protected $toDate;
     protected $warehouseIds;
@@ -28,16 +28,16 @@ class LoadCollapseExport implements FromCollection, WithHeadings, ShouldAutoSize
 
     public function __construct($fromDate = null, $toDate = null, $warehouseIds = [], $routeIds = [], $salesmanIds = [])
     {
-        $today = now()->toDateString();
-        $this->fromDate = $fromDate ?: $today;
-        $this->toDate   = $toDate   ?: $today;
+        $this->fromDate = $fromDate;
+        $this->toDate   = $toDate;
         $this->warehouseIds = $warehouseIds;
         $this->routeIds = $routeIds;
         $this->salesmanIds = $salesmanIds;
     }
+
     public function collection()
     {
-        $rows     = [];
+        $rows = [];
         $rowIndex = 2;
 
         $query = LoadHeader::with([
@@ -48,99 +48,117 @@ class LoadCollapseExport implements FromCollection, WithHeadings, ShouldAutoSize
             'salesmantype',
             'details.item',
             'details.Uom',
-        ])
+        ]);
 
-            // 📅 Date Filter
-            ->when(
-                $this->fromDate && $this->toDate,
-                fn($q) =>
-                $q->whereBetween('created_at', [
-                    $this->fromDate . ' 00:00:00',
-                    $this->toDate . ' 23:59:59'
-                ])
-            )
 
-            // 🧑‍💼 Salesman highest priority
-            ->when(
-                !empty($this->salesmanIds),
-                fn($q) =>
-                $q->whereIn('salesman_id', $this->salesmanIds)
-            )
+        if (!empty($this->warehouseIds)) {
+            $query->whereIn('warehouse_id', $this->warehouseIds);
+        }
 
-            // 🚚 Route filter
-            ->when(
-                empty($this->salesmanIds) && !empty($this->routeIds),
-                fn($q) =>
-                $q->whereIn('route_id', $this->routeIds)
-            )
+        if (!empty($this->routeIds)) {
+            $query->whereIn('route_id', $this->routeIds);
+        }
 
-            // 🏭 Warehouse filter
-            ->when(
-                empty($this->salesmanIds) && empty($this->routeIds) && !empty($this->warehouseIds),
-                fn($q) =>
-                $q->whereIn('warehouse_id', $this->warehouseIds)
-            );
+        if (!empty($this->salesmanIds)) {
+            $query->whereIn('salesman_id', $this->salesmanIds);
+        }
 
-            $query = DataAccessHelper::filterAgentTransaction($query, Auth::user());
-            $headers = $query->get();
+        // ✅ SAME DATE LOGIC AS GLOBAL
+        if (!empty($this->fromDate)) {
+            $query->whereDate('created_at', '>=', $this->fromDate);
+        }
+
+        if (!empty($this->toDate)) {
+            $query->whereDate('created_at', '<=', $this->toDate);
+        }
+
+        $query = DataAccessHelper::filterAgentTransaction($query, Auth::user());
+
+        $headers = $query->get();
 
         foreach ($headers as $header) {
 
-            $details   = $header->details;
-            $itemCount = $details->count();
+            $details = $header->details;
             $headerRow = $rowIndex;
+
+            // ✅ HEADER
             $rows[] = [
                 $header->osa_code,
-                optional($header->created_at)->format('d-m-Y'),
-                $header->accept_time
-                    ? Carbon::parse($header->accept_time)->format('d-m-Y')
-                    : '',
+                optional($header->created_at)->format('d M Y'),
+                $header->accept_time ? Carbon::parse($header->accept_time)->format('d M Y') : '',
+                $header->accept_time ? Carbon::parse($header->accept_time)->format('h:i A') : '',
                 trim(($header->warehouse->warehouse_code ?? '') . ' - ' . ($header->warehouse->warehouse_name ?? '')),
                 trim(($header->route->route_code ?? '') . ' - ' . ($header->route->route_name ?? '')),
                 trim(($header->salesman->osa_code ?? '') . ' - ' . ($header->salesman->name ?? '')),
                 $header->salesmantype->salesman_type_name ?? '',
                 $header->projecttype->name ?? '',
-                $header->is_confirmed == 1 ? 'SalesTeam Accepted' : 'Waiting For Accept',
-                $itemCount,
+                $header->is_confirmed == 1 ? 'SalesTeam Accepted' : 'Waiting For SalesTeam Accepted',
+                $details->count(),
                 '',
                 '',
                 '',
                 '',
-                '',
+                ''
             ];
-
             $rowIndex++;
-            $detailRowIndexes = [];
 
+            // ✅ DETAIL HEADING
+            $detailHeadingRow = $rowIndex;
+            $rows[] = [
+                '',
+                'Item',
+                'UOM',
+                // 'Price',
+                'Quantity',
+                // 'Status',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                ''
+            ];
+            $rowIndex++;
+
+            // ✅ DETAILS
             foreach ($details as $detail) {
                 $rows[] = [
                     '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
                     trim(($detail->item->erp_code ?? '') . ' - ' . ($detail->item->name ?? '')),
                     $detail->Uom->name ?? '',
+                    // (float) $detail->price,
                     (float) $detail->qty,
-                    (float) $detail->price,
-                    $detail->status == 1 ? 'Active' : 'Inactive',
+                    // $detail->status == 1 ? 'Active' : 'Inactive',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    ''
                 ];
-
-                $detailRowIndexes[] = $rowIndex;
                 $rowIndex++;
             }
-            if (!empty($detailRowIndexes)) {
+
+            // ✅ GROUP
+            if ($details->count()) {
                 $this->groupIndexes[] = [
+                    'header_row' => $headerRow,
+                    'heading_row' => $detailHeadingRow,
                     'start' => $headerRow + 1,
-                    'end'   => max($detailRowIndexes),
+                    'end'   => $rowIndex - 1,
                 ];
             }
-            $rows[] = array_fill(0, count($rows[0]), '');
+
+            // ✅ GAP
+            $rows[] = array_fill(0, 20, '');
             $rowIndex++;
         }
 
@@ -153,18 +171,24 @@ class LoadCollapseExport implements FromCollection, WithHeadings, ShouldAutoSize
             'Load No',
             'Load Date',
             'Accept Date',
-            'Warehouse',
+            'Accept Time',
+            'Distributors',
             'Route',
             'Salesman',
             'Salesman Type',
             'Project Type',
             'Status',
-            'Item Count',
-            'Item',
-            'UOM',
-            'Quantity',
-            'Price',
-            'Detail Status',
+            'Total Item',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
         ];
     }
 
@@ -173,13 +197,12 @@ class LoadCollapseExport implements FromCollection, WithHeadings, ShouldAutoSize
         return [
             AfterSheet::class => function (AfterSheet $event) {
 
-                $sheet      = $event->sheet->getDelegate();
+                $sheet = $event->sheet->getDelegate();
                 $lastColumn = $sheet->getHighestColumn();
+
+                // ✅ HEADER STYLE
                 $sheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
-                    'font' => [
-                        'bold'  => true,
-                        'color' => ['rgb' => 'FFFFFF'],
-                    ],
+                    'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
                     'alignment' => [
                         'horizontal' => Alignment::HORIZONTAL_CENTER,
                         'vertical'   => Alignment::VERTICAL_CENTER,
@@ -189,21 +212,44 @@ class LoadCollapseExport implements FromCollection, WithHeadings, ShouldAutoSize
                         'startColor' => ['rgb' => '993442'],
                     ],
                     'borders' => [
-                        'allBorders' => [
-                            'borderStyle' => Border::BORDER_THIN,
-                        ],
+                        'allBorders' => ['borderStyle' => Border::BORDER_THIN],
                     ],
                 ]);
 
                 $sheet->getRowDimension(1)->setRowHeight(25);
+                $sheet->freezePane('A2');
+
                 foreach ($this->groupIndexes as $group) {
+
+                    // header visible
+                    $sheet->getRowDimension($group['header_row'])
+                        ->setOutlineLevel(0)
+                        ->setVisible(true);
+
+                    // collapse
                     for ($i = $group['start']; $i <= $group['end']; $i++) {
-                        $sheet->getRowDimension($i)->setOutlineLevel(1);
-                        $sheet->getRowDimension($i)->setVisible(false);
+                        $sheet->getRowDimension($i)
+                            ->setOutlineLevel(1)
+                            ->setVisible(false);
+
+                        $sheet->getStyle("B{$i}")
+                            ->getAlignment()
+                            ->setIndent(1);
                     }
+
+                    // heading hidden
+                    $sheet->getRowDimension($group['heading_row'])
+                        ->setOutlineLevel(1)
+                        ->setVisible(false);
+
+                    // heading bold
+                    $sheet->getStyle("B{$group['heading_row']}:F{$group['heading_row']}")
+                        ->getFont()
+                        ->setBold(true);
                 }
 
                 $sheet->setShowSummaryBelow(false);
+                $sheet->setShowSummaryRight(false);
             },
         ];
     }

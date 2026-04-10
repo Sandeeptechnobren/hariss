@@ -17,7 +17,7 @@ class HtOrderRequest extends FormRequest
             'order_code'    => 'nullable|string|unique:ht_po_order_header,order_code',
             'sap_id'        => 'nullable|string|max:100',
             'sap_msg'       => 'required|string',
-            'customer_id'   => 'required|integer|exists:tbl_company_customer,id',
+            'customer_id'   => 'nullable|integer|exists:tbl_company_customer,id',
             'delivery_date' => 'nullable|date',
             'comment'       => 'nullable|string',
             'status'        => 'nullable|integer|in:0,1',

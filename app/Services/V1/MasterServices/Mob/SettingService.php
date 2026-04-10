@@ -12,6 +12,8 @@ use App\Models\CustomerSubCategory;
 use App\Models\ItemCategory;
 use App\Models\CustomerCategory;
 use App\Models\Country;
+use App\Models\DiscountSetting;
+use App\Models\CustomerType;
 use App\Http\Resources\V1\Master\Mob\ItemResource;
 use App\Http\Resources\V1\Master\Mob\PricingResource;
 class SettingService
@@ -33,6 +35,8 @@ class SettingService
         $pricingHeadersFile = "{$directory}/pricing_headers_{$username}.txt";
         $UomFile ="{$directory}/uom_details_{$username}.txt";
         $countryFile ="{$directory}/country_{$username}.txt";
+        $discountFile ="{$directory}/discount_{$username}.txt";
+        $customertype = "{$directory}/customer_type_{$username}.txt";
         
         $items = ItemResource::collection(Item::with('itemUoms')->get());
         file_put_contents($itemFile, json_encode($items));
@@ -57,6 +61,12 @@ class SettingService
         
         $country = Country::select('id', 'country_code', 'country_name','status')->get();
         file_put_contents($countryFile, json_encode($country));
+
+        $discount = DiscountSetting::select('id','name','discount_amt','qty','status')->get();
+        file_put_contents($discountFile, json_encode($discount));
+
+        $customer_type = CustomerType::select('id','code','name','status')->get();
+        file_put_contents($customertype, json_encode($customer_type));
         // Short relative path return karo
         return [
             'item_file' => 'storage/stetic_files/items_' . $username . '.txt',
@@ -67,6 +77,8 @@ class SettingService
             'pricing_headers_file' => 'storage/stetic_files/pricing_headers_' . $username . '.txt',
             'uom_file' => 'storage/stetic_files/uom_details_' . $username . '.txt',
             'country_file' => 'storage/stetic_files/country_' . $username . '.txt',
+            'discount_file' => 'storage/stetic_files/discount_' . $username . '.txt',
+            'customer_type_file' => 'storage/stetic_files/customer_type_' . $username . '.txt',
             
         ];
     }

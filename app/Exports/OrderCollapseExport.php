@@ -43,14 +43,14 @@ class OrderCollapseExport implements FromCollection, WithHeadings, ShouldAutoSiz
             2 => 'Delivery Created',
             3 => 'Completed',
         ];
-            $query = OrderHeader::with([
-                'warehouse',
-                'customer',
-                'salesman',
-                'route',
-                'details.item',
-                'details.uoms',
-            ])
+        $query = OrderHeader::with([
+            'warehouse',
+            'customer',
+            'salesman',
+            'route',
+            'details.item',
+            'details.uoms',
+        ])
             ->when($this->fromDate && $this->toDate, function ($q) {
                 $q->whereBetween('created_at', [
                     $this->fromDate . ' 00:00:00',
@@ -78,12 +78,12 @@ class OrderCollapseExport implements FromCollection, WithHeadings, ShouldAutoSiz
             $headerRow = $rowIndex;
             $rows[] = [
                 $header->order_code,
-                optional($header->created_at)->format('Y-m-d'),
+                optional($header->created_at)->format('d M Y'),
                 trim(($header->warehouse->warehouse_code ?? '') . ' - ' . ($header->warehouse->warehouse_name ?? '')),
                 trim(($header->customer->osa_code ?? '') . ' - ' . ($header->customer->name ?? '')),
                 trim(($header->salesman->osa_code ?? '') . ' - ' . ($header->salesman->name ?? '')),
                 trim(($header->route->route_code ?? '') . ' - ' . ($header->route->route_name ?? '')),
-                optional($header->delivery_date)->format('Y-m-d'),
+                optional($header->delivery_date)->format('d M Y'),
                 $header->comment ?? '',
                 (float) $header->vat,
                 (float) $header->net_amount,
@@ -106,20 +106,6 @@ class OrderCollapseExport implements FromCollection, WithHeadings, ShouldAutoSiz
                 'Quantity',      // D
                 'Item Price',    // E
                 'Total',         // F
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
             ];
             $rowIndex++;
             foreach ($header->details as $detail) {
@@ -164,7 +150,7 @@ class OrderCollapseExport implements FromCollection, WithHeadings, ShouldAutoSiz
         return [
             'Order Code',
             'Order Date',
-            'Warehouse',
+            'Distributors',
             'Customer',
             'Salesman',
             'Route',
@@ -174,7 +160,7 @@ class OrderCollapseExport implements FromCollection, WithHeadings, ShouldAutoSiz
             'Net',
             'Total',
             'Status',
-            'Item Count'
+            'Total Item '
         ];
     }
     public function styles(Worksheet $sheet)
@@ -182,13 +168,47 @@ class OrderCollapseExport implements FromCollection, WithHeadings, ShouldAutoSiz
         $sheet->getStyle('A1:T1')->getFont()->setBold(true);
         $sheet->getStyle('A1:T1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
     }
+    // public function registerEvents(): array
+    // {
+    //     return [
+    //         AfterSheet::class => function (AfterSheet $event) {
+    //             $sheet = $event->sheet->getDelegate();
+    //             $lastColumn = $sheet->getHighestColumn();
+    //             $sheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
+    //                 'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+    //                 'alignment' => [
+    //                     'horizontal' => Alignment::HORIZONTAL_CENTER,
+    //                     'vertical'   => Alignment::VERTICAL_CENTER,
+    //                 ],
+    //                 'fill' => [
+    //                     'fillType' => Fill::FILL_SOLID,
+    //                     'startColor' => ['rgb' => '993442'],
+    //                 ],
+    //                 'borders' => [
+    //                     'allBorders' => ['borderStyle' => Border::BORDER_THIN],
+    //                 ],
+    //             ]);
+    //             foreach ($this->groupIndexes as $group) {
+    //                 $sheet->getRowDimension($group['header_row'])
+    //                     ->setOutlineLevel(0)
+    //                     ->setVisible(true);
+    //                 for ($i = $group['start']; $i <= $group['end']; $i++) {
+    //                     $sheet->getRowDimension($i)->setOutlineLevel(1);
+    //                     $sheet->getRowDimension($i)->setVisible(false);
+    //                 }
+    //             }
+    //             $sheet->setShowSummaryBelow(false);
+    //         },
+    //     ];
+    // }
     public function registerEvents(): array
     {
         return [
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
-                $lastColumn = $sheet->getHighestColumn();
-                $sheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
+
+                // ✅ Main header (A → M)
+                $sheet->getStyle("A1:M1")->applyFromArray([
                     'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
                     'alignment' => [
                         'horizontal' => Alignment::HORIZONTAL_CENTER,
@@ -202,15 +222,24 @@ class OrderCollapseExport implements FromCollection, WithHeadings, ShouldAutoSiz
                         'allBorders' => ['borderStyle' => Border::BORDER_THIN],
                     ],
                 ]);
+
                 foreach ($this->groupIndexes as $group) {
+
+                    // ✅ 👉 Detail heading (Item, UOM, Quantity...) ko bold karo
+                    $sheet->getStyle("B{$group['start']}:F{$group['start']}")
+                        ->getFont()
+                        ->setBold(true);
+
                     $sheet->getRowDimension($group['header_row'])
                         ->setOutlineLevel(0)
                         ->setVisible(true);
+
                     for ($i = $group['start']; $i <= $group['end']; $i++) {
                         $sheet->getRowDimension($i)->setOutlineLevel(1);
                         $sheet->getRowDimension($i)->setVisible(false);
                     }
                 }
+
                 $sheet->setShowSummaryBelow(false);
             },
         ];

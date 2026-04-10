@@ -13,11 +13,10 @@ use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use App\Models\WarehouseStock;
+use App\Exports\StockHealthExport;
 use App\Models\ItemUOM;
 use App\Exports\WarehouseStockExport;
 use Maatwebsite\Excel\Facades\Excel;
-
-
 
 /**
  * @OA\Schema(
@@ -40,7 +39,6 @@ class WarehouseStockController extends Controller
     {
         $this->service = $service;
     }
-
     /**
      * @OA\Get(
      *     path="/api/settings/warehouse-stocks/list",
@@ -63,7 +61,6 @@ class WarehouseStockController extends Controller
             $stocks
         );
     }
-
     /**
      * @OA\Post(
      *     path="/api/settings/warehouse-stocks/add",
@@ -88,8 +85,6 @@ class WarehouseStockController extends Controller
             'data' => new WarehouseStockResource($stock),
         ]);
     }
-
-
     /**
      * @OA\Get(
      *     path="/api/settings/warehouse-stocks/{uuid}",
@@ -110,7 +105,6 @@ class WarehouseStockController extends Controller
     {
         try {
             $stock = $this->service->getByUuid($uuid);
-
             return response()->json([
                 'status' => 'success',
                 'code' => 200,
@@ -149,7 +143,6 @@ class WarehouseStockController extends Controller
                 'message' => $result['message'],
             ], 500);
         }
-
         return response()->json([
             'status' => 'success',
             'code' => 200,
@@ -227,7 +220,7 @@ class WarehouseStockController extends Controller
         $result = $this->service->checkStockAvailability($itemId, $uomId, $quantity, $warehouseId);
         return response()->json($result);
     }
-public function getWarehouseSummary($warehouseId)
+    public function getWarehouseSummary($warehouseId)
     {
         $totalValuation = $this->service->getWarehouseValuation($warehouseId);
         $loadedStock = $this->service->getLoadedStockDetails($warehouseId);
@@ -245,7 +238,7 @@ public function getWarehouseSummary($warehouseId)
             'sales_days_filter' => $days ?? 'all',
         ]);
     }
-public function getLatestOrders(Request $request, $warehouseId)
+    public function getLatestOrders(Request $request, $warehouseId)
     {
         $days = $request->query('days', 30);
         $query = WarehouseStock::with(['warehouse', 'item'])
@@ -269,12 +262,12 @@ public function getLatestOrders(Request $request, $warehouseId)
             ]
         ]);
     }
-public function getWarehouseStockDetails(Request $request, $warehouseId)
+    public function getWarehouseStockDetails(Request $request, $warehouseId)
     {
         $days = $request->get('days');
         $months = $request->get('months');
         $isPromo = $request->get('is_promo');
-        $data = $this->service->getWarehouseStockFullDetails($warehouseId, $days, $months,$isPromo);
+        $data = $this->service->getWarehouseStockFullDetails($warehouseId, $days, $months, $isPromo);
         return response()->json([
             'status' => 'success',
             'code' => 200,
@@ -284,26 +277,41 @@ public function getWarehouseStockDetails(Request $request, $warehouseId)
             'total_items' => $data->count(),
             'stocks' => $data
         ]);
-    }    
-public function warehouseStockHealth(Request $request, $warehouseId)
-{
-    $request->validate([
-        'range' => 'nullable|in:today,yesterday,3days,7days,lastmonth'
-    ]);
+    }
+    // public function warehouseStockHealth(Request $request, $warehouseId)
+    //     {
+    //         $request->validate([
+    //             'range' => 'nullable|in:today,yesterday,3days,7days,lastmonth'
+    //         ]);
+    //         $range = $request->range ?? 'yesterday';
+    //         $data = $this->service->getWarehouseStockHealthWithPurchase(
+    //             $warehouseId,
+    //             $range
+    //         );
+    //         return response()->json([
+    //             "status"  => true,
+    //             "message" => "Warehouse stock health fetched successfully",
+    //             "data"    => $data
+    //         ], 200);
+    //     }
+    public function warehouseStockHealth(Request $request, $warehouseId)
+    {
+        $request->validate([
+            'range'    => 'nullable|in:today,yesterday,3days,7days,lastmonth',
+            'per_page' => 'nullable|integer|min:1'
+        ]);
 
-    $range = $request->range ?? 'yesterday';
-
-    $data = $this->service->getWarehouseStockHealthWithPurchase(
-        $warehouseId,
-        $range
-    );
-
-    return response()->json([
-        "status"  => true,
-        "message" => "Warehouse stock health fetched successfully",
-        "data"    => $data
-    ], 200);
-}
+        $range = $request->range ?? 'yesterday';
+        $data = $this->service->getWarehouseStockHealthWithPurchase(
+            $warehouseId,
+            $range
+        );
+        return response()->json([
+            "status"  => true,
+            "message" => "Warehouse stock health fetched successfully",
+            "data"    => $data
+        ], 200);
+    }
     /**
      * @OA\Get(
      *     path="/api/settings/warehouse-stocks/{warehouseId}",
@@ -434,39 +442,102 @@ public function warehouseStockHealth(Request $request, $warehouseId)
      *     )
      * )
      */
-    public function exportWarehouseStocks(Request $request)
+    // public function exportWarehouseStocks(Request $request)
+    //     {
+    //         $format = strtolower($request->input('format', 'xlsx'));
+    //         $extension = $format === 'csv' ? 'csv' : 'xlsx';
+    //         $fromDate = $request->input('from_date');
+    //         $toDate   = $request->input('to_date');
+    //         $filename = 'warehouse_stock_export_' . now()->format('Ymd_His') . '.' . $extension;
+    //         $path = 'warehouseexports/' . $filename;
+    //         $export = new WarehouseStockExport($fromDate, $toDate);
+    //         if ($format === 'csv') {
+    //             Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
+    //         } else {
+    //             Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
+    //         }
+    //         $appUrl = rtrim(config('app.url'), '/');
+    //         $fullUrl = $appUrl . '/storage/app/public/' . $path;
+    //         return response()->json([
+    //             'status'       => 'success',
+    //             'download_url' => $fullUrl,
+    //         ]);
+    //     }
+    public function exportStockHealth(Request $request)
     {
-        $format = strtolower($request->input('format', 'xlsx'));
-        $extension = $format === 'csv' ? 'csv' : 'xlsx';
+        $request->validate([
+            'range'        => 'nullable|in:today,yesterday,3days,7days,lastmonth',
+            'item_id'      => 'nullable|integer',
+            'search'       => 'nullable|string',
+            'warehouse_id' => 'nullable|integer',
+            'format'       => 'nullable|in:csv,xlsx'
+        ]);
 
-        $fromDate = $request->input('from_date');
-        $toDate   = $request->input('to_date');
+        $filters = [
+            'item_id'      => $request->item_id,
+            'search'       => $request->search,
+            'warehouse_id' => $request->warehouse_id,
+        ];
 
-        $filename = 'warehouse_stock_export_' . now()->format('Ymd_His') . '.' . $extension;
-        $path = 'warehouseexports/' . $filename;
+        $data = $this->service->getOverallStockHealthExport(
+            $request->range,
+            $filters
+        );
 
-        $export = new WarehouseStockExport($fromDate, $toDate);
-
+        $format = $request->format ?? 'xlsx';
+        $filename = 'stock_health_' . now()->format('Ymd_His') . '.' . $format;
+        $path = 'exports/' . $filename;
         if ($format === 'csv') {
-            Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
+            Excel::store(new StockHealthExport($data), $path, 'public', \Maatwebsite\Excel\Excel::CSV);
         } else {
-            Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
+            Excel::store(new StockHealthExport($data), $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
         }
 
-        $appUrl = rtrim(config('app.url'), '/');
-        $fullUrl = $appUrl . '/storage/app/public/' . $path;
-
         return response()->json([
-            'status'       => 'success',
-            'download_url' => $fullUrl,
+            "status" => "success",
+            // "download_url" => url('storage/app/public/' . $path)
+            "download_url" => ('https://api.coreexl.com/osa_developmentV2/storage/app/public/' . $path)
         ]);
     }
+    // public function exportStockHealth(Request $request)
+    // {
+    //     $request->validate([
+    //         'range'        => 'nullable|in:today,yesterday,3days,7days,lastmonth',
+    //         'item_id'      => 'nullable|integer',
+    //         'search'       => 'nullable|string',
+    //         'warehouse_id' => 'nullable|integer',
+    //         'type'         => 'required|in:excel,csv'
+    //     ]);
 
-    public function ItemsByWarehouse(int $warehouseId): JsonResponse
+    //     $filters = [
+    //         'item_id'      => $request->item_id,
+    //         'search'       => $request->search,
+    //         'warehouse_id' => $request->warehouse_id
+    //     ];
+
+    //     $data = $this->service->getOverallStockHealthExport(
+    //         $request->range,
+    //         $filters
+    //     );
+
+    //     $fileName = 'stock_health_' . now()->timestamp;
+
+    //     if ($request->type === 'csv') {
+    //         return Excel::download(
+    //             new StockHealthExport($data),
+    //             $fileName . '.csv'
+    //         );
+    //     }
+
+    //     return Excel::download(
+    //         new StockHealthExport($data),
+    //         $fileName . '.xlsx'
+    //     );
+    // }
+    public function warehouseByItemStock(int $warehouseId): JsonResponse
     {
         try {
-            $data = $this->service->listByWarehouse($warehouseId);
-
+            $data = $this->service->warehouseByItemStock($warehouseId);
             return response()->json([
                 'status' => 'success',
                 'count'  => $data->count(),
@@ -515,10 +586,9 @@ public function warehouseStockHealth(Request $request, $warehouseId)
                 'items'                => 'required|array|min:1',
                 'items.*.item_id'      => 'required|integer',
                 'items.*.qty'          => 'required|numeric|min:1',
+                'items.*.uom_id'       => 'required|integer',
             ]);
-
             $result = $this->service->bulkTransferStock($data);
-
             return response()->json([
                 'status'  => 'success',
                 'message' => 'Stock transferred successfully',
@@ -536,7 +606,6 @@ public function warehouseStockHealth(Request $request, $warehouseId)
         $request->validate([
             'warehouse_id' => 'required|integer'
         ]);
-
         $warehouseId = $request->warehouse_id;
         $items = DB::table('tbl_warehouse_stocks as ws')
             ->join('items as i', 'i.id', '=', 'ws.item_id')
@@ -565,13 +634,10 @@ public function warehouseStockHealth(Request $request, $warehouseId)
                 'ws.qty'
             )
             ->get();
-
-        // ✅ FIX HERE
         $items = $items->map(function ($item) {
             $item->uoms = json_decode($item->uoms, true);
             return $item;
         });
-
         return response()->json([
             'status' => 'success',
             'code'   => 200,
@@ -582,15 +648,11 @@ public function warehouseStockHealth(Request $request, $warehouseId)
     public function dayYesterdayMonthWisefilter(Request $request)
     {
         $dateFilter = $request->get('date_filter');
-        // today | yesterday | last_3_days | last_7_days | last_month
-
         $isPromo = $request->get('is_promo');
-
         $data = $this->service->dayYesterdayMonthWisefilter(
             $dateFilter,
             $isPromo
         );
-
         return response()->json([
             'status'       => 'success',
             'code'         => 200,
@@ -620,81 +682,122 @@ public function warehouseStockHealth(Request $request, $warehouseId)
     //         ], 500);
     //     }
     // }
-public function getItemUomsByWarehouse($warehouseId)
-{
-    if (!$warehouseId) {
-        return response()->json([
-            'status'  => 'error',
-            'code'    => 422,
-            'message' => 'warehouseId is required',
-        ], 422);
-    }
-
-    $uoms = ItemUOM::whereHas('item', function ($itemQuery) use ($warehouseId) {
+    public function getItemUomsByWarehouse($warehouseId)
+    {
+        if (!$warehouseId) {
+            return response()->json([
+                'status'  => 'error',
+                'code'    => 422,
+                'message' => 'warehouseId is required',
+            ], 422);
+        }
+        $uoms = ItemUOM::whereHas('item', function ($itemQuery) use ($warehouseId) {
             $itemQuery->where('caps_promo', 1)
                 ->whereHas('warehouse_stocks', function ($stockQuery) use ($warehouseId) {
                     $stockQuery->where('warehouse_id', $warehouseId);
                 });
         })
-        ->with([
-            'item:id,name,code,erp_code',
-            'item.latestPricing' => function ($q) {
-                $q->select(
-                    'pricing_details.item_id',
-                    'pricing_details.buom_ctn_price',
-                    'pricing_details.auom_pc_price'
-                );
-            },
-            'uom:id,name'
-        ])
-        ->select(
-            'id',
-            'item_id',
-            'name',
-            'uom_type',
-            'upc',
-            'price',
-            'uom_id'
-        )
-        ->orderBy('item_id')
-        ->get();
+            ->with([
+                'item:id,name,code,erp_code',
+                'item.latestPricing' => function ($q) {
+                    $q->select(
+                        'pricing_details.item_id',
+                        'pricing_details.buom_pc_price',
+                        'pricing_details.auom_ctn_price'
+                    );
+                },
+                'uom:id,name'
+            ])
+            ->select(
+                'id',
+                'item_id',
+                'name',
+                'uom_type',
+                'upc',
+                'price',
+                'uom_id'
+            )
+            ->orderBy('item_id')
+            ->get();
+        $stocks = $uoms
+            ->groupBy('item_id')
+            ->map(function ($group) {
+                $item    = $group->first()->item;
+                $pricing = $item->latestPricing;
+                return [
+                    'item_id'   => $item->id,
+                    'item_name' => $item->name,
+                    'item_code' => $item->code,
+                    'erp_code'  => $item->erp_code,
+                    'buom_pc_price' => optional($pricing)->buom_pc_price,
+                    'auom_ctn_price'  => optional($pricing)->auom_ctn_price,
+                    'uoms' => $group->map(function ($uom) {
+                        return [
+                            'id'       => $uom->id,
+                            'item_id'  => $uom->item_id,
+                            'name'     => $uom->name,
+                            'uom_type' => $uom->uom_type,
+                            'upc'      => $uom->upc,
+                            'price'    => $uom->price,
+                            'uom_id'   => $uom->uom_id,
+                            'uom_name' => $uom->uom->name ?? '',
+                        ];
+                    })->values(),
+                ];
+            })
+            ->values();
+        return response()->json([
+            'status'       => 'success',
+            'code'         => 200,
+            'warehouse_id' => (string) $warehouseId,
+            'total_items'  => $stocks->count(),
+            'stocks'       => $stocks,
+        ]);
+    }
+    public function overallStockHealth(Request $request)
+    {
+        $request->validate([
+            'range'    => 'nullable|in:today,yesterday,3days,7days,lastmonth',
+            'item_id'  => 'nullable|integer',
+            'search'   => 'nullable|string',
+            'per_page' => 'nullable|integer|min:1|max:1000'
+        ]);
+        $filters = [
+            'item_id'  => $request->item_id,
+            'search'   => $request->search,
+            'per_page' => $request->per_page ?? 50
+        ];
+        $data = $this->service->getOverallStockHealthWithPurchase(
+            $request->range,
+            $filters
+        );
+        return response()->json([
+            "status"  => true,
+            "message" => "Overall stock health fetched successfully",
+            "data"    => $data
+        ], 200);
+    }
 
-    $stocks = $uoms
-        ->groupBy('item_id')
-        ->map(function ($group) {
-            $item    = $group->first()->item;
-            $pricing = $item->latestPricing;
+    public function overallWarehouseSummary(Request $request)
+    {
+        $days = $request->days;
 
-            return [
-                'item_id'   => $item->id,
-                'item_name' => $item->name,
-                'item_code' => $item->code,
-                'erp_code'  => $item->erp_code,
-                'buom_ctn_price' => optional($pricing)->buom_ctn_price,
-                'auom_pc_price'  => optional($pricing)->auom_pc_price,
-                'uoms' => $group->map(function ($uom) {
-                    return [
-                        'id'       => $uom->id,
-                        'item_id'  => $uom->item_id,
-                        'name'     => $uom->name,
-                        'uom_type' => $uom->uom_type,
-                        'upc'      => $uom->upc,
-                        'price'    => $uom->price,
-                        'uom_id'   => $uom->uom_id,
-                        'uom_name' => $uom->uom->name ?? '',
-                    ];
-                })->values(),
-            ];
-        })
-        ->values();
+        $totalValuation = $this->service->getOverallWarehouseValuation();
+        $loadedStock    = $this->service->getOverallLoadedStockDetails();
+        $salesData      = $this->service->getOverallSalesValuation($days);
 
-    return response()->json([
-        'status'       => 'success',
-        'code'         => 200,
-        'warehouse_id' => (string) $warehouseId,
-        'total_items'  => $stocks->count(),
-        'stocks'       => $stocks,
-    ]);
-}
+        return response()->json([
+            'status' => 'success',
+            'code' => 200,
+            'message' => 'Overall warehouse summary fetched successfully',
 
+            'total_warehouse_valuation' => $totalValuation,
+            'today_loaded_qty' => $loadedStock['total_loaded_qty'],
+            'loaded_stock_details' => $loadedStock['details'],
+
+            'sales_total_valuation' => $salesData['total_valuation'],
+            'sales_details' => $salesData['details'],
+            'sales_days_filter' => $days ?? 'all',
+        ]);
+    }
 }

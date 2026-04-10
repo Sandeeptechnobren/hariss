@@ -93,7 +93,7 @@ public function list(int $perPage = 50)
     {
         return strtolower($status) === 'active' ? '1' : '0';
     }
-    public function globalSearch(?string $searchTerm = null, int $perPage = 50)
+public function globalSearch(?string $searchTerm = null, int $perPage = 50)
     {
         $query = Survey::query()
             ->with([

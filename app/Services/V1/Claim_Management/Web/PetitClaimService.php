@@ -128,7 +128,11 @@ class PetitClaimService
         $query = PetitClaim::query();
 
         if (!empty($filters['warehouse_id'])) {
-            $query->where('warehouse_id', $filters['warehouse_id']);
+            $warehouseIds = is_array($filters['warehouse_id'])
+                ? $filters['warehouse_id']
+                : explode(',', $filters['warehouse_id']);
+
+            $query->whereIn('warehouse_id', $warehouseIds);
         }
 
         if (!empty($filters['claim_type'])) {
@@ -157,6 +161,24 @@ class PetitClaimService
     }
 
 
+    public function getByUuid(string $uuid)
+    {
+        try {
+            $claim = PetitClaim::where('uuid', $uuid)->first();
+
+            if (!$claim) {
+                throw new ModelNotFoundException("Petit claim not found for UUID: {$uuid}");
+            }
+
+            return $claim;
+        } catch (ModelNotFoundException $e) {
+            // specific not found error
+            throw $e;
+        } catch (Exception $e) {
+            // generic error
+            throw new Exception("Failed to fetch petit claim", 500);
+        }
+    }
     public function globalFilter(int $perPage = 50, array $filters = [])
     {
         $user = auth()->user();

@@ -480,12 +480,8 @@ class OrderController extends Controller
         $fromDate = $filters['from_date'] ?? null;
         $toDate   = $filters['to_date'] ?? null;
 
-        // Route & Salesman (array safe)
-        // $routeIds    = $filters['route_id'] ?? [];
-        // $salesmanIds = $filters['salesman_id'] ?? [];
         $routeIds    = CommonLocationFilter::normalizeIds($filters['route_id'] ?? []);
         $salesmanIds = CommonLocationFilter::normalizeIds($filters['salesman_id'] ?? []);
-        // 🔥 SAME LOCATION HELPER
         $warehouseIds = CommonLocationFilter::resolveWarehouseIds($filters);
 
         $export = new OrderHeaderFullExport(

@@ -185,7 +185,7 @@ class CompanyCustomerService
         try {
             $user = auth()->user();
             if ($dropdown) {
-                return CompanyCustomer::select(['id', 'business_name', 'osa_code'])
+                return CompanyCustomer::select(['id', 'uuid', 'business_name', 'osa_code'])
                     ->when(!empty($filters['region_id']), fn($q) => $q->where('region_id', $filters['region_id']))
                     ->when(!empty($filters['status']), fn($q) => $q->where('status', $filters['status']))
                     ->orderBy('id', 'desc')
@@ -250,7 +250,7 @@ class CompanyCustomerService
             throw new \Exception("Failed to fetch company customers: " . $e->getMessage());
         }
     }
-    public function globalSearch(?string $search)
+public function globalSearch(?string $search)
     {
         $query = CompanyCustomer::query()
             ->with(['getRegion', 'getArea', 'getOutletChannel', 'companyType', 'country']);
@@ -304,21 +304,89 @@ class CompanyCustomerService
 
         return $query->latest()->paginate(50);
     }
-    public function getByCustomerType(int $customerType, int $perPage = 50)
-    {
-        try {
-            return CompanyCustomer::where('customer_type', $customerType)
-                ->where('status', 1)                     // Only active customers
-                ->orderBy('id')
-                ->paginate($perPage);
-        } catch (Throwable $e) {
+// public function getByCustomerType(int $customerType, int $perPage = 50)
+//     {
+//         try {
+//             return CompanyCustomer::where('customer_type', $customerType)
+//                 ->where('status', 1)
+//                 ->orderBy('id')
+//                 ->paginate($perPage);
+//         } catch (Throwable $e) {
 
-            Log::error('Customer fetch failed', [
-                'customer_type' => $customerType,
-                'error'         => $e->getMessage(),
-            ]);
+//             Log::error('Customer fetch failed', [
+//                 'customer_type' => $customerType,
+//                 'error'         => $e->getMessage(),
+//             ]);
 
-            throw new \Exception('Failed to fetch customers', 0, $e);
+//             throw new \Exception('Failed to fetch customers', 0, $e);
+//         }
+//     }
+
+public function getByCustomerType(int $customerType, ?string $search, int $perPage = 50)
+{
+    try {
+        $query = CompanyCustomer::query()
+            ->with(['getRegion', 'getArea', 'getOutletChannel', 'companyType', 'country'])
+            ->where('customer_type', $customerType)
+            ->where('status', 1);
+
+        if (!empty($search)) {
+            $query->where(function ($q) use ($search) {
+
+                $q->where(function ($q2) use ($search) {
+                    $q2->where('osa_code', 'ILIKE', "%{$search}%")
+                        ->orWhere('sap_code', 'ILIKE', "%{$search}%")
+                        ->orWhere('business_name', 'ILIKE', "%{$search}%")
+                        ->orWhere('language', 'ILIKE', "%{$search}%")
+                        ->orWhere('town', 'ILIKE', "%{$search}%")
+                        ->orWhere('landmark', 'ILIKE', "%{$search}%")
+                        ->orWhere('district', 'ILIKE', "%{$search}%")
+                        ->orWhere('payment_type', 'ILIKE', "%{$search}%")
+                        ->orWhere('tin_no', 'ILIKE', "%{$search}%")
+                        ->orWhere('bank_guarantee_name', 'ILIKE', "%{$search}%")
+                        ->orWhere('bank_guarantee_from', 'ILIKE', "%{$search}%")
+                        ->orWhere('bank_guarantee_to', 'ILIKE', "%{$search}%")
+                        ->orWhere('contact_number', 'ILIKE', "%{$search}%")
+                        ->orWhereRaw('creditday::text ILIKE ?', ["%{$search}%"])
+                        ->orWhereRaw('creditlimit::text ILIKE ?', ["%{$search}%"])
+                        ->orWhereRaw('totalcreditlimit::text ILIKE ?', ["%{$search}%"])
+                        ->orWhereRaw('status::text ILIKE ?', ["%{$search}%"])
+                        ->orWhereRaw('distribution_channel_id::text ILIKE ?', ["%{$search}%"]);
+                });
+
+                $q->orWhereHas('getRegion', function ($rq) use ($search) {
+                    $rq->where('region_name', 'ILIKE', "%{$search}%")
+                        ->orWhere('region_code', 'ILIKE', "%{$search}%");
+                });
+
+                $q->orWhereHas('getArea', function ($aq) use ($search) {
+                    $aq->where('area_name', 'ILIKE', "%{$search}%")
+                        ->orWhere('area_code', 'ILIKE', "%{$search}%");
+                });
+
+                $q->orWhereHas('getOutletChannel', function ($cq) use ($search) {
+                    $cq->where('outlet_channel_code', 'ILIKE', "%{$search}%")
+                        ->orWhere('outlet_channel', 'ILIKE', "%{$search}%");
+                });
+
+                $q->orWhereHas('companyType', function ($ctq) use ($search) {
+                    $ctq->where('code', 'ILIKE', "%{$search}%")
+                        ->orWhere('name', 'ILIKE', "%{$search}%");
+                });
+            });
         }
+
+        return $query->latest()->paginate($perPage);
+
+    } catch (Throwable $e) {
+
+        Log::error('Customer fetch failed', [
+            'customer_type' => $customerType,
+            'search'        => $search,
+            'error'         => $e->getMessage(),
+        ]);
+
+        throw new \Exception('Failed to fetch customers', 0, $e);
     }
+}
 }

@@ -4458,24 +4458,23 @@
                 }
             }
         },
-        "/mob/master_mob/new_customers/edit/{uuid}": {
+        "/mob/master_mob/new_customers/edit/{id}": {
             "put": {
                 "tags": [
                     "New Customer Mob"
                 ],
-                "summary": "Update customer by UUID",
-                "description": "Updates customer details using customer UUID. Only provided fields will be updated.",
-                "operationId": "ba46ac22a8d40a964e1ff0f820fcae60",
+                "summary": "Update customer by ID",
+                "description": "Updates customer details using customer ID. Only provided fields will be updated.",
+                "operationId": "117be96cf769bdaaba9b7dc146b402ae",
                 "parameters": [
                     {
-                        "name": "uuid",
+                        "name": "id",
                         "in": "path",
-                        "description": "Customer UUID",
+                        "description": "Customer ID",
                         "required": true,
                         "schema": {
-                            "type": "string",
-                            "format": "uuid",
-                            "example": "9d1f8c12-9f22-4e91-b99f-8899abcd1234"
+                            "type": "integer",
+                            "example": 101
                         }
                     }
                 ],
@@ -8311,16 +8310,35 @@
             }
         },
         "/mob/technician_mob/asset-tracking/asm-details": {
-            "get": {
+            "post": {
                 "tags": [
                     "Assets Tracking"
                 ],
-                "summary": "Get ASM details dropdown",
-                "description": "Fetch ASM details, dump response into a text file, store it, and return file path",
+                "summary": "Get ASM details dropdown based on warehouse",
+                "description": "Fetch ASM details based on warehouse_id, dump response into a text file, store it, and return file path",
                 "operationId": "getAsmDetails",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "warehouse_id"
+                                ],
+                                "properties": {
+                                    "warehouse_id": {
+                                        "type": "integer",
+                                        "example": 5
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
                 "responses": {
                     "200": {
-                        "description": "Model numbers fetched and file created successfully",
+                        "description": "ASM details file generated successfully",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -8331,17 +8349,20 @@
                                         },
                                         "file_path": {
                                             "type": "string",
-                                            "example": "/var/www/project/storage/app/model_number/model_numbers_20260102_153000.txt"
+                                            "example": "storage/asm_details/asm_details_20260102_153000.txt"
                                         },
                                         "message": {
                                             "type": "string",
-                                            "example": "Model numbers file generated successfully"
+                                            "example": "ASM details file generated successfully"
                                         }
                                     },
                                     "type": "object"
                                 }
                             }
                         }
+                    },
+                    "404": {
+                        "description": "Warehouse not found"
                     },
                     "500": {
                         "description": "Internal server error"
@@ -8834,6 +8855,10 @@
                                         "maxLength": 255
                                     },
                                     "outlet_weekly_sale_volume": {
+                                        "type": "string",
+                                        "maxLength": 20
+                                    },
+                                    "outlet_weekly_sale_volume_current": {
                                         "type": "string",
                                         "maxLength": 20
                                     },
@@ -12769,8 +12794,8 @@
                 "tags": [
                     "Salesman Authentication"
                 ],
-                "summary": "Get Discount & Promotion master files by warehouse",
-                "description": "Fetch discount and promotion master data based on warehouse_id, dump response into txt files and return file paths",
+                "summary": "Get Promotion & Delivery master files by warehouse and route",
+                "description": "Fetch promotion and delivery master data based on warehouse_id and route_id, dump response into txt files and return file paths",
                 "operationId": "0903b5b6689e3b355f1722a230944439",
                 "requestBody": {
                     "required": true,
@@ -12785,6 +12810,11 @@
                                         "description": "Warehouse ID",
                                         "type": "integer",
                                         "example": 3
+                                    },
+                                    "route_id": {
+                                        "description": "Route ID for delivery data",
+                                        "type": "integer",
+                                        "example": 10
                                     }
                                 },
                                 "type": "object"
@@ -12805,13 +12835,13 @@
                                         },
                                         "files": {
                                             "properties": {
-                                                "discount_file_url": {
-                                                    "type": "string",
-                                                    "example": "/storage/salesman_files/discount_master_20260128_121530.txt"
-                                                },
                                                 "promotion_file_url": {
                                                     "type": "string",
                                                     "example": "/storage/salesman_files/promotion_master_20260128_121530.txt"
+                                                },
+                                                "delivery_file_url": {
+                                                    "type": "string",
+                                                    "example": "/storage/salesman_files/delivery_master_20260128_121530.txt"
                                                 }
                                             },
                                             "type": "object"
@@ -24693,6 +24723,19 @@
                                     "image_1"
                                 ],
                                 "properties": {
+                                    "code": {
+                                        "type": "string",
+                                        "example": "CAMPIN-001"
+                                    },
+                                    "name": {
+                                        "type": "string",
+                                        "example": "demo campaign"
+                                    },
+                                    "date_time": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "example": "2025-10-10T14:00:00Z"
+                                    },
                                     "merchandiser_id": {
                                         "type": "integer",
                                         "example": 101
@@ -25205,6 +25248,11 @@
                                         "description": "(Optional) After image of the shelf",
                                         "type": "string",
                                         "format": "binary"
+                                    },
+                                    "feedback": {
+                                        "description": "(Optional) Feedback about the shelf",
+                                        "type": "string",
+                                        "example": "shelf was empty, needs restocking"
                                     }
                                 },
                                 "type": "object"
@@ -25629,59 +25677,157 @@
                 ]
             }
         },
-        "/mob/merchendisher_mob/shelf/damage-create": {
+        "/mob/merchendisher_mob/shelf/store_all": {
             "post": {
                 "tags": [
                     "Shelf Mob"
                 ],
-                "summary": "Create damage stock entry",
-                "description": "Creates a new damage stock record",
-                "operationId": "88703633bbf28e75ee2f74aa631f7194",
+                "summary": "Store damage, expiry and view stock together",
+                "description": "Creates damage, expiry and view stock in single API (bulk supported)",
+                "operationId": "storeShelfData",
                 "requestBody": {
                     "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
-                                "required": [
-                                    "date",
-                                    "merchandisher_id",
-                                    "customer_id",
-                                    "item_id",
-                                    "shelf_id"
-                                ],
                                 "properties": {
-                                    "date": {
-                                        "type": "string",
-                                        "format": "date",
-                                        "example": "2025-01-10"
+                                    "damage": {
+                                        "type": "array",
+                                        "items": {
+                                            "required": [
+                                                "merchandisher_id",
+                                                "customer_id",
+                                                "item_id",
+                                                "shelf_id"
+                                            ],
+                                            "properties": {
+                                                "date": {
+                                                    "type": "string",
+                                                    "format": "date",
+                                                    "example": "2025-01-10"
+                                                },
+                                                "merchandisher_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "customer_id": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                },
+                                                "item_id": {
+                                                    "type": "integer",
+                                                    "example": 20
+                                                },
+                                                "damage_qty": {
+                                                    "type": "integer",
+                                                    "example": 2
+                                                },
+                                                "expiry_qty": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "salable_qty": {
+                                                    "type": "integer",
+                                                    "example": 10
+                                                },
+                                                "shelf_id": {
+                                                    "type": "integer",
+                                                    "example": 3
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
                                     },
-                                    "merchandisher_id": {
-                                        "type": "integer",
-                                        "example": 1
+                                    "expiry": {
+                                        "type": "array",
+                                        "items": {
+                                            "required": [
+                                                "merchandisher_id",
+                                                "customer_id",
+                                                "item_id",
+                                                "shelf_id"
+                                            ],
+                                            "properties": {
+                                                "date": {
+                                                    "type": "string",
+                                                    "format": "date",
+                                                    "example": "2025-01-10"
+                                                },
+                                                "merchandisher_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "customer_id": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                },
+                                                "item_id": {
+                                                    "type": "integer",
+                                                    "example": 20
+                                                },
+                                                "qty": {
+                                                    "type": "integer",
+                                                    "example": 2
+                                                },
+                                                "expiry_date": {
+                                                    "type": "string",
+                                                    "format": "date",
+                                                    "example": "2025-02-01"
+                                                },
+                                                "shelf_id": {
+                                                    "type": "integer",
+                                                    "example": 3
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
                                     },
-                                    "customer_id": {
-                                        "type": "integer",
-                                        "example": 5
-                                    },
-                                    "item_id": {
-                                        "type": "integer",
-                                        "example": 20
-                                    },
-                                    "damage_qty": {
-                                        "type": "integer",
-                                        "example": 2
-                                    },
-                                    "expiry_qty": {
-                                        "type": "integer",
-                                        "example": 1
-                                    },
-                                    "salable_qty": {
-                                        "type": "integer",
-                                        "example": 10
-                                    },
-                                    "shelf_id": {
-                                        "type": "integer",
-                                        "example": 3
+                                    "view_stock": {
+                                        "type": "array",
+                                        "items": {
+                                            "required": [
+                                                "merchandisher_id",
+                                                "customer_id",
+                                                "item_id",
+                                                "shelf_id"
+                                            ],
+                                            "properties": {
+                                                "date": {
+                                                    "type": "string",
+                                                    "format": "date",
+                                                    "example": "2025-01-10"
+                                                },
+                                                "merchandisher_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "customer_id": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                },
+                                                "item_id": {
+                                                    "type": "integer",
+                                                    "example": 20
+                                                },
+                                                "capacity": {
+                                                    "type": "integer",
+                                                    "example": 12
+                                                },
+                                                "good_salable": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                },
+                                                "out_of_stock": {
+                                                    "type": "boolean",
+                                                    "example": false
+                                                },
+                                                "shelf_id": {
+                                                    "type": "integer",
+                                                    "example": 3
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
                                     }
                                 },
                                 "type": "object"
@@ -25691,7 +25837,7 @@
                 },
                 "responses": {
                     "201": {
-                        "description": "Damage stock created successfully",
+                        "description": "Stock created successfully",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -25702,10 +25848,34 @@
                                         },
                                         "message": {
                                             "type": "string",
-                                            "example": "Damage stock created successfully"
+                                            "example": "Stock created successfully"
                                         },
                                         "data": {
-                                            "type": "object"
+                                            "type": "object",
+                                            "example": {
+                                                "damage": [
+                                                    {
+                                                        "id": 1,
+                                                        "item_id": 20
+                                                    },
+                                                    {
+                                                        "id": 2,
+                                                        "item_id": 21
+                                                    }
+                                                ],
+                                                "expiry": [
+                                                    {
+                                                        "id": 3,
+                                                        "item_id": 20
+                                                    }
+                                                ],
+                                                "view_stock": [
+                                                    {
+                                                        "id": 4,
+                                                        "item_id": 20
+                                                    }
+                                                ]
+                                            }
                                         }
                                     },
                                     "type": "object"
@@ -25715,183 +25885,9 @@
                     },
                     "422": {
                         "description": "Validation error"
-                    }
-                }
-            }
-        },
-        "/mob/merchendisher_mob/shelf/expiry-create": {
-            "post": {
-                "tags": [
-                    "Shelf Mob"
-                ],
-                "summary": "Create expiry stock entry",
-                "description": "Creates a new expiry stock record",
-                "operationId": "7702ba50a7fece0137f385d88a5e5792",
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "required": [
-                                    "date",
-                                    "merchandisher_id",
-                                    "customer_id",
-                                    "item_id",
-                                    "shelf_id"
-                                ],
-                                "properties": {
-                                    "date": {
-                                        "type": "string",
-                                        "format": "date",
-                                        "example": "2025-01-10"
-                                    },
-                                    "merchandisher_id": {
-                                        "type": "integer",
-                                        "example": 1
-                                    },
-                                    "customer_id": {
-                                        "type": "integer",
-                                        "example": 5
-                                    },
-                                    "item_id": {
-                                        "type": "integer",
-                                        "example": 20
-                                    },
-                                    "qty": {
-                                        "type": "numeric",
-                                        "example": 2
-                                    },
-                                    "expiry_date": {
-                                        "type": "string",
-                                        "format": "date",
-                                        "example": "2025-01-10"
-                                    },
-                                    "shelf_id": {
-                                        "type": "integer",
-                                        "example": 3
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "201": {
-                        "description": "Damage stock created successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "status": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Damage stock created successfully"
-                                        },
-                                        "data": {
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
                     },
-                    "422": {
-                        "description": "Validation error"
-                    }
-                }
-            }
-        },
-        "/mob/merchendisher_mob/shelf/view-stock": {
-            "post": {
-                "tags": [
-                    "Shelf Mob"
-                ],
-                "summary": "Create view stock entry",
-                "description": "Creates a new view stock record",
-                "operationId": "58ed749d8d8603777727e857bb145287",
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "required": [
-                                    "date",
-                                    "merchandisher_id",
-                                    "customer_id",
-                                    "item_id",
-                                    "shelf_id"
-                                ],
-                                "properties": {
-                                    "date": {
-                                        "type": "string",
-                                        "format": "date",
-                                        "example": "2025-01-10"
-                                    },
-                                    "merchandisher_id": {
-                                        "type": "integer",
-                                        "example": 1
-                                    },
-                                    "customer_id": {
-                                        "type": "integer",
-                                        "example": 5
-                                    },
-                                    "item_id": {
-                                        "type": "integer",
-                                        "example": 20
-                                    },
-                                    "capacity": {
-                                        "type": "numeric",
-                                        "example": 12
-                                    },
-                                    "good_salable": {
-                                        "type": "numeric",
-                                        "example": 2
-                                    },
-                                    "out_of_stock": {
-                                        "type": "boolean",
-                                        "example": 0
-                                    },
-                                    "shelf_id": {
-                                        "type": "integer",
-                                        "example": 3
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "201": {
-                        "description": "Damage stock created successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "status": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Damage stock created successfully"
-                                        },
-                                        "data": {
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "Validation error"
+                    "500": {
+                        "description": "Internal server error"
                     }
                 }
             }
@@ -26787,10 +26783,10 @@
         "/mob/merchendisher_mob/survey-header/add": {
             "post": {
                 "tags": [
-                    "Survey Headers"
+                    "Survey Headers Mob"
                 ],
-                "summary": "Create a new survey header",
-                "description": "Adds a new survey header entry with merchandiser and survey details.",
+                "summary": "Create survey header with details",
+                "description": "Creates survey header along with multiple survey detail answers.",
                 "operationId": "65ba98185fb298b133b6b6bebf0597bc",
                 "requestBody": {
                     "required": true,
@@ -26801,7 +26797,7 @@
                                     "merchandiser_id",
                                     "survey_id",
                                     "date",
-                                    "answerer_name"
+                                    "details"
                                 ],
                                 "properties": {
                                     "merchandiser_id": {
@@ -26827,7 +26823,26 @@
                                     },
                                     "phone": {
                                         "type": "string",
-                                        "example": "1234567890"
+                                        "example": "9876543210"
+                                    },
+                                    "details": {
+                                        "type": "array",
+                                        "items": {
+                                            "required": [
+                                                "question_id"
+                                            ],
+                                            "properties": {
+                                                "question_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "answer": {
+                                                    "type": "string",
+                                                    "example": "Yes"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
                                     }
                                 },
                                 "type": "object"
@@ -26837,24 +26852,32 @@
                 },
                 "responses": {
                     "201": {
-                        "description": "Survey header created successfully",
+                        "description": "Survey created successfully",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
-                                        "success": {
+                                        "status": {
                                             "type": "boolean",
                                             "example": true
                                         },
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 201
+                                        },
                                         "message": {
                                             "type": "string",
-                                            "example": "Survey header created successfully"
+                                            "example": "Survey created successfully"
                                         },
                                         "data": {
                                             "properties": {
                                                 "id": {
                                                     "type": "integer",
                                                     "example": 1
+                                                },
+                                                "uuid": {
+                                                    "type": "string",
+                                                    "example": "550e8400-e29b-41d4-a716-446655440000"
                                                 },
                                                 "merchandiser": {
                                                     "properties": {
@@ -26889,23 +26912,27 @@
                                                 },
                                                 "phone": {
                                                     "type": "string",
-                                                    "example": "1234567890"
+                                                    "example": "9876543210"
                                                 },
-                                                "uuid": {
-                                                    "type": "string",
-                                                    "example": "550e8400-e29b-41d4-a716-446655440000"
-                                                },
-                                                "created_user": {
-                                                    "type": "integer",
-                                                    "example": 1
-                                                },
-                                                "updated_user": {
-                                                    "type": "integer",
-                                                    "example": 2
-                                                },
-                                                "deleted_user": {
-                                                    "type": "integer",
-                                                    "example": null
+                                                "details": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            },
+                                                            "question_id": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            },
+                                                            "answer": {
+                                                                "type": "string",
+                                                                "example": "Yes"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
                                                 },
                                                 "created_at": {
                                                     "type": "string",
@@ -26916,11 +26943,6 @@
                                                     "type": "string",
                                                     "format": "date-time",
                                                     "example": "2025-09-27T04:00:00Z"
-                                                },
-                                                "deleted_at": {
-                                                    "type": "string",
-                                                    "format": "date-time",
-                                                    "example": null
                                                 }
                                             },
                                             "type": "object"
@@ -26937,7 +26959,7 @@
                             "application/json": {
                                 "schema": {
                                     "properties": {
-                                        "success": {
+                                        "status": {
                                             "type": "boolean",
                                             "example": false
                                         },
@@ -26957,12 +26979,7 @@
                     "401": {
                         "description": "Unauthorized"
                     }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
+                }
             }
         },
         "/mob/merchendisher_mob/survey-header/{id}": {
@@ -27332,6 +27349,144 @@
                         "bearerAuth": []
                     }
                 ]
+            }
+        },
+        "/mob/merchendisher_mob/survey-header/list/{id}": {
+            "get": {
+                "tags": [
+                    "Survey Headers Mob"
+                ],
+                "summary": "Get surveys by merchandiser/salesman",
+                "operationId": "5255ea64a225779b3cc26ce01f5361fe",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Merchandiser (Salesman) ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 10
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Survey data fetched successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Survey data fetched successfully"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "merchandiser_id": {
+                                                        "type": "integer",
+                                                        "example": 10
+                                                    },
+                                                    "survey_name": {
+                                                        "type": "string",
+                                                        "example": "Outlet Survey"
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "example": "active"
+                                                    },
+                                                    "created_at": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "example": "2025-01-01 10:00:00"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid merchandiser id",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Invalid merchandiser id"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No survey data found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "No survey data found"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Something went wrong",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Something went wrong"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
             }
         },
         "/web/merchendisher_web/asign-inventory/list": {
@@ -28280,6 +28435,10 @@
                                     "notes"
                                 ],
                                 "properties": {
+                                    "code": {
+                                        "type": "string",
+                                        "example": "COMP-001"
+                                    },
                                     "company_name": {
                                         "type": "string",
                                         "example": "Nestlé"
@@ -32998,6 +33157,218 @@
                         "bearerAuth": []
                     }
                 ]
+            }
+        },
+        "/mob/merchendisher_mob/stock-post/create": {
+            "post": {
+                "tags": [
+                    "Stock Post"
+                ],
+                "summary": "Create multiple Stock Posts",
+                "operationId": "7130d34b57a38e358c43880341edbfed",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "stocks"
+                                ],
+                                "properties": {
+                                    "stocks": {
+                                        "type": "array",
+                                        "items": {
+                                            "properties": {
+                                                "stock_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "date": {
+                                                    "type": "string",
+                                                    "format": "date",
+                                                    "example": "2026-03-30"
+                                                },
+                                                "salesman_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "customer_id": {
+                                                    "type": "integer",
+                                                    "example": 2
+                                                },
+                                                "item_id": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                },
+                                                "refill_qty": {
+                                                    "type": "integer",
+                                                    "example": 10
+                                                },
+                                                "out_of_stock": {
+                                                    "type": "boolean",
+                                                    "example": false
+                                                },
+                                                "fill_qty": {
+                                                    "type": "integer",
+                                                    "example": 8
+                                                },
+                                                "good_salabale": {
+                                                    "type": "integer",
+                                                    "example": 7
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Stocks created successfully"
+                    }
+                }
+            }
+        },
+        "/mob/merchendisher_mob/stock-post/stock-list": {
+            "post": {
+                "tags": [
+                    "Stock Post"
+                ],
+                "summary": "Get Stock by Merchandiser",
+                "description": "Fetch stock data based on merchandiser_id by mapping customers and assigned stock",
+                "operationId": "getStockByMerchandiser",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "merchandiser_id"
+                                ],
+                                "properties": {
+                                    "merchandiser_id": {
+                                        "type": "integer",
+                                        "example": 6
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Stock fetched successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Stock fetched successfully"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "item_id": {
+                                                        "type": "integer",
+                                                        "example": 10
+                                                    },
+                                                    "assign_customers": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "integer",
+                                                            "example": 393209
+                                                        }
+                                                    },
+                                                    "stock_qty": {
+                                                        "type": "integer",
+                                                        "example": 50
+                                                    },
+                                                    "created_at": {
+                                                        "type": "string",
+                                                        "example": "2026-03-30 10:00:00"
+                                                    },
+                                                    "updated_at": {
+                                                        "type": "string",
+                                                        "example": "2026-03-30 10:00:00"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Validation error"
+                                        },
+                                        "errors": {
+                                            "type": "object",
+                                            "example": {
+                                                "merchandiser_id": [
+                                                    "The merchandiser id field is required."
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to fetch stock",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Failed to fetch stock"
+                                        },
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Something went wrong"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/merchendisher/survey/list": {
@@ -42503,7 +42874,7 @@
                 ],
                 "summary": "Export warehouse stock data (XLSX or CSV)",
                 "description": "Exports warehouse stock records with optional date filtering. Returns a downloadable file URL.",
-                "operationId": "7e337bedd4c15ac5de6675b44c32f202",
+                "operationId": "1e5cb8e2e706c2dfdc1d3708c18c7502",
                 "parameters": [
                     {
                         "name": "format",
@@ -42792,6 +43163,10 @@
                         "example": "2"
                     },
                     "outlet_weekly_sale_volume": {
+                        "type": "string",
+                        "example": "1500"
+                    },
+                    "outlet_weekly_sale_volume_current": {
                         "type": "string",
                         "example": "1500"
                     },
@@ -45704,6 +46079,10 @@
             "description": "Survey Headers"
         },
         {
+            "name": "Survey Headers Mob",
+            "description": "Survey Headers Mob"
+        },
+        {
             "name": "AssignInventory",
             "description": "AssignInventory"
         },
@@ -45734,6 +46113,10 @@
         {
             "name": "Shelf Items",
             "description": "Shelf Items"
+        },
+        {
+            "name": "Stock Post",
+            "description": "Stock Post"
         },
         {
             "name": "Survey Questions",

@@ -1,220 +1,204 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
+
 <head>
     <meta charset="UTF-8">
-    <title>Return #{{ $return->uuid }}</title>
-
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: Arial, sans-serif;
-            background: #f3f4f6;
-            color: #333;
-            padding: 30px;
-        }
-
-        .invoice-container {
-            background: #fff;
-            margin: auto;
-            border: 1px solid #e5e7eb;
-            border-radius: 10px;
-        }
-
-        /* ================= HEADER ================= */
-        header {
-            padding: 20px;
-            border-bottom: 1px solid #dcdcdc;
-        }
-
-        .invoice-title {
-            text-align: right;
-        }
-
-        .invoice-title h2 {
-            font-size: 22px;
-            margin-bottom: 5px;
-        }
-
-        .invoice-title span {
-            font-size: 12px;
-            color: #555;
-        }
-
-        /* ================= ADDRESS ================= */
-        .address-section {
-            display: table;
-            width: 95%;
-            margin: 20px auto;
-            border-spacing: 15px 0;
-        }
-
-        .address-box {
-            display: table-cell;
-            width: 50%;
-            padding: 15px;
-            background: #fafafa;
-            border: 1px solid #e2e2e2;
-            vertical-align: top;
-            border-radius: 6px;
-        }
-
-        .address-box h4 {
-            font-size: 14px;
-            margin-bottom: 8px;
-        }
-
-        .address-box p {
-            font-size: 12px;
-            line-height: 1.4;
-        }
-
-        /* ================= TABLE ================= */
-        .table-box {
-            width: 95%;
-            margin: 0 auto 20px;
-            border: 1px solid #cfcfcf;
-            border-radius: 10px;
-            overflow: hidden;
-        }
-
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .data-table th {
-            background: #f0f0f0;
-            font-size: 11px;
-            padding: 6px;
-            border: 1px solid #d0d0d0;
-            text-align: center;
-        }
-
-        .data-table td {
-            font-size: 11px;
-            padding: 6px;
-            border: 1px solid #e0e0e0;
-            text-align: center;
-            white-space: normal;
-            vertical-align: middle;
-        }
-
-        /* Column width control (PDF safe) */
-        .data-table th:nth-child(7),
-        .data-table td:nth-child(7) {
-            width: 70px;
-        }
-
-        .data-table th:nth-child(8),
-        .data-table td:nth-child(8) {
-            width: 80px;
-        }
-
-        .return-reason {
-            line-height: 1.2;
-        }
-    </style>
+    <title>RETURN #{{ $return->uuid }}</title>
 </head>
 
-<body>
+<body style="font-family: Arial, Helvetica, sans-serif; font-size:14px;">
 
-<div class="invoice-container">
+    <!-- Header -->
+    <table width="100%" cellpadding="8" cellspacing="0"
+        style="border-collapse:collapse; border:1px solid #000;">
+        <tr>
+            <td style="border:1px solid #000; text-align:center; color:red; font-size:22px; font-weight:bold;">
+                RETURN
+                <div style="font-size:14px; margin-top:4px; color:black;">
+                    {{ $return->osa_code }}
+                </div>
+            </td>
+        </tr>
+    </table>
 
-    <!-- HEADER -->
-    <header>
-        <div class="invoice-title">
-            <h2>RETURN</h2>
-            <span>{{ $return->osa_code }}</span>
-        </div>
-    </header>
+    <!-- Seller Details -->
+    <table width="100%" cellpadding="2" cellspacing="0"
+        style="border-collapse:collapse; border:1px solid #000;">
+        <tr>
+            <th colspan="2" style="border:1px solid #000; text-align:center;">
+                Seller's Detail
+            </th>
+        </tr>
+        <tr>
+            <td style="border:1px solid #000; width:30%;">TIN No:</td>
+            <td style="border:1px solid #000;">{{ $return->warehouse->tin_no ?? '' }}</td>
+        </tr>
+        <tr>
+            <td style="border:1px solid #000;">Agent Name:</td>
+            <td style="border:1px solid #000;">
+                {{ $return->warehouse->warehouse_name ?? '' }}
+            </td>
+        </tr>
+        <tr>
+            <td style="border:1px solid #000;">Contact No:</td>
+            <td style="border:1px solid #000;">
+                {{ $return->warehouse->warehouse_manager_contact ?? '' }}
+            </td>
+        </tr>
+        <tr>
+            <td style="border:1px solid #000;">Address:</td>
+            <td style="border:1px solid #000;">
+                {{ $return->warehouse->city ?? '' }}
+            </td>
+        </tr>
+    </table>
 
-    <!-- ADDRESS -->
-    <div class="address-section">
-        <div class="address-box">
-            <h4>Seller</h4>
-            <p>
-                <strong>{{ $return->warehouse->warehouse_name ?? '-' }}</strong><br>
-                {{ $return->warehouse->city ?? '-' }}<br>
-                Phone: {{ $return->warehouse->warehouse_manager_contact ?? '-' }}<br>
-                TIN: {{ $return->warehouse->tin_no ?? '-' }}
-            </p>
-        </div>
+    <!-- Customer Details -->
+    <table width="100%" cellpadding="2" cellspacing="0"
+        style="border-collapse:collapse; border:1px solid #000;">
+        <tr>
+            <th colspan="2" style="border:1px solid #000; text-align:center;">
+                Customer Information
+            </th>
+        </tr>
+        <tr>
+            <td style="border:1px solid #000; width:30%;">Customer:</td>
+            <td style="border:1px solid #000;">
+                {{ $return->customer->osa_code ?? '' }} - {{ $return->customer->name ?? '' }}
+            </td>
+        </tr>
+        <tr>
+            <td style="border:1px solid #000;">Address:</td>
+            <td style="border:1px solid #000;">
+                {{ $return->customer->district ?? '' }}
+            </td>
+        </tr>
+        <tr>
+            <td style="border:1px solid #000;">Contact No:</td>
+            <td style="border:1px solid #000;">
+                {{ $return->customer->contact_no ?? '' }}
+            </td>
+        </tr>
+    </table>
 
-        <div class="address-box">
-            <h4>Buyer</h4>
-            <p>
-                <strong>{{ $return->customer->name ?? '-' }}</strong><br>
-                {{ $return->customer->district ?? '-' }}<br>
-                Phone: {{ $return->customer->contact_no ?? '-' }}<br>
-                OSA Code: {{ $return->customer->osa_code ?? '-' }}
-            </p>
-        </div>
-    </div>
+    <!-- Goods Table -->
+    <table width="100%" cellpadding="2" cellspacing="0"
+        style="border-collapse:collapse;">
+        <tr>
+            <th style="text-align:center;" colspan="9">Return Details</th>
+        </tr>
+        <tr>
+            <th style="border:1px solid #000;">S/N</th>
+            <th style="border:1px solid #000;">Item Code</th>
+            <th style="border:1px solid #000;">Description</th>
+            <th style="border:1px solid #000;">UOM</th>
+            <th style="border:1px solid #000;">Qty</th>
+            <th style="border:1px solid #000;">Price</th>
+            <th style="border:1px solid #000;">Return Type</th>
+            <th style="border:1px solid #000;">Return Reason</th>
+            <th style="border:1px solid #000;">Total</th>
+        </tr>
 
-    <!-- ITEMS TABLE -->
-    <div class="table-box">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Item Code</th>
-                    <th>Item Name</th>
-                    <th>UOM</th>
-                    <th>Qty</th>
-                    <th>Price</th>
-                    <th>Return Type</th>
-                    <th>Return Reason</th>
-                    <th>Total</th>
-                </tr>
-            </thead>
+        @foreach($returnDetails as $i => $item)
+        <tr>
+            <td style="border:1px solid #000; text-align:center;">{{ $i + 1 }}</td>
+            <td style="border:1px solid #000;">{{ $item->item->code ?? '' }}</td>
+            <td style="border:1px solid #000;">{{ $item->item->name ?? '' }}</td>
+            <td style="border:1px solid #000; text-align:center;">{{ $item->uom->name ?? '' }}</td>
+            <td style="border:1px solid #000; text-align:center;">
+                {{ number_format($item->item_quantity) }}
+            </td>
+            <td style="border:1px solid #000; text-align:right;">
+                {{ number_format($item->item_price, 2) }}
+            </td>
+            <td style="border:1px solid #000; text-align:center;">
+                {{ $item->return_type == 1 ? 'Good' : 'Bad' }}
+            </td>
+            <td style="border:1px solid #000; text-align:center;">
+                @if($item->return_reason == 1)
+                    Near By Expiry
+                @elseif($item->return_reason == 2)
+                    Package Issue
+                @elseif($item->return_reason == 3)
+                    Damage
+                @elseif($item->return_reason == 4)
+                    Expiry
+                @else
+                    -
+                @endif
+            </td>
+            <td style="border:1px solid #000; text-align:right;">
+                {{ number_format($item->total, 2) }}
+            </td>
+        </tr>
+        @endforeach
+    </table>
 
-            <tbody>
-                @forelse($returnDetails as $i => $item)
+      <!-- TOTALS (SAME FOOTER STRUCTURE) -->
+    <table width="100%" cellspacing="0" style="border-collapse:collapse; border-bottom:2px solid #000; margin-top:5px;">
+       
+     <tr>
+            <td style="width:70%;"></td>
+            <td style="width:30%;">
+                <table width="100%" cellpadding="4" cellspacing="0" style="border-collapse:collapse;">
                     <tr>
-                        <td>{{ $i + 1 }}</td>
-                        <td>{{ $item->item->code ?? '-' }}</td>
-                        <td>{{ $item->item->name ?? '-' }}</td>
-                        <td>{{ $item->uom->name ?? '-' }}</td>
-                        <td>{{ number_format($item->item_quantity) }}</td>
-                        <td>{{ number_format($item->item_price, 2) }}</td>
-
-                        <!-- Return Type -->
                         <td>
-                            {{ $item->return_type == 1 ? 'Good' : 'Bad' }}
                         </td>
-
-                        <!-- Return Reason -->
-                        <td class="return-reason">
-                            @if($item->return_reason == 1)
-                                Near By<br>Expiry
-                            @elseif($item->return_reason == 2)
-                                Package<br>Issue
-                            @elseif($item->return_reason == 3)
-                                Damage
-                            @elseif($item->return_reason == 4)
-                                Expiry
-                            @else
-                                -
-                            @endif
+                        <td style="text-align:right;">
                         </td>
-
-                        <td>{{ number_format($item->total, 2) }}</td>
                     </tr>
-                @empty
+                </table>
+            </td>
+        </tr>
+
+        <tr>
+            <td></td>
+            <td>
+                <table width="100%" cellpadding="4" cellspacing="0" style="border-collapse:collapse;">
                     <tr>
-                        <td colspan="9">No return details found</td>
+                        <td></td> 
+                         <td style="text-align:right;"></td> 
                     </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
+                </table>
+            </td>
+        </tr>
 
-</div>
+         <tr>
+            <td style="vertical-align:middle; padding:6px;">
+                <table width="100%" cellpadding="4" cellspacing="0" style="border-collapse:collapse;">
+                    <tr>
+                        <td style="width:50%; font-weight:bold;">
+                        </td>
+                        <td style="width:50%; font-weight:bold;">
+                        </td>
+                    </tr>
+                </table>
+            </td>
+            <td>
+                <table width="100%" cellpadding="4" cellspacing="0" style="border-collapse:collapse;">
+                    <tr>
+                        <td style="font-weight:bold;">Total (UGX)</td>
+                        <td style="text-align:right; font-weight:bold;">
+                            {{ number_format($return->total, 2) }}
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+ 
+    </table>
+
+    <!-- Footer -->
+    <table width="100%" cellpadding="2" cellspacing="0" style="margin-top:10px;">
+        <tr>
+            <td style="text-align:center; font-size:12px;">
+                <span style="font-weight:bold;">
+                    This is a system generated return document and doesn't require signature
+                </span>
+            </td>
+        </tr>
+    </table>
 
 </body>
+
 </html>

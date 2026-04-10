@@ -40,7 +40,6 @@ class HTCapsHeaderExport implements FromCollection, WithHeadings, ShouldAutoSize
         if ($this->from_date && $this->to_date) {
             $query->whereBetween('claim_date', [$this->from_date, $this->to_date]);
         }
-        // dd($query->count());
         $headers = $query->get();
 
         foreach ($headers as $header) {
@@ -66,8 +65,8 @@ class HTCapsHeaderExport implements FromCollection, WithHeadings, ShouldAutoSize
     {
         return [
             'OSA Code',
-            'Warehouse Code',
-            'Warehouse Name',
+            'Distributors Code',
+            'Distributors Name',
 
             'Driver Code',
             'Driver Name',

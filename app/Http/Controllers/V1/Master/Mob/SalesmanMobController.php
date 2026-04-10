@@ -477,18 +477,26 @@ public function salesmanrequest(SalesmanRequest $request)
  * @OA\Post(
  *     path="/mob/master_mob/salesman/promotion-data",
  *     tags={"Salesman Authentication"},
- *     summary="Get Discount & Promotion master files by warehouse",
- *     description="Fetch discount and promotion master data based on warehouse_id, dump response into txt files and return file paths",
+ *     summary="Get Promotion & Delivery master files by warehouse and route",
+ *     description="Fetch promotion and delivery master data based on warehouse_id and route_id, dump response into txt files and return file paths",
  *
  *     @OA\RequestBody(
  *         required=true,
  *         @OA\JsonContent(
  *             required={"warehouse_id"},
+ *
  *             @OA\Property(
  *                 property="warehouse_id",
  *                 type="integer",
  *                 example=3,
  *                 description="Warehouse ID"
+ *             ),
+ *
+ *             @OA\Property(
+ *                 property="route_id",
+ *                 type="integer",
+ *                 example=10,
+ *                 description="Route ID for delivery data"
  *             )
  *         )
  *     ),
@@ -498,23 +506,27 @@ public function salesmanrequest(SalesmanRequest $request)
  *         description="Master files generated successfully",
  *         @OA\JsonContent(
  *             type="object",
+ *
  *             @OA\Property(
  *                 property="status",
  *                 type="boolean",
  *                 example=true
  *             ),
+ *
  *             @OA\Property(
  *                 property="files",
  *                 type="object",
- *                 @OA\Property(
- *                     property="discount_file_url",
- *                     type="string",
- *                     example="/storage/salesman_files/discount_master_20260128_121530.txt"
- *                 ),
+ *
  *                 @OA\Property(
  *                     property="promotion_file_url",
  *                     type="string",
  *                     example="/storage/salesman_files/promotion_master_20260128_121530.txt"
+ *                 ),
+ *
+ *                 @OA\Property(
+ *                     property="delivery_file_url",
+ *                     type="string",
+ *                     example="/storage/salesman_files/delivery_master_20260128_121530.txt"
  *                 )
  *             )
  *         )
@@ -527,15 +539,21 @@ public function salesmanrequest(SalesmanRequest $request)
  * )
  */
 public function getMasterData(Request $request)
-    {
-        $request->validate([
-            'warehouse_id' => 'required|integer'
-        ]);
-        $files = $this->service->generateMasterFiles($request->warehouse_id);
-        return response()->json([
-            'status' => true,
-            'files'  => $files
-        ]);
-    }
+{
+    $request->validate([
+        'warehouse_id' => 'required|integer',
+        'route_id'     => 'nullable|integer'
+    ]);
+
+    $files = $this->service->generateMasterFiles(
+        $request->warehouse_id,
+        $request->route_id
+    );
+
+    return response()->json([
+        'status' => true,
+        'files'  => $files
+    ]);
+}
 }
 

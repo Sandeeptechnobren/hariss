@@ -721,52 +721,120 @@ class ExchangeController extends Controller
     }
 
 
-    public function exportExchangePdf(Request $request)
+// public function exportExchangePdf(Request $request)
+//     {
+//         $uuid = $request->input('uuid');
+//         if (!$uuid) {
+//             return response()->json([
+//                 'status'  => 'error',
+//                 'message' => 'UUID is required'
+//             ], 400);
+//         }
+//         $exchange = ExchangeHeader::with([
+//             'warehouse',
+//             'customer',
+//             'route',
+//             'salesman',
+//             'country',
+//             'invoices.item',
+//             'invoices.inuoms',
+//             'returns.item',
+//             'returns.uoms',
+//         ])->where('uuid', $uuid)->firstOrFail();
+//         $exchangeHerader = ExchangeHeader::select('exchange_code')->where('uuid', $uuid)->first();
+//         $code = $exchangeHerader?->exchange_code ?? 'UNKNOWN';
+//         $code = preg_replace('/[^A-Za-z0-9\-]/', '', $code);
+//         $filename = 'Agent_exchange_' . $code . '.pdf';
+//         $path = 'exchangeexports/' . $filename;
+//         $pdf = \PDF::loadView('exchange', [
+//             'exchange'      => $exchange,
+//             'invoiceItems'  => $exchange->invoices,
+//             'returnItems'   => $exchange->returns,
+//         ]);
+//         \Storage::disk('public')->put($path, $pdf->output());
+//         $appUrl = rtrim(config('app.url'), '/');
+//         $fullUrl = $appUrl . '/storage/app/public/' . $path;
+
+//         return response()->json([
+//             'status' => 'success',
+//             'download_url' => $fullUrl
+//         ]);
+//     }
+// public function exportExchangePdf(Request $request)
+// {
+//     $uuid = $request->input('uuid');
+
+//     if (!$uuid) {
+//         return response()->json([
+//             'status'  => 'error',
+//             'message' => 'UUID is required'
+//         ], 400);
+//     }
+
+//     $exchange = ExchangeHeader::with([
+//         'warehouse',
+//         'route',
+//         'customer',
+//         'salesman',
+//         'country',
+//         'createdBy',
+//         'updatedBy',
+
+//         'invoices.item',
+//         // 'invoices.inuoms',
+//         'invoices.discount',
+//         'invoices.promotion',
+//         'invoices.parent',
+
+//         'returns.item',
+//         'returns.uoms',
+//         'returns.discount',
+//         'returns.promotion',
+//         'returns.parent',
+//     ])
+//     ->where('uuid', $uuid)
+//     ->firstOrFail();
+
+//     $code = optional($exchange)->exchange_code ?? 'UNKNOWN';
+//     $code = preg_replace('/[^A-Za-z0-9\-]/', '', $code);
+
+//     $filename = 'Agent_exchange_' . $code . '.pdf';
+//     $path = 'exchangeexports/' . $filename;
+
+//     $pdf = \PDF::loadView('exchange', [
+//         'exchange'      => $exchange,
+//         'invoiceItems'  => $exchange->invoices,
+//         'returnItems'   => $exchange->returns,
+//     ]);
+//     \Storage::disk('public')->put($path, $pdf->output());
+//     $appUrl = rtrim(config('app.url'), '/');
+//     $fullUrl = $appUrl . '/public/storage/' . $path;
+//     return response()->json([
+//         'status' => 'success',
+//         'download_url' => $fullUrl
+//     ]);
+// }
+public function exportExchangePdf(Request $request)
     {
         $uuid = $request->input('uuid');
-
         if (!$uuid) {
             return response()->json([
                 'status'  => 'error',
                 'message' => 'UUID is required'
             ], 400);
         }
-        $exchange = ExchangeHeader::with([
-            'warehouse',
-            'customer',
-            'route',
-            'salesman',
-            'country',
-            'invoices.item',
-            'invoices.inuoms',
-            'returns.item',
-            'returns.uoms',
-        ])
-            ->where('uuid', $uuid)
-            ->firstOrFail();
-
-        $exchangeHerader = ExchangeHeader::select('exchange_code')
-            ->where('uuid', $uuid)
-            ->first();
-
-        $code = $exchangeHerader?->exchange_code ?? 'UNKNOWN';
+        $exchange = $this->service->getByUuid($uuid);
+        $code = $exchange->exchange_code ?? 'UNKNOWN';
         $code = preg_replace('/[^A-Za-z0-9\-]/', '', $code);
-
         $filename = 'Agent_exchange_' . $code . '.pdf';
         $path = 'exchangeexports/' . $filename;
-
-        // $filename = 'exchange_export_' . now()->format('Ymd_His') . '.pdf';
-        // $path = 'exchangeexports/' . $filename;
-
         $pdf = \PDF::loadView('exchange', [
             'exchange'      => $exchange,
-            'invoiceItems'  => $exchange->invoices,
-            'returnItems'   => $exchange->returns,
+            'invoiceItems'  => $exchange->invoices, // Delivered
+            'returnItems'   => $exchange->returns,  // Received
         ]);
         \Storage::disk('public')->put($path, $pdf->output());
-        $appUrl = rtrim(config('app.url'), '/');
-        $fullUrl = $appUrl . '/storage/app/public/' . $path;
-
+        $fullUrl = url('storage/' . $path);
         return response()->json([
             'status' => 'success',
             'download_url' => $fullUrl

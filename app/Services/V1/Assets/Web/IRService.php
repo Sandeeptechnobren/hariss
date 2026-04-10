@@ -24,9 +24,28 @@ class IRService
     {
         try {
             $query = IRHeader::with('details')->latest();
+            if (!empty($filters['warehouse_id'])) {
+
+                $warehouseIds = is_array($filters['warehouse_id'])
+                    ? $filters['warehouse_id']
+                    : explode(',', $filters['warehouse_id']);
+
+                $warehouseIds = array_filter(array_map('intval', $warehouseIds));
+
+                $query->whereIn('iro_id', function ($q) use ($warehouseIds) {
+
+                    $q->select('header_id') // IROHeader.id
+                        ->from('tbl_iro_details')
+                        ->whereIn('warehouse_id', $warehouseIds);
+                });
+            }
 
             foreach ($filters as $field => $value) {
                 if (!empty($value)) {
+                    if (empty($value) || $field === 'warehouse_id') {
+                        continue;
+                    }
+
                     if (in_array($field, ['osa_code', 'iro_id', 'status'])) {
                         $query->whereRaw("LOWER({$field}) LIKE ?", ['%' . strtolower($value) . '%']);
                     } else {
@@ -56,7 +75,7 @@ class IRService
         do {
             $last = IRHeader::withTrashed()->latest('id')->first();
             $next = $last ? ((int) preg_replace('/\D/', '', $last->osa_code)) + 1 : 1;
-            $osa_code = 'IR' . str_pad($next, 5, '0', STR_PAD_LEFT);
+            $osa_code = 'IR-' . str_pad($next, 5, '0', STR_PAD_LEFT);
         } while (IRHeader::withTrashed()->where('osa_code', $osa_code)->exists());
 
         return $osa_code;
@@ -369,6 +388,19 @@ class IRService
             IROHeader::where('id', $irHeader->iro_id)
                 ->update([
                     'status' => 7 // Closed
+                ]);
+
+            $crfIds = IRODetail::where('header_id', $iroId)
+                ->whereNotNull('crf_id')
+                ->pluck('crf_id');
+
+            if ($crfIds->isEmpty()) {
+                throw new \Exception('CRF IDs not found.');
+            }
+
+            ChillerRequest::whereIn('id', $crfIds)
+                ->update([
+                    'status' => 5
                 ]);
         });
     }

@@ -164,39 +164,9 @@ class WarehouseController extends Controller
             $dropdown = filter_var(request()->get('dropdown', false), FILTER_VALIDATE_BOOLEAN);
 
             $filters = request()->only([
-                'warehouse_id',
-                'warehouse_code',
-                'warehouse_name',
-                'owner_name',
-                'owner_number',
-                'owner_email',
-                'company_customer_id',
-                'warehouse_manager',
-                'warehouse_manager_contact',
-                'tin_no',
-                'registation_no',
-                'business_type',
-                'warehouse_type',
-                'city',
-                'location',
-                'address',
-                'stock_capital',
-                'deposite_amount',
                 'region_id',
                 'area_id',
-                'latitude',
-                'longitude',
-                'device_no',
-                'p12_file',
-                'branch_id',
-                'is_branch',
-                'invoice_sync',
-                'status',
-                'is_efris',
-                'created_user',
-                'updated_user',
-                'created_date_from',
-                'created_date_to'
+                'status'
             ]);
 
             $warehouses = $this->warehouseService->getAll($perPage, $filters, $dropdown);
@@ -226,13 +196,89 @@ class WarehouseController extends Controller
                     'last_page'    => $warehouses->lastPage(),
                     'per_page'     => $warehouses->perPage(),
                     'total'        => $warehouses->total(),
-
                 ]
             );
         } catch (\Exception $e) {
             return $this->fail($e->getMessage(), 500);
         }
     }
+    // public function index(): JsonResponse
+    // {
+    //     try {
+    //         $allData  = filter_var(request()->get('allData', false), FILTER_VALIDATE_BOOLEAN);
+    //         $perPage  = $allData ? null : request()->get('per_page', 50);
+    //         $dropdown = filter_var(request()->get('dropdown', false), FILTER_VALIDATE_BOOLEAN);
+
+    //         $filters = request()->only([
+    //             'warehouse_id',
+    //             'warehouse_code',
+    //             'warehouse_name',
+    //             'owner_name',
+    //             'owner_number',
+    //             'owner_email',
+    //             'company_customer_id',
+    //             'warehouse_manager',
+    //             'warehouse_manager_contact',
+    //             'tin_no',
+    //             'registation_no',
+    //             'business_type',
+    //             'warehouse_type',
+    //             'city',
+    //             'location',
+    //             'address',
+    //             'stock_capital',
+    //             'deposite_amount',
+    //             'region_id',
+    //             'area_id',
+    //             'latitude',
+    //             'longitude',
+    //             'device_no',
+    //             'p12_file',
+    //             'branch_id',
+    //             'is_branch',
+    //             'invoice_sync',
+    //             'status',
+    //             'is_efris',
+    //             'created_user',
+    //             'updated_user',
+    //             'created_date_from',
+    //             'created_date_to'
+    //         ]);
+
+    //         $warehouses = $this->warehouseService->getAll($perPage, $filters, $dropdown);
+
+    //         if ($dropdown) {
+    //             $data = $warehouses->toArray();
+    //             $this->convertNullToEmpty($data);
+    //             return $this->success($data, 'Warehouse dropdown fetched successfully', 200);
+    //         }
+
+    //         if ($allData) {
+    //             $data = WarehouseResource::collection($warehouses)->toArray(request());
+    //             $this->convertNullToEmpty($data);
+
+    //             return $this->success($data, 'Warehouses fetched successfully', 200);
+    //         }
+
+    //         $data = WarehouseResource::collection($warehouses->items())->toArray(request());
+    //         $this->convertNullToEmpty($data);
+
+    //         return $this->success(
+    //             $data,
+    //             'Warehouses fetched successfully',
+    //             200,
+    //             [
+    //                 'current_page' => $warehouses->currentPage(),
+    //                 'last_page'    => $warehouses->lastPage(),
+    //                 'per_page'     => $warehouses->perPage(),
+    //                 'total'        => $warehouses->total(),
+
+    //             ]
+    //         );
+    //     } catch (\Exception $e) {
+    //         return $this->fail($e->getMessage(), 500);
+    //     }
+    // }
 
 
     public function getAllFilter(): JsonResponse
@@ -325,9 +371,21 @@ class WarehouseController extends Controller
 
         if ($request->hasFile('p12_file')) {
             $file = $request->file('p12_file');
-            $path = $file->store('public/p12_files');
-            $data['p12_file'] = str_replace('public/', '', $path);
+
+            // ✅ Store file
+            $path = $file->store('p12_files', 'public');
+            // result: p12_files/filename.pdf
+
+            // ✅ Save in DB (relative path)
+            $data['p12_file'] = $path;
+
+            // ✅ Full URL generate
+            $appUrl = rtrim(config('app.url'), '/');
+            $fullUrl = $appUrl . '/storage/app/public/' . $path;
+
+            $data['p12_file'] = $fullUrl; // optional
         }
+        // dd($data);
         $warehouse = $this->warehouseService->create($data);
 
         if ($warehouse) {
@@ -340,8 +398,37 @@ class WarehouseController extends Controller
                 auth()->id()
             );
         }
-        return response()->json(['code' => 200, 'success' => true, 'data' => $warehouse], 201);
+
+        // ✅ ONLY CHANGE (use resource)
+        return response()->json([
+            'code' => 200,
+            'success' => true,
+            'data' => new WarehouseResource($warehouse)
+        ], 201);
     }
+    // public function store(WarehouseRequest $request): JsonResponse
+    // {
+    //     $data = $request->validated();
+    //     // dd($data);
+    //     if ($request->hasFile('p12_file')) {
+    //         $file = $request->file('p12_file');
+    //         $path = $file->store('public/p12_files');
+    //         $data['p12_file'] = str_replace('public/', '', $path);
+    //     }
+    //     $warehouse = $this->warehouseService->create($data);
+
+    //     if ($warehouse) {
+    //         LogHelper::store(
+    //             '16',
+    //             '17',
+    //             'add',
+    //             null,
+    //             $warehouse->getAttributes(),
+    //             auth()->id()
+    //         );
+    //     }
+    //     return response()->json(['code' => 200, 'success' => true, 'data' => $warehouse], 201);
+    // }
     /**
      * @OA\Get(
      *     path="/api/master/warehouse/{uuid}",
@@ -356,10 +443,21 @@ class WarehouseController extends Controller
     public function show($uuid): JsonResponse
     {
         $warehouse = $this->warehouseService->find($uuid);
-        $warehouseArray = $warehouse->toArray();
+
+        // ✅ ONLY CHANGE (use resource)
+        $warehouseArray = (new WarehouseResource($warehouse))->toArray(request());
+
         $this->convertNullToEmpty($warehouseArray);
+
         return $this->success($warehouseArray, 'Warehouse dropdown fetched successfully', 200);
     }
+    // public function show($uuid): JsonResponse
+    // {
+    //     $warehouse = $this->warehouseService->find($uuid);
+    //     $warehouseArray = $warehouse->toArray();
+    //     $this->convertNullToEmpty($warehouseArray);
+    //     return $this->success($warehouseArray, 'Warehouse dropdown fetched successfully', 200);
+    // }
     /**
      * @OA\Put(
      *     path="/api/master/warehouse/{uuid}",
@@ -378,10 +476,9 @@ class WarehouseController extends Controller
     {
         $oldWarehouse = Warehouse::where('uuid', $uuid)->first();
         $previousData = $oldWarehouse ? $oldWarehouse->getOriginal() : null;
-
         $rules = [
             'warehouse_code' => ['sometimes', 'alpha_num', 'max:20'],
-            'warehouse_type' => 'sometimes|string|in:Distributor,Company Outlet',
+            'warehouse_type' => 'sometimes|integer|in:0,1',
             'warehouse_name' => 'sometimes|string|min:3|max:50',
             'owner_name' => 'sometimes|string|max:50',
             'owner_number' => 'nullable|numeric|digits_between:1,15',
@@ -396,23 +493,39 @@ class WarehouseController extends Controller
             'warehouse_email' => 'sometimes|email|max:50',
             'region_id' => 'nullable|exists:tbl_region,id',
             'area_id' => 'nullable|exists:tbl_areas,id',
-            'latitude' => ['sometimes', 'string', 'max:50', 'regex:/^[-+]?([1-8]?\d(\.\d+)?|90(\.0+)?)$/'],
-            'longitude' => ['sometimes', 'string', 'max:50', 'regex:/^[-+]?((1[0-7]\d|[0-9]?\d)(\.\d+)?|180(\.0+)?)$/'],
+            'latitude' => 'sometimes|string|max:50',
+            'longitude' => 'sometimes|string|max:50',
             'agent_customer' => 'nullable|integer',
             'town_village' => 'nullable|string|max:50',
             'street' => 'nullable|string|max:50',
             'landmark' => 'nullable|string|max:50',
             'is_efris' => 'sometimes|in:0,1',
             'p12_file' => 'sometimes|max:100',
+            'device_no' => 'sometimes|max:100',
             'password' => 'nullable|string|max:100',
             'is_branch' => 'sometimes|in:0,1',
             'branch_id' => 'sometimes|integer|max:100',
         ];
-
         $validated = $request->validate($rules);
+        $data = array_intersect_key($validated, $request->all());
+        if (!empty($data['password'])) {
+            $data['password'] = $data['password'];
+        }
+        if ($request->hasFile('p12_file')) {
+            $file = $request->file('p12_file');
+            $path = $file->store('p12_file', 'public');
+            $data['p12_file'] = $path;
+            $appUrl = rtrim(config('app.url'), '/');
+            // $fullUrl = $appUrl . '/storage/app/public/' . $path;
+            $fullUrl =  $path;
 
-        $warehouse = $this->warehouseService->update($uuid, $validated);
-
+            $data['p12_file'] = $fullUrl; // optional
+        }
+        if (empty($data)) {
+            $warehouse = $this->warehouseService->find($uuid);
+        } else {
+            $warehouse = $this->warehouseService->update($uuid, $data);
+        }
         if ($warehouse && $previousData) {
             LogHelper::store(
                 '16',
@@ -423,13 +536,69 @@ class WarehouseController extends Controller
                 auth()->id()
             );
         }
-
         return response()->json([
             'code' => 200,
             'success' => true,
-            'data' => $warehouse,
+            'data' => new WarehouseResource($warehouse),
         ]);
     }
+    // public function update(Request $request, $uuid): JsonResponse
+    // {
+    //     $oldWarehouse = Warehouse::where('uuid', $uuid)->first();
+    //     $previousData = $oldWarehouse ? $oldWarehouse->getOriginal() : null;
+
+    //     $rules = [
+    //         'warehouse_code' => ['sometimes', 'alpha_num', 'max:20'],
+    //         'warehouse_type' => 'sometimes|string|in:Distributor,Company Outlet',
+    //         'warehouse_name' => 'sometimes|string|min:3|max:50',
+    //         'owner_name' => 'sometimes|string|max:50',
+    //         'owner_number' => 'nullable|numeric|digits_between:1,15',
+    //         'owner_email' => 'nullable|email|max:50',
+    //         'agreed_stock_capital' => 'sometimes',
+    //         'location' => 'sometimes|string|max:50',
+    //         'city' => 'sometimes|string|max:25',
+    //         'warehouse_manager' => 'sometimes|string|max:50',
+    //         'warehouse_manager_contact' => 'nullable|numeric|digits_between:1,20',
+    //         'tin_no' => 'sometimes',
+    //         'company' => 'sometimes|exists:tbl_company,id',
+    //         'warehouse_email' => 'sometimes|email|max:50',
+    //         'region_id' => 'nullable|exists:tbl_region,id',
+    //         'area_id' => 'nullable|exists:tbl_areas,id',
+    //         'latitude' => ['sometimes', 'string', 'max:50', 'regex:/^[-+]?([1-8]?\d(\.\d+)?|90(\.0+)?)$/'],
+    //         'longitude' => ['sometimes', 'string', 'max:50', 'regex:/^[-+]?((1[0-7]\d|[0-9]?\d)(\.\d+)?|180(\.0+)?)$/'],
+    //         'agent_customer' => 'nullable|integer',
+    //         'town_village' => 'nullable|string|max:50',
+    //         'street' => 'nullable|string|max:50',
+    //         'landmark' => 'nullable|string|max:50',
+    //         'is_efris' => 'sometimes|in:0,1',
+    //         'p12_file' => 'sometimes|max:100',
+    //         'device_no' => 'sometimes|max:100',
+    //         'password' => 'nullable|string|max:100',
+    //         'is_branch' => 'sometimes|in:0,1',
+    //         'branch_id' => 'sometimes|integer|max:100',
+    //     ];
+
+    //     $validated = $request->validate($rules);
+
+    //     $warehouse = $this->warehouseService->update($uuid, $validated);
+
+    //     if ($warehouse && $previousData) {
+    //         LogHelper::store(
+    //             '16',
+    //             '17',
+    //             'update',
+    //             $previousData,
+    //             $warehouse->getAttributes(),
+    //             auth()->id()
+    //         );
+    //     }
+
+    //     return response()->json([
+    //         'code' => 200,
+    //         'success' => true,
+    //         'data' => $warehouse,
+    //     ]);
+    // }
 
 
     // public function update(Request $request, $id): JsonResponse

@@ -15,7 +15,8 @@ class CampaignInformation extends Model
     protected $fillable = [
         'uuid',
         'code',
-        'date_time',
+        'name',
+        'date-time',
         'merchandiser_id',
         'customer_id',
         'feedback',

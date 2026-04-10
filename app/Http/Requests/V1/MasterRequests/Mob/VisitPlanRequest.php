@@ -14,6 +14,7 @@ class VisitPlanRequest extends FormRequest
     public function rules()
     {
         return [
+            'osa_code' => 'nullable|string|max:50',
             'salesman_id' => 'required|integer',
             'customer_id' => 'required|integer',
             'warehouse_id' => 'nullable|integer',

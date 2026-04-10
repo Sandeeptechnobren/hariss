@@ -60,8 +60,8 @@ class PoOrderExport implements
                 'customer_id',
                 'salesman_id',
                 'comment',
-                'net',
                 'vat',
+                'net',
                 'total',
                 'status',
                 'warehouse_id'
@@ -92,9 +92,9 @@ class PoOrderExport implements
         return [
             (string) $h->order_code,
 
-            optional($h->order_date)->format('Y-m-d'),
+            optional($h->order_date)->format('d M Y'),
 
-            optional($h->delivery_date)->format('Y-m-d'),
+            optional($h->delivery_date)->format('d M Y'),
 
             (string) $h->sap_id,
 
@@ -112,8 +112,8 @@ class PoOrderExport implements
 
             (string) $h->comment,
             // $h->sap_msg,
-            number_format((float) $h->net, 2, '.', ','),
             number_format((float) $h->vat, 2, '.', ','),
+            number_format((float) $h->net, 2, '.', ','),
             number_format((float) $h->total, 2, '.', ','),
         ];
     }
@@ -133,8 +133,8 @@ class PoOrderExport implements
             'Salesman',
             'Comment',
             // 'Status',
-            'Net Amount',
             'VAT',
+            'Net Amount',
             'Total',
         ];
     }

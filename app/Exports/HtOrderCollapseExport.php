@@ -6,7 +6,6 @@ use App\Models\Hariss_Transaction\Web\HTOrderHeader;
 use App\Models\Hariss_Transaction\Web\HTOrderDetail;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
-use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithStyles;
@@ -18,12 +17,10 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
 
 class HtOrderCollapseExport implements
     FromCollection,
-    WithHeadings,
     ShouldAutoSize,
     WithEvents,
     WithStyles
 {
-
     protected $groupIndexes = [];
     protected $fromDate;
     protected $toDate;
@@ -40,14 +37,28 @@ class HtOrderCollapseExport implements
 
     public function collection()
     {
-
         $rows = [];
-        $rowIndex = 2;
+        $rowIndex = 1;
+
+        // 🔹 MAIN HEADER
+        $rows[] = [
+            'Order Code',
+            'Order Date',
+            'Delivery Date',
+            'Customer',
+            'Salesman',
+            'VAT',
+            'Net Amount',
+            'Total Item',
+            'Total'
+        ];
+        $rowIndex++;
 
         $query = HTOrderHeader::with([
             'customer:id,osa_code,business_name',
             'salesman:id,osa_code,name'
         ]);
+
         if (!empty($this->warehouseIds)) {
             $query->whereIn('warehouse_id', $this->warehouseIds);
         }
@@ -63,185 +74,112 @@ class HtOrderCollapseExport implements
 
         foreach ($headers as $header) {
 
-            $headerRowIndex = $rowIndex;
+            $detailList = $details[$header->id] ?? [];
+            $count = count($detailList);
 
+            // 🔹 ORDER HEADER ROW
             $rows[] = [
-
-                'Order Code' => (string)$header->order_code,
-
-                'Order Date' => (string)($header->order_date?->format('Y-m-d') ?? ''),
-
-                'Customer' => trim(
-                    ($header->customer->osa_code ?? '') .
-                        ' - ' .
-                        ($header->customer->business_name ?? '')
-                ),
-
-                'Salesman' => trim(
-                    ($header->salesman->osa_code ?? '') .
-                        ' - ' .
-                        ($header->salesman->name ?? '')
-                ),
-
-                'Delivery Date' => (string)($header->delivery_date?->format('Y-m-d') ?? ''),
-
-                'SAP ID' => (string)$header->sap_id,
-
-                'SAP MSG' => (string)$header->sap_msg,
-
-                'Comment' => (string)($header->comment ?? ''),
-
-                'Net Amount' => number_format((float)$header->net_amount, 2, '.', ','),
-
-                'Excise' => number_format((float)$header->excise, 2, '.', ','),
-
-                'VAT' => number_format((float)$header->vat, 2, '.', ','),
-
-                'Total' => number_format((float)$header->total, 2, '.', ','),
-
-                'Item' => '',
-                'UOM Name' => '',
-                'Item Price' => '',
-                'Quantity' => '',
-                'Net' => '',
-                'Excise Detail' => '',
-                'Detail VAT' => '',
-                'Detail Total' => '',
+                $header->order_code,
+                optional($header->order_date)->format('d M Y'),
+                optional($header->delivery_date)->format('d M Y'),
+                trim(($header->customer->osa_code ?? '') . ' - ' . ($header->customer->business_name ?? '')),
+                trim(($header->salesman->osa_code ?? '') . ' - ' . ($header->salesman->name ?? '')),
+                number_format((float)$header->vat, 2, '.', ','),
+                number_format((float)$header->net_amount, 2, '.', ','),
+                $count,
+                number_format((float)$header->total, 2, '.', ','),
             ];
-
             $rowIndex++;
 
-            $detailRows = [];
+            $start = $rowIndex;
 
-            foreach ($details[$header->id] ?? [] as $detail) {
+            // 🔥 DETAIL HEADER (IMPORTANT)
+            $rows[] = [
+                '',
+                'Item',
+                'UOM',
+                'Price',
+                'Qty',
+                'VAT',
+                'Excise',
+                'Net',
+                'Total'
+            ];
+            $rowIndex++;
 
+            // 🔹 DETAILS
+            foreach ($detailList as $d) {
                 $rows[] = [
-
-                    'Order Code' => '',
-                    'Order Date' => '',
-                    'Customer' => '',
-                    'Salesman' => '',
-                    'Delivery Date' => '',
-                    'SAP ID' => '',
-                    'SAP MSG' => '',
-                    'Comment' => '',
-                    'Net Amount' => '',
-                    'Excise' => '',
-                    'VAT' => '',
-                    'Total' => '',
-
-                    'Item' => trim(
-                        ($detail->item->erp_code ?? '') .
-                            ' - ' .
-                            ($detail->item->name ?? '')
-                    ),
-
-                    'UOM Name' => (string)($detail->uoms->name ?? ''),
-
-                    'Item Price' => number_format((float)$detail->item_price, 2, '.', ','),
-
-                    'Quantity' => (float)$detail->quantity,
-
-                    'Net' => number_format((float)$detail->net, 2, '.', ','),
-
-                    'Excise Detail' => number_format((float)$detail->excise, 2, '.', ','),
-
-                    'Detail VAT' => number_format((float)$detail->vat, 2, '.', ','),
-
-                    'Detail Total' => number_format((float)$detail->total, 2, '.', ','),
-
+                    '',
+                    trim(($d->item->erp_code ?? '') . ' - ' . ($d->item->name ?? '')),
+                    $d->uoms->name ?? '',
+                    number_format((float)$d->item_price, 2, '.', ','),
+                    $d->quantity,
+                    number_format((float)$d->vat, 2, '.', ','),
+                    number_format((float)$d->excise, 2, '.', ','),
+                    number_format((float)$d->net, 2, '.', ','),
+                    number_format((float)$d->total, 2, '.', ','),
                 ];
-
-                $detailRows[] = $rowIndex;
                 $rowIndex++;
             }
 
-            if (!empty($detailRows)) {
-                $this->groupIndexes[] = [
-                    'start' => min($detailRows),
-                    'end' => max($detailRows),
-                ];
-            }
+            $this->groupIndexes[] = [
+                'start' => $start,
+                'end' => $rowIndex - 1
+            ];
 
-            $rows[] = array_fill_keys(array_keys($rows[0]), '');
+            // 🔻 GAP ROW
+            $rows[] = [''];
             $rowIndex++;
         }
 
         return new Collection($rows);
     }
 
-    public function headings(): array
-    {
-        return [
-            'Order Code',
-            'Order Date',
-            'Customer',
-            'Salesman',
-            'Delivery Date',
-            'SAP ID',
-            'SAP MSG',
-            'Comment',
-            'Net Amount',
-            'Excise',
-            'VAT',
-            'Total',
-
-            'Item',
-            'UOM Name',
-            'Item Price',
-            'Quantity',
-            'Net',
-            'Excise Detail',
-            'Detail VAT',
-            'Detail Total'
-        ];
-    }
-
     public function styles(Worksheet $sheet)
     {
-        $sheet->getStyle('A1:S1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:I1')->getFont()->setBold(true);
 
-        $sheet->getStyle('A1:S1')
-            ->getAlignment()
+        $sheet->getStyle('A1:I1')->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_CENTER);
     }
 
     public function registerEvents(): array
     {
         return [
-
             AfterSheet::class => function (AfterSheet $event) {
 
                 $sheet = $event->sheet->getDelegate();
                 $lastColumn = $sheet->getHighestColumn();
+                $lastRow = $sheet->getHighestRow();
 
+                // 🔹 HEADER STYLE
                 $sheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
-
-                    'font' => [
-                        'bold' => true,
-                        'color' => ['rgb' => 'F5F5F5'],
-                    ],
-
-                    'alignment' => [
-                        'horizontal' => Alignment::HORIZONTAL_CENTER,
-                        'vertical' => Alignment::VERTICAL_CENTER,
-                    ],
-
                     'fill' => [
                         'fillType' => Fill::FILL_SOLID,
-                        'startColor' => ['rgb' => '993442'],
+                        'startColor' => ['rgb' => '993442']
                     ],
-
-                    'borders' => [
-                        'allBorders' => [
-                            'borderStyle' => Border::BORDER_THIN,
-                        ],
+                    'font' => [
+                        'bold' => true,
+                        'color' => ['rgb' => 'FFFFFF']
                     ],
-
+                    'alignment' => [
+                        'horizontal' => Alignment::HORIZONTAL_CENTER
+                    ],
                 ]);
 
-                foreach ($this->groupIndexes as $group) {
+                // 🔥 DETAIL HEADER BOLD
+                for ($i = 2; $i <= $lastRow; $i++) {
+                    if ($sheet->getCell("B{$i}")->getValue() === 'Item') {
+                        $sheet->getStyle("B{$i}:I{$i}")->getFont()->setBold(true);
+                        $sheet->getStyle("B{$i}:I{$i}")
+                            ->getAlignment()
+                            ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    }
+                }
 
+                // 🔹 GROUP COLLAPSE
+                foreach ($this->groupIndexes as $group) {
                     for ($i = $group['start']; $i <= $group['end']; $i++) {
                         $sheet->getRowDimension($i)
                             ->setOutlineLevel(1)
@@ -249,9 +187,10 @@ class HtOrderCollapseExport implements
                     }
                 }
 
+                // ✅ DEFAULT GRIDLINES (IMPORTANT)
+                $sheet->setShowGridlines(true);
                 $sheet->setShowSummaryBelow(false);
             }
-
         ];
     }
 }

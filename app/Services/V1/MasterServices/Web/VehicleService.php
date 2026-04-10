@@ -206,7 +206,7 @@ class VehicleService
     public function findByUuid(string $uuid): ?Vehicle
     {
         try {
-            return Vehicle::with(['warehouse:id,warehouse_name'])
+            return Vehicle::with(['warehouse:id,warehouse_name,warehouse_code'])
                 ->where('uuid', $uuid)
                 ->first(); // fetch by UUID
         } catch (Exception $e) {

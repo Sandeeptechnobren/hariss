@@ -47,53 +47,53 @@ class ReturnCollapseExport implements
         return $value;
     }
 
-public function collection()
-{
-    $rows = [];
-    $rowIndex = 2;
+    public function collection()
+    {
+        $rows = [];
+        $rowIndex = 2;
 
-    $query = ReturnHeader::select([
-        'id',
-        'osa_code',
-        'order_id',
-        'warehouse_id',
-        'route_id',
-        'customer_id',
-        'salesman_id',
-        'vat',
-        'net_amount',
-        'total',
-        'created_at'
-    ])
-        ->with([
-            'order:id,order_code', 
-            'warehouse:id,warehouse_code,warehouse_name',
-            'route:id,route_code,route_name',
-            'customer:id,osa_code,name',
-            'salesman:id,osa_code,name',
-            'details:id,header_id,item_id,uom_id,item_price,item_quantity,vat,net_total,total',
-            'details.item:id,erp_code,name',
-            'details.uom:id,name',
+        $query = ReturnHeader::select([
+            'id',
+            'osa_code',
+            'invoice_id',
+            'warehouse_id',
+            'route_id',
+            'customer_id',
+            'salesman_id',
+            // 'vat',
+            // 'net_amount',
+            'total',
+            'created_at'
         ])
-        ->when(
-            $this->fromDate && $this->toDate,
-            fn($q) => $q->whereBetween('created_at', [
-                $this->fromDate . ' 00:00:00',
-                $this->toDate . ' 23:59:59'
+            ->with([
+                'invoice:id,invoice_code',
+                'warehouse:id,warehouse_code,warehouse_name',
+                'route:id,route_code,route_name',
+                'customer:id,osa_code,name',
+                'salesman:id,osa_code,name',
+                'details:id,header_id,item_id,uom_id,item_price,item_quantity,vat,net_total,total',
+                'details.item:id,erp_code,name',
+                'details.uom:id,name',
             ])
-        )
-        ->when(
-            !empty($this->salesmanIds),
-            fn($q) => $q->whereIn('salesman_id', $this->salesmanIds)
-        )
-        ->when(
-            empty($this->salesmanIds) && !empty($this->routeIds),
-            fn($q) => $q->whereIn('route_id', $this->routeIds)
-        )
-        ->when(
-            empty($this->salesmanIds) && empty($this->routeIds) && !empty($this->warehouseIds),
-            fn($q) => $q->whereIn('warehouse_id', $this->warehouseIds)
-        );
+            ->when(
+                $this->fromDate && $this->toDate,
+                fn($q) => $q->whereBetween('created_at', [
+                    $this->fromDate . ' 00:00:00',
+                    $this->toDate . ' 23:59:59'
+                ])
+            )
+            ->when(
+                !empty($this->salesmanIds),
+                fn($q) => $q->whereIn('salesman_id', $this->salesmanIds)
+            )
+            ->when(
+                empty($this->salesmanIds) && !empty($this->routeIds),
+                fn($q) => $q->whereIn('route_id', $this->routeIds)
+            )
+            ->when(
+                empty($this->salesmanIds) && empty($this->routeIds) && !empty($this->warehouseIds),
+                fn($q) => $q->whereIn('warehouse_id', $this->warehouseIds)
+            );
 
         $query = DataAccessHelper::filterAgentTransaction($query, Auth::user());
 
@@ -109,7 +109,7 @@ public function collection()
                     /* ================= HEADER ROW ================= */
                     $rows[] = [
                         $this->excelSafe($header->osa_code ?? ''),
-                        $this->excelSafe($header->order->order_code ?? ''),
+                        $this->excelSafe($header->invoice->invoice_code ?? ''),
                         $this->excelSafe(
                             trim(($header->warehouse->warehouse_code ?? '') . ' - ' . ($header->warehouse->warehouse_name ?? ''))
                         ),
@@ -119,11 +119,11 @@ public function collection()
                         $this->excelSafe(
                             trim(($header->customer->osa_code ?? '') . ' - ' . ($header->customer->name ?? ''))
                         ),
-                        $this->excelSafe(
-                            trim(($header->salesman->osa_code ?? '') . ' - ' . ($header->salesman->name ?? ''))
-                        ),
-                        (float) $header->vat,
-                        (float) $header->net_amount,
+                        // $this->excelSafe(
+                        //     trim(($header->salesman->osa_code ?? '') . ' - ' . ($header->salesman->name ?? ''))
+                        // ),
+                        // (float) $header->vat,
+                        // (float) $header->net_amount,
                         (float) $header->total,
                         $itemCount,
 
@@ -149,8 +149,8 @@ public function collection()
                         'UOM',         // C
                         'Quantity',    // D
                         'Item Price',  // E
-                        'VAT',         // F
-                        'Net Total',   // G
+                        // 'VAT',         // F
+                        // 'Net Total',   // G
                         'Total',       // H
                         '',
                         '',
@@ -174,8 +174,8 @@ public function collection()
                             $detail->uom->name ?? '',
                             (float) $detail->item_quantity,
                             (float) $detail->item_price,
-                            (float) $detail->vat,
-                            (float) $detail->net_total,
+                            // (float) $detail->vat,
+                            // (float) $detail->net_total,
                             (float) $detail->total,
                             '',
                             '',
@@ -212,15 +212,15 @@ public function collection()
     {
         return [
             'OSA Code',
-            'Order Code',
-            'Warehouse',
+            'Invoice Code',
+            'Distributors',
             'Route',
             'Customer',
-            'Salesman',
-            'VAT',
-            'Net Amount',
+            // 'Salesman',
+            // 'VAT',
+            // 'Net Amount',
             'Total',
-            'Item Count',
+            'Total Item',
         ];
     }
 
@@ -267,7 +267,7 @@ public function collection()
                     }
 
                     // Bold detail heading
-                    $sheet->getStyle("B{$group['start']}:H{$group['start']}")
+                    $sheet->getStyle("B{$group['start']}:G{$group['start']}")
                         ->getFont()->setBold(true);
                 }
 

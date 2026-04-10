@@ -36,6 +36,43 @@ class FrigeCustomerUpdateController extends Controller
     }
 
 
+    public function globalFilter(Request $request): JsonResponse
+    {
+        try {
+            $perPage = $request->get('limit', 50);
+            $filters = $request->except(['limit']);
+
+            $data = $this->service->globalFilter($perPage, $filters);
+
+            // $pagination = [
+            //     'current_page' => $invoices->currentPage(),
+            //     'last_page'    => $invoices->lastPage(),
+            //     'per_page'     => $invoices->perPage(),
+            //     'total'        => $invoices->total(),
+            // ];
+
+            return response()->json([
+                'status' => 'success',
+                'code'   => 200,
+                'data'   => FrigeCustomerUpdateResource::collection($data),
+                'pagination' => [
+                    'page'          => $data->currentPage(),
+                    'limit'         => $data->perPage(),
+                    'total_pages'   => $data->lastPage(),
+                    'total_records' => $data->total(),
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status'  => 'error',
+                'code'    => 500,
+                'message' => 'Failed to retrieve invoices',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+
     /**
      * 🔹 Get by UUID
      */
@@ -115,5 +152,24 @@ class FrigeCustomerUpdateController extends Controller
                 'message' => $e->getMessage()
             ], 500);
         }
+    }
+
+    public function exportPdf($uuid)
+    {
+        $path = $this->service->generateAndStoreFridgeCustomerPdf($uuid);
+
+        if (!$path) {
+            return response()->json([
+                'message' => 'Record not found or no images to generate PDF.'
+            ], 404);
+        }
+
+        $appUrl  = rtrim(config('app.url'), '/');
+        $fullUrl = $appUrl . '/storage/app/public/' . $path;
+
+        return response()->json([
+            'message' => 'PDF generated successfully',
+            'url' => $fullUrl,
+        ]);
     }
 }

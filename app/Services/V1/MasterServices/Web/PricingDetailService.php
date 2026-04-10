@@ -156,8 +156,8 @@ class PricingDetailService
                     'name' => isset($detail['item_id']) ? 'Item ' . $detail['item_id'] : null,
                     'header_id' => $header->id,
                     'item_id' => $detail['item_id'] ?? null,
-                    'buom_ctn_price' => $detail['buom_ctn_price'] ?? 0.00,
-                    'auom_pc_price' => $detail['auom_pc_price'] ?? 0.00,
+                    'buom_pc_price' => $detail['buom_pc_price'] ?? 0.00,
+                    'auom_ctn_price' => $detail['auom_ctn_price'] ?? 0.00,
                     'status' => $detail['status'] ?? $data['status'] ?? 1,
                     'created_user' => $data['created_user'] ?? 1,
                 ];
@@ -251,8 +251,8 @@ class PricingDetailService
     //                     : ($detail['name'] ?? null),
     //                 'header_id'      => $header->id,
     //                 'item_id'        => $detail['item_id'] ?? null,
-    //                 'buom_ctn_price' => $detail['buom_ctn_price'] ?? 0.00,
-    //                 'auom_pc_price'  => $detail['auom_pc_price'] ?? 0.00,
+    //                 'buom_pc_price' => $detail['buom_pc_price'] ?? 0.00,
+    //                 'auom_ctn_price'  => $detail['auom_ctn_price'] ?? 0.00,
     //                 'status'         => $detail['status'] ?? $data['status'] ?? 1,
     //                 'created_user'   => $data['created_user'] ?? 1,
     //             ];
@@ -357,8 +357,8 @@ class PricingDetailService
     //                     'name' => isset($detail['item_id']) ? 'Item ' . $detail['item_id'] : null,
     //                     'header_id' => $header->id,
     //                     'item_id' => $detail['item_id'] ?? null,
-    //                     'buom_ctn_price' => $detail['buom_ctn_price'] ?? 0.00,
-    //                     'auom_pc_price' => $detail['auom_pc_price'] ?? 0.00,
+    //                     'buom_pc_price' => $detail['buom_pc_price'] ?? 0.00,
+    //                     'auom_ctn_price' => $detail['auom_ctn_price'] ?? 0.00,
     //                     'status' => $detail['status'] ?? $data['status'] ?? 1,
     //                     'created_user' => $data['updated_user'] ?? $header->updated_user ?? 1,
     //                 ];
@@ -458,8 +458,8 @@ class PricingDetailService
                         'name' => isset($detail['item_id']) ? 'Item ' . $detail['item_id'] : null,
                         'header_id' => $header->id,
                         'item_id' => $detail['item_id'] ?? null,
-                        'buom_ctn_price' => $detail['buom_ctn_price'] ?? 0.00,
-                        'auom_pc_price' => $detail['auom_pc_price'] ?? 0.00,
+                        'buom_pc_price' => $detail['buom_pc_price'] ?? 0.00,
+                        'auom_ctn_price' => $detail['auom_ctn_price'] ?? 0.00,
                         'status' => $detail['status'] ?? $data['status'] ?? 1,
                         'created_user' => $data['updated_user'] ?? $header->updated_user ?? 1,
                     ];
@@ -545,10 +545,10 @@ class PricingDetailService
     public function globalSearch(int $perPage = 10, ?string $searchTerm = null)
     {
         $query = PricingHeader::
-        // with([
-        //     'details',
-        // ])->
-        whereNull('deleted_at');
+            // with([
+            //     'details',
+            // ])->
+            whereNull('deleted_at');
         if ($searchTerm) {
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('code', 'ILIKE', "%{$searchTerm}%")
@@ -579,8 +579,8 @@ class PricingDetailService
                 //         ->where(function ($sub) use ($searchTerm) {
                 //             $sub->where('osa_code', 'ILIKE', "%{$searchTerm}%")
                 //                 ->orWhere('name', 'ILIKE', "%{$searchTerm}%")
-                //                 ->orWhereRaw('buom_ctn_price::text ILIKE ?', ["%{$searchTerm}%"])
-                //                 ->orWhereRaw('auom_pc_price::text ILIKE ?', ["%{$searchTerm}%"])
+                //                 ->orWhereRaw('buom_pc_price::text ILIKE ?', ["%{$searchTerm}%"])
+                //                 ->orWhereRaw('auom_ctn_price::text ILIKE ?', ["%{$searchTerm}%"])
                 //                 ->orWhereRaw('status::text ILIKE ?', ["%{$searchTerm}%"])
                 //                 ->orWhereRaw('item_id::text ILIKE ?', ["%{$searchTerm}%"]);
                 //         });
@@ -592,5 +592,4 @@ class PricingDetailService
             ->orderByDesc('id')
             ->paginate($perPage);
     }
-
 }

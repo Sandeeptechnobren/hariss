@@ -154,33 +154,39 @@ class CapsHController extends Controller
         ]);
     }
 
-    public function exportcapsCollapse(Request $request)
-    {
-        $format = strtolower($request->input('format', 'xlsx'));
-        $extension = $format === 'csv' ? 'csv' : 'xlsx';
+public function exportcapsCollapse(Request $request)
+{
+    $format = strtolower($request->input('format', 'xlsx'));
 
-        $fromDate = $request->input('from_date');
-        $toDate   = $request->input('to_date');
+    $extension = $format === 'csv' ? 'csv' : 'xlsx';
+    $writerType = $format === 'csv'
+        ? \Maatwebsite\Excel\Excel::CSV
+        : \Maatwebsite\Excel\Excel::XLSX;
 
-        $filename = 'ht_caps_collapse_export_' . now()->format('Ymd_His') . '.' . $extension;
-        $path = 'capscollapseexports/' . $filename;
+    $filename = 'ht_caps_collapse_export_' . now()->format('Ymd_His') . '.' . $extension;
+    $path = 'capscollapseexports/' . $filename;
 
-        $export = new HTCapsCollapseExport($fromDate, $toDate);
+    $filters = $request->input('filter', []);
 
-        if ($format === 'csv') {
-            Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
-        } else {
-            Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
-        }
+    $fromDate     = $filters['from_date'] ?? null;
+    $toDate       = $filters['to_date'] ?? null;
+    $warehouseIds = CommonLocationFilter::resolveWarehouseIds($filters);
 
-        $appUrl = rtrim(config('app.url'), '/');
-        $fullUrl = $appUrl . '/storage/app/public/' . $path;
+    $export = new HTCapsCollapseExport(
+        $fromDate,
+        $toDate,
+        $warehouseIds,
+    );
 
-        return response()->json([
-            'status'       => 'success',
-            'download_url' => $fullUrl,
-        ]);
-    }
+    Excel::store($export, $path, 'public', $writerType);
+
+    $fullUrl = rtrim(config('app.url'), '/') . '/storage/app/public/' . $path;
+
+    return response()->json([
+        'status'       => 'success',
+        'download_url' => $fullUrl,
+    ]);
+}
 
     public function exportHtCaps(Request $request)
     {

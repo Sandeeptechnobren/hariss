@@ -11,42 +11,36 @@ use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 class ShelfService
 {
-public function create(array $data)
+public function storeAll(array $data)
 {
+    DB::beginTransaction();
     try {
-        DB::beginTransaction();
-        $damage = Damage::create($data);
+        $response = [];
+        if (!empty($data['damage'])) {
+            $response['damage'] = [];
+            foreach ($data['damage'] as $item) {
+                $response['damage'][] = Damage::create($item);
+            }
+        }
+        if (!empty($data['expiry'])) {
+            $response['expiry'] = [];
+            foreach ($data['expiry'] as $item) {
+                $response['expiry'][] = ExpiryShelfItem::create($item);
+            }
+        }
+        if (!empty($data['view_stock'])) {
+            $response['view_stock'] = [];
+            foreach ($data['view_stock'] as $item) {
+                $response['view_stock'][] = ViewStockPost::create($item);
+            }
+        }
         DB::commit();
-        return $damage;
+        return $response;
     } catch (\Exception $e) {
         DB::rollBack();
-        throw new \Exception("Failed to create damage stock: " . $e->getMessage());
+        throw $e;
     }
 }
-public function expirycreate(array $data)
-    {
-        try {
-            DB::beginTransaction();
-            $item = ExpiryShelfItem::create($data);
-            DB::commit();
-            return $item;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw new \Exception("Failed to create expiry shelf item: " . $e->getMessage());
-        }
-    }
-public function viewstock(array $data)
-    {
-        try {
-            DB::beginTransaction();
-            $item = ViewStockPost::create($data);
-            DB::commit();
-            return $item;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw new \Exception("Failed to create view stock post: " . $e->getMessage());
-        }
-    }
 public function getShelfDataByMerchandiser($merchandiserId)
 {
     $merchandiserId = (int) $merchandiserId;
@@ -60,9 +54,15 @@ public function getShelfDataByMerchandiser($merchandiserId)
         ->get();
     $planograms = Planogram::whereNull('deleted_at')
         ->whereDate('valid_to', '>=', $today)
-        ->whereRaw("(',' || merchendisher_id || ',') LIKE ?", ["%,{$merchandiserId},%"])
+            ->whereRaw("
+        ? = ANY(
+            string_to_array(
+                regexp_replace(merchendisher_id, '[^0-9,]', '', 'g'),
+                ','
+            )::int[]
+        )
+    ", [$merchandiserId])
         ->get();
-
     return [
         'shelves' => $shelves,
         'planograms' => $planograms,

@@ -115,15 +115,20 @@ class HtReturnController extends Controller
         $uuid = $request->input('uuid');
         $format = strtolower($request->input('format', 'pdf'));
         $extension = in_array($format, ['pdf', 'csv', 'xlsx']) ? $format : 'pdf';
-
         $filename = 'htreturn_export_' . now()->format('Ymd_His') . '.' . $extension;
         $path = 'exports/' . $filename;
-
         if ($extension === 'pdf') {
             $order = TempReturnH::with(['customer'])
                 ->where('uuid', $uuid)
                 ->first();
-                // dd($order);
+            
+            if (!$order) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Record not found for given UUID'
+                ], 404);
+            }
+
             $orderDetails = TempReturnD::with(['item'])
                 ->where('header_id', $order->id)
                 ->get();
@@ -474,5 +479,57 @@ class HtReturnController extends Controller
                 'error'   => $e->getMessage()
             ], 500);
         }
+    }
+
+    // public function getByWarehouse(Request $request, $warehouse_id = null)
+    // {
+    //     $warehouseId = $warehouse_id ?? $request->input('warehouse_id');
+        
+    //     if (!$warehouseId) {
+    //         return response()->json([
+    //             'message' => 'warehouse_id is required'
+    //         ], 400);
+    //     }
+
+    //     $perPage = $request->input('limit', 10);
+    //     $returns = $this->service->getByWarehouseId($warehouseId, $perPage);
+
+    //     $pagination = [
+    //         'page'         => $returns->currentPage(),
+    //         'limit'        => $returns->perPage(),
+    //         'totalPages'   => $returns->lastPage(),
+    //         'totalRecords' => $returns->total(),
+    //     ];
+
+    //     return response()->json([
+    //         'status'     => 'success',
+    //         'code'       => 200,
+    //         'data'       => ReturnheaderResource::collection($returns),
+    //         'pagination' => $pagination
+    //     ]);
+    // }
+public function getByWarehouse(Request $request, $warehouse_id = null)
+    {
+        $warehouseId = $warehouse_id ?: $request->query('warehouse_id');
+        if (!$warehouseId) {
+            return response()->json([
+                'status' => 'error',
+                'code'   => 400,
+                'message'=> 'warehouse_id is required'
+            ], 400);
+        }
+        $perPage = $request->query('per_page', 10);
+        $returns = $this->service->getByWarehouseId($warehouseId, $perPage);
+        return response()->json([
+            'status' => 'success',
+            'code'   => 200,
+            'data'   => ReturnheaderResource::collection($returns),
+            'pagination' => [
+                'page'         => $returns->currentPage(),
+                'limit'        => $returns->perPage(),
+                'totalPages'   => $returns->lastPage(),
+                'totalRecords' => $returns->total(),
+            ]
+        ]);
     }
 }

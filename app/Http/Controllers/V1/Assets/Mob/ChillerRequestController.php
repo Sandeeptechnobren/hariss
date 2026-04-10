@@ -34,6 +34,7 @@ use PDF;
  *     @OA\Property(property="landmark", type="string", example="Near City Mall"),
  *     @OA\Property(property="existing_coolers", type="string", example="2"),
  *     @OA\Property(property="outlet_weekly_sale_volume", type="string", example="1500"),
+ * @OA\Property(property="outlet_weekly_sale_volume_current", type="string", example="1500"),
  *     @OA\Property(property="display_location", type="string", example="Front Display Area"),
  *     @OA\Property(property="chiller_safty_grill", type="string", example="Installed"),
  *     @OA\Property(property="manager_sales_marketing", type="integer", example=15),
@@ -168,6 +169,7 @@ class ChillerRequestController extends Controller
  *                 @OA\Property(property="landmark", type="string", maxLength=255),
  *                 @OA\Property(property="existing_coolers", type="string", maxLength=255),
  *                 @OA\Property(property="outlet_weekly_sale_volume", type="string", maxLength=20),
+ *                 @OA\Property(property="outlet_weekly_sale_volume_current", type="string", maxLength=20),
  *                 @OA\Property(property="display_location", type="string", maxLength=255),
  *                 @OA\Property(property="chiller_safty_grill", type="string", maxLength=255),
  *

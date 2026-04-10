@@ -14,13 +14,14 @@ class AgentDeliveryHeaderRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'delivery_code'=> 'required|string|unique:agent_delivery_headers,delivery_code',
+            'delivery_code' => 'required|string|unique:agent_delivery_headers,delivery_code',
             'warehouse_id' => 'required|integer',
             'customer_id' => 'required|integer',
             'currency' => 'nullable|string|max:20',
             'country_id' => 'nullable|integer',
             'route_id' => 'nullable|integer',
             'salesman_id' => 'nullable|integer',
+            'delivery_date' => 'nullable|date',
             'gross_total' => 'nullable|numeric',
             'vat' => 'required|numeric',
             'discount' => 'nullable|numeric',
@@ -36,43 +37,43 @@ class AgentDeliveryHeaderRequest extends FormRequest
             'details.*.item_price' => 'nullable|numeric|min:0',
             'details.*.quantity'   => 'nullable|numeric|min:0',
             'details.*.vat'        => 'nullable|numeric|min:0',
-            'details.*.gross_total'=> 'nullable|numeric|min:0',
+            'details.*.gross_total' => 'nullable|numeric|min:0',
             'details.*.net_total'  => 'nullable|numeric|min:0',
             'details.*.total'      => 'nullable|numeric|min:0',
             'details.*.promotion_id' => 'nullable|integer',
             'details.*.is_promotional' => 'nullable|boolean',
         ];
     }
-public function withValidator($validator): void
-{
-    $validator->after(function ($validator) {
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
 
-        foreach ($this->input('details', []) as $index => $detail) {
+            foreach ($this->input('details', []) as $index => $detail) {
 
-            $isPromotion = $detail['is_promotional'] ?? false;
+                $isPromotion = $detail['is_promotional'] ?? false;
 
-            if (!$isPromotion) {
+                if (!$isPromotion) {
 
-                $requiredFields = [
-                    'item_price' => 'Item price is required.',
-                    'quantity'   => 'Quantity is required.',
-                    'vat'        => 'VAT is required.',
-                    'net_total'  => 'Net total is required.',
-                    'total'      => 'Total is required.',
-                ];
+                    $requiredFields = [
+                        'item_price' => 'Item price is required.',
+                        'quantity'   => 'Quantity is required.',
+                        'vat'        => 'VAT is required.',
+                        'net_total'  => 'Net total is required.',
+                        'total'      => 'Total is required.',
+                    ];
 
-                foreach ($requiredFields as $field => $message) {
-                    if (!isset($detail[$field]) || $detail[$field] === null) {
-                        $validator->errors()->add(
-                            "details.$index.$field",
-                            $message
-                        );
+                    foreach ($requiredFields as $field => $message) {
+                        if (!isset($detail[$field]) || $detail[$field] === null) {
+                            $validator->errors()->add(
+                                "details.$index.$field",
+                                $message
+                            );
+                        }
                     }
                 }
             }
-        }
-    });
-}
+        });
+    }
     public function messages(): array
     {
         return [

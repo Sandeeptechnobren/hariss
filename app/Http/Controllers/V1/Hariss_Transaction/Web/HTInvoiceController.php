@@ -289,10 +289,8 @@ class HTInvoiceController extends Controller
         $uuid = $request->input('uuid');
         $format = strtolower($request->input('format', 'pdf'));
         $extension = in_array($format, ['pdf', 'csv', 'xlsx']) ? $format : 'pdf';
-
         $filename = 'htinvoice_export_' . now()->format('Ymd_His') . '.' . $extension;
         $path = 'exports/' . $filename;
-
         if ($extension === 'pdf') {
             $order = HTInvoiceHeader::with(['warehouse', 'customer'])
                 ->where('uuid', $uuid)
@@ -300,7 +298,6 @@ class HTInvoiceController extends Controller
             $orderDetails = HTInvoiceDetail::with(['item', 'uoms'])
                 ->where('header_id', $order->id)
                 ->get();
-
             $pdf = \PDF::loadView('htinvoice', [
                 'order'         => $order,
                 'orderDetails'  => $orderDetails
@@ -308,13 +305,11 @@ class HTInvoiceController extends Controller
             Storage::disk('public')->put($path, $pdf->output());
             $appUrl = rtrim(config('app.url'), '/');
             $fullUrl = $appUrl . '/storage/app/public/' . $path;
-
             return response()->json([
                 'status'        => 'success',
                 'download_url'  => $fullUrl
             ]);
         }
-
         return response()->json([
             'status' => 'error',
             'message' => 'Unsupported export format.'

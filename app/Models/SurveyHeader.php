@@ -45,5 +45,9 @@ class SurveyHeader extends Model
     {
         return $this->hasMany(SurveyDetail::class, 'header_id', 'id');
     }
+        public function details()
+    {
+        return $this->hasMany(SurveyDetail::class, 'header_id', 'id');
+    }
 
 }

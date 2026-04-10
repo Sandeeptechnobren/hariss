@@ -48,44 +48,41 @@ class LoadHeaderFullExport implements
             'salesman',
             'salesmantype',
             'projecttype'
-        ])
-            ->when(
-                $this->fromDate && $this->toDate,
-                fn($q) =>
-                $q->whereBetween('created_at', [
-                    $this->fromDate . ' 00:00:00',
-                    $this->toDate . ' 23:59:59'
-                ])
-            )
+        ]);
+        if (!empty($this->warehouseIds)) {
+            $query->whereIn('warehouse_id', $this->warehouseIds);
+        }
 
-            ->when(
-                !empty($this->salesmanIds),
-                fn($q) =>
-                $q->whereIn('salesman_id', $this->salesmanIds)
-            )
+        if (!empty($this->routeIds)) {
+            $query->whereIn('route_id', $this->routeIds);
+        }
 
-            ->when(
-                empty($this->salesmanIds) && !empty($this->routeIds),
-                fn($q) =>
-                $q->whereIn('route_id', $this->routeIds)
-            )
+        if (!empty($this->salesmanIds)) {
+            $query->whereIn('salesman_id', $this->salesmanIds);
+        }
 
-            ->when(
-                empty($this->salesmanIds) && empty($this->routeIds) && !empty($this->warehouseIds),
-                fn($q) =>
-                $q->whereIn('warehouse_id', $this->warehouseIds)
-            );
+        // ✅ SAME DATE LOGIC
+        if (!empty($this->fromDate)) {
+            $query->whereDate('created_at', '>=', $this->fromDate);
+        }
 
-            $query = DataAccessHelper::filterAgentTransaction($query, Auth::user());
-            $loads = $query->get();
+        if (!empty($this->toDate)) {
+            $query->whereDate('created_at', '<=', $this->toDate);
+        }
+
+        $query = DataAccessHelper::filterAgentTransaction($query, Auth::user());
+        $loads = $query->get();
 
         foreach ($loads as $load) {
 
             $rows[] = [
                 'Load No' => (string) $load->osa_code,
-                'Load Date' => optional($load->created_at)->format('d-m-Y'),
+                'Load Date' => optional($load->created_at)->format('d M Y'),
                 'Accept Date' => $load->accept_time
-                    ? Carbon::parse($load->accept_time)->format('d-m-Y')
+                    ? Carbon::parse($load->accept_time)->format('d M Y')
+                    : '',
+                'Accept Time' => $load->accept_time
+                    ? Carbon::parse($load->accept_time)->format('h:i A')
                     : '',
                 'Warehouse' => trim(
                     ($load->warehouse->warehouse_code ?? '') . ' - ' .
@@ -105,7 +102,7 @@ class LoadHeaderFullExport implements
                 'Salesman Type' => (string) ($load->salesmantype->salesman_type_name ?? ''),
                 'Project Type'  => (string) ($load->projecttype->name ?? ''),
 
-                'Status' => $load->is_confirmed == 1 ? 'SalesTeam Accepted' : 'Waiting For Accept',
+                'Status' => $load->is_confirmed == 1 ? 'SalesTeam Accepted' : 'Waiting For SalesTeam Accept',
             ];
         }
 
@@ -118,7 +115,8 @@ class LoadHeaderFullExport implements
             'Load No',
             'Load Date',
             'Accept Date',
-            'Warehouse',
+            'Accept Time',
+            'Distributors',
             'Route',
             'Salesman',
             'Salesman Type',

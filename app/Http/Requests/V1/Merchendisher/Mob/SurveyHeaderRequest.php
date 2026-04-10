@@ -13,22 +13,27 @@ class SurveyHeaderRequest extends FormRequest
         return true;
     }
 
-    public function rules(): array
+  public function rules(): array
+{
+    return [
+        'merchandiser_id' => ['required', 'integer'],
+        'date'            => ['required', 'date'],
+        'answerer_name'   => ['nullable', 'string', 'max:50'],
+        'address'         => ['nullable', 'string'],
+        'phone'           => ['nullable', 'string', 'max:20'],
+        'survey_id'       => ['required', 'integer', 'exists:surveys,id'],
+        'details'                 => ['required', 'array', 'min:1'],
+        'details.*.question_id'   => ['required', 'integer', 'exists:survey_questions,id'],
+        'details.*.answer'        => ['nullable', 'string', 'max:2000'],
+    ];
+}
+
+    protected function failedValidation(\Illuminate\Contracts\Validation\Validator $validator)
     {
-        return [
-            'survey_id' => ['required', 'integer', function ($attribute, $value, $fail) {
-                $exists = Survey::where('id', $value)
-                                ->whereNull('deleted_at')
-                                ->exists();
-                if (!$exists) {
-                    $fail('The selected survey_id is invalid or has been deleted.');
-                }
-            }],
-            'merchandiser_id' => 'required|integer',
-            'date' => 'required|date',
-            'answerer_name' => 'required|string|max:50',
-            'address' => 'nullable|string|max:255',
-            'phone' => 'nullable|string|max:20',
-        ];
+        $errors = $validator->errors()->all();
+        throw new ValidationException($validator, response()->json([
+            'message' => 'Validation Failed',
+            'errors' => $errors
+        ], 422));
     }
 }

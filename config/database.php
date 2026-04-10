@@ -112,6 +112,20 @@ return [
             // 'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'false'),
         ],
 
+        'efris_pgsql' => [
+            'driver' => 'pgsql',
+            'host' => env('DB_EFRIS_HOST', '161.35.143.76'),
+            'port' => env('DB_EFRIS_PORT', '5432'),
+            'database' => env('DB_EFRIS_DATABASE', 'Riham_Efris_Crom'),
+            'username' => env('DB_EFRIS_USERNAME', 'laravel_user'),
+            'password' => env('DB_EFRIS_PASSWORD', ''),
+            'charset' => env('DB_EFRIS_CHARSET', 'utf8'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'sslmode' => 'prefer',
+        ],
+
     ],
 
     /*
@@ -147,7 +161,7 @@ return [
 
         'options' => [
             'cluster' => env('REDIS_CLUSTER', 'redis'),
-            'prefix' => env('REDIS_PREFIX', Str::slug((string) env('APP_NAME', 'laravel')).'-database-'),
+            'prefix' => env('REDIS_PREFIX', Str::slug((string) env('APP_NAME', 'laravel')) . '-database-'),
             'persistent' => env('REDIS_PERSISTENT', false),
         ],
 

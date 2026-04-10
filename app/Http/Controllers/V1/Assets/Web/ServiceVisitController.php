@@ -24,7 +24,6 @@ class ServiceVisitController extends Controller
             $perPage  = $request->get('per_page', 50);
             $dropdown = $request->boolean('dropdown', false);
 
-            // ✅ REMOVE pagination & control params from filters
             $filters = collect($request->all())->except([
                 'page',
                 'per_page',
@@ -33,7 +32,6 @@ class ServiceVisitController extends Controller
 
             $records = $this->service->getAll($perPage, $filters, $dropdown);
 
-            // ✅ Dropdown response (no pagination)
             if ($dropdown) {
                 return response()->json([
                     'status'  => 'success',
@@ -42,7 +40,6 @@ class ServiceVisitController extends Controller
                 ], 200);
             }
 
-            // ✅ Paginated response
             return response()->json([
                 'status'  => 'success',
                 'message' => 'Service visits fetched successfully',
@@ -99,9 +96,6 @@ class ServiceVisitController extends Controller
     }
 
 
-    /**
-     * Show by UUID
-     */
     public function show(string $uuid): JsonResponse
     {
         try {
@@ -129,10 +123,6 @@ class ServiceVisitController extends Controller
         }
     }
 
-
-    /**
-     * Update by UUID
-     */
     public function update(StoreServiceVisitRequest $request, string $uuid): JsonResponse
     {
         try {
@@ -154,9 +144,6 @@ class ServiceVisitController extends Controller
     }
 
 
-    /**
-     * Delete by UUID
-     */
     public function destroy(string $uuid): JsonResponse
     {
         try {
@@ -181,7 +168,6 @@ class ServiceVisitController extends Controller
     {
         try {
 
-            // 🔹 Get filter array from payload
             $filters = $request->input('filter', []);
 
             $format = strtolower($request->input('format', 'xlsx'));
@@ -228,7 +214,6 @@ class ServiceVisitController extends Controller
             $perPage  = $request->get('per_page', 50);
             $dropdown = $request->boolean('dropdown', false);
 
-            // ❌ Remove control params
             $filters = collect($request->all())->except([
                 'page',
                 'per_page',
@@ -237,7 +222,6 @@ class ServiceVisitController extends Controller
 
             $records = $this->service->globalFilter($perPage, $filters, $dropdown);
 
-            // ✅ Dropdown response (UNCHANGED)
             if ($dropdown) {
                 return response()->json([
                     'status'  => 'success',
@@ -246,7 +230,6 @@ class ServiceVisitController extends Controller
                 ], 200);
             }
 
-            // ✅ Paginated response (UNCHANGED)
             return response()->json([
                 'status'  => 'success',
                 'message' => 'Service visits fetched successfully',
@@ -265,5 +248,24 @@ class ServiceVisitController extends Controller
                 'error'   => $e->getMessage()
             ], 500);
         }
+    }
+
+    public function exportServiceVisitPdf($uuid)
+    {
+        $path = $this->service->generateAndStoreServiceVisitPdf($uuid);
+
+        if (!$path) {
+            return response()->json([
+                'message' => 'Record not found or no images'
+            ], 404);
+        }
+
+        $appUrl  = rtrim(config('app.url'), '/');
+        $fullUrl = $appUrl . '/storage/app/public/' . $path;
+
+        return response()->json([
+            'message' => 'PDF generated successfully',
+            'url' => $fullUrl,
+        ]);
     }
 }

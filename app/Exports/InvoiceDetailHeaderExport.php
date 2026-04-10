@@ -29,6 +29,8 @@ class InvoiceDetailHeaderExport implements FromCollection, WithHeadings, ShouldA
 
     public function collection()
     {
+
+        ini_set('memory_limit','-1');  
         $rows = [];
 
         $query = InvoiceHeader::with([

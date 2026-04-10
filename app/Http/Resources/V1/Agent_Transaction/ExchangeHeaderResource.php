@@ -109,6 +109,7 @@ class ExchangeHeaderResource extends JsonResource
 
             'comment'        => $this->comment,
             'status'         => $this->status,
+            'created_at'         => $this->created_at,
 
             'invoices'       => ExchangeDetailResource::collection($this->whenLoaded('invoices')),
             'returns'        => ExchangeDetailResource::collection($this->whenLoaded('returns')),

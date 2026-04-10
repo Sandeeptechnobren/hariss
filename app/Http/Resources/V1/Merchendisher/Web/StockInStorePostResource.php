@@ -8,11 +8,18 @@ class StockInStorePostResource extends JsonResource
 {
    public function toArray($request)
 {
+    $stock = $this->stock;
+    $inventory = $stock?->inventories
+        ?->where('item_id', $this->item_id)
+        ?->first();
     return [
         'id'              => $this->id,
         'stock_id'        => $this->stock_id,
         'stock_name'      => $this->stock ? $this->stock->activity_name : null,
         'stock_code'      => $this->stock ? $this->stock->code : null,
+        'capacity'        => $inventory?->capacity,
+        'uom_id'          => $inventory?->item_uom,
+        'uom_name'        => $inventory?->uom?->name,
         'date'            => $this->date,
         'salesman_id'     => $this->salesman_id,
         'salesman_name'   => $this->salesman ? $this->salesman->name : null,

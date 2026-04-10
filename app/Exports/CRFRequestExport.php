@@ -1,145 +1,23 @@
 <?php
 
-// namespace App\Exports;
-
-// use App\Models\ChillerRequest;
-// use Maatwebsite\Excel\Concerns\FromCollection;
-// use Maatwebsite\Excel\Concerns\WithHeadings;
-// use Maatwebsite\Excel\Concerns\ShouldAutoSize;
-
-// class CRFRequestExport implements FromCollection, WithHeadings, ShouldAutoSize
-// {
-//     protected $filters;
-
-//     public function __construct(array $filters)
-//     {
-//         $this->filters = $filters;
-//     }
-//     private $statusMap = [
-//         1  => "Sales Team Requested",
-//         2  => "Area Sales Manager Accepted",
-//         3  => "Area Sales Manager Rejected",
-//         4  => "Chiller Officer Accepted",
-//         5  => "Chiller Officer Rejected",
-//         6  => "Completed",
-//         7  => "Chiller Manager Rejected",
-//         8  => "Sales/Key Manager Rejected",
-//         9  => "Refused by Customer",
-//         10 => "Fridge Manager Accepted",
-//         11 => "Fridge Manager Rejected",
-//     ];
-//     private $fridgeStatusMap = [
-//         0 => "Not Assigned",
-//         1 => "Assigned",
-//     ];
-//     public function collection()
-//     {
-//         $query = ChillerRequest::with([
-//             'customer',
-//             'warehouse.area.region',  
-//             'route',         
-//             'salesman',
-//             'modelNumber',
-//             'outlet',
-//             'createdBy'
-//         ]);
-
-//         if (!empty($this->filters['status'])) {
-//             $query->where('status', $this->filters['status']);
-//         }
-
-//         foreach (['warehouse_id', 'route_id', 'salesman_id', 'model_id'] as $key) {
-//             if (!empty($this->filters[$key])) {
-//                 $query->whereIn(
-//                     $key === 'model_id' ? 'model' : $key,
-//                     explode(',', $this->filters[$key])
-//                 );
-//             }
-//         }
-
-//         if (!empty($this->filters['region_id'])) {
-//             $query->whereHas('warehouse.region', function ($q) {
-//                 $q->whereIn('id', explode(',', $this->filters['region_id']));
-//             });
-//         }
-
-//         return $query->latest()->get()->map(function ($item) {
-
-//             $warehouse = $item->warehouse;
-//             $area      = optional($warehouse)->area;
-//             $region    = optional($area)->region;
-//             $route     = $item->route;
-
-//             return [
-
-//                 optional($item->created_at)->format('Y-m-d'),
-//                 $item->osa_code,
-//                 (optional($item->customer)->osa_code ?? '') . ' - ' . (optional($item->customer)->name ?? ''),
-//                 $item->owner_name,
-//                 $item->contact_number,
-//                 $item->landmark,
-//                 // optional($item->customer)->name,
-//                 // optional($item->customer)->customer_code,
-//                 // optional($item->customer)->city,
-//                 optional($item->customer)->district,
-//                 // $item->asset_number,
-//                 $item->machine_number,
-//                 optional($item->modelNumber)->name,
-//                 // $item->asset_type,
-//                 $item->brand,
-//                 $item->chiller_size_requested,
-//                 (optional($item->salesman)->osa_code ?? '') . ' - ' . (optional($item->salesman)->name ?? ''),
-//                 (optional($warehouse)->warehouse_code ?? '') . ' - ' . (optional($warehouse)->warehouse_name ?? ''),
-//                 (optional($area)->area_code ?? '') . ' - ' . (optional($area)->area_name ?? ''),
-//                 (optional($region)->region_code ?? '') . ' - ' . (optional($region)->region_name ?? ''),
-//                 ($this->fridgeStatusMap[$item->fridge_status] ?? $item->fridge_status),
-//                 ($this->statusMap[$item->status] ?? $item->status),
-//             ];
-//         });
-//     }
-
-//     public function headings(): array
-//     {
-//         return [
-//             'Date',
-//             'Code',
-//             'Customer',
-//             'Owner Name',
-//             'Contact Number',
-//             'Landmark',
-//             // 'Customer Code',
-//             // 'City',
-//             'District',
-//             // 'Fridge Code',
-//             'Serial Number',
-//             'Model Number',
-//             // 'Type',
-//             'Brand',
-//             'Chiller Size',
-
-//             'Salesman',
-//             'Warehouse',
-//             'Region',
-//             'Area',
-//             // 'Route',
-
-//             // 'Outlet Name',
-
-//             'Fridge Status',
-//             'Status',
-//         ];
-//     }
-// }
-
 namespace App\Exports;
 
 use App\Models\ChillerRequest;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Events\AfterSheet;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
 use Carbon\Carbon;
 
-class CRFRequestExport implements FromCollection, WithHeadings, ShouldAutoSize
+class CRFRequestExport implements
+    FromCollection,
+    WithHeadings,
+    ShouldAutoSize,
+    WithEvents
 {
     protected $filters;
 
@@ -148,20 +26,63 @@ class CRFRequestExport implements FromCollection, WithHeadings, ShouldAutoSize
         $this->filters = $filters;
     }
 
-    private $statusMap = [
-        1  => "Sales Team Requested",
-        2  => "IRO Created",
-        3  => "IR Created",
-        4  => "Closed",
-    ];
+    /**
+     * ✅ Same mapping as API
+     */
+    private function mapStatus($statusId)
+    {
+        return [
+            1  => "Sales Team Requested",
+            2  => "IRO Created",
+            3  => "IR Created",
+            4  => "Requesting for close",
+            5  => "Completed",
+        ][$statusId] ?? "Unknown";
+    }
 
-    private $fridgeStatusMap = [
-        0 => "Not Assigned",
-        1 => "Assigned",
-    ];
+    /**
+     * ✅ FINAL STATUS LOGIC (Same as API)
+     */
+    private function resolveWorkflowStatus($item): string
+    {
+        // 🔴 Rejected case
+        if (!empty($item->approval_status) && stripos($item->approval_status, 'rejected') !== false) {
+            return $item->approval_status;
+        }
+
+        // 🟡 No progress
+        if (is_null($item->progress)) {
+            return $item->approval_status ?? 'Pending Approval';
+        }
+
+        $approved = 0;
+        $total = 0;
+
+        if (!empty($item->progress) && str_contains($item->progress, '/')) {
+            [$approved, $total] = array_map('intval', explode('/', $item->progress));
+        }
+
+        // 🟢 Step 1 (initial)
+        if ($item->status == 1) {
+            if ($approved == 0) {
+                return $this->mapStatus(1);
+            }
+            return $item->approval_status ?? 'Under Approval';
+        }
+
+        // 🟢 Completed
+        if ($total > 0 && $approved == $total) {
+            return $this->mapStatus($item->status) ?? 'Approved';
+        }
+
+        // 🟡 Middle flow
+        return $item->approval_status ?? 'Pending Approval';
+    }
 
     public function collection()
     {
+        $user = auth()->user(); // ✅ ADD THIS
+        $filter = $this->filters;
         $query = ChillerRequest::with([
             'customer',
             'warehouse.area.region',
@@ -173,72 +94,65 @@ class CRFRequestExport implements FromCollection, WithHeadings, ShouldAutoSize
             'fridgeStatuses.chiller.brand'
         ]);
 
-        $filters = $this->filters;
 
-        // $query->when(
-        //     isset($filters['status']),
-        //     fn($q) =>
-        //     $q->where('status', $filters['status'])
-        // );
+        if (!empty($filter)) {
 
-        $query->when(
-            isset($filters['warehouse_id']),
-            fn($q) =>
-            $q->whereIn('warehouse_id', explode(',', $filters['warehouse_id']))
-        );
-
-        $query->when(
-            isset($filters['route_id']),
-            fn($q) =>
-            $q->whereIn('route_id', explode(',', $filters['route_id']))
-        );
-
-        $query->when(
-            isset($filters['salesman_id']),
-            fn($q) =>
-            $q->whereIn('salesman_id', explode(',', $filters['salesman_id']))
-        );
-
-        $query->when(
-            isset($filters['model_id']),
-            fn($q) =>
-            $q->whereIn('model', explode(',', $filters['model_id']))
-        );
-
-        $query->when(isset($filters['region_id']), function ($q) use ($filters) {
-            $q->whereHas('warehouse.area.region', function ($sub) use ($filters) {
-                $sub->whereIn('id', explode(',', $filters['region_id']));
-            });
-        });
-
-        if (!empty($filters['from_date']) && !empty($filters['to_date'])) {
-
-            $query->whereBetween('created_at', [
-                $filters['from_date'],
-                $filters['to_date']
+            $warehouseIds = \App\Helpers\CommonLocationFilter::resolveWarehouseIds([
+                'company'   => $filter['company_id']   ?? null,
+                'region'    => $filter['region_id']    ?? null,
+                'area'      => $filter['area_id']      ?? null,
+                'warehouse' => $filter['warehouse_id'] ?? null,
+                'route'     => $filter['route_id']     ?? null,
             ]);
-        } else {
 
-            // Default Current Month
-            $query->whereBetween('created_at', [
-                Carbon::now()->startOfMonth(),
-                Carbon::now()->endOfMonth()
-            ]);
+            if (!empty($warehouseIds)) {
+                $query->whereIn('warehouse_id', $warehouseIds);
+            }
+        }
+        $query = \App\Helpers\DataAccessHelper::filterWarehouses($query, $user);
+        // ✅ SAME AS globalFilterF
+        // ✅ STATUS
+        $statusInput = $filter['status'] ?? $filter['request_status'] ?? null;
+
+        if (!empty($statusInput)) {
+            $statuses = is_array($statusInput)
+                ? $statusInput
+                : explode(',', $statusInput);
+
+            $statuses = array_filter(array_map('intval', $statuses));
+
+            if (!empty($statuses)) {
+                $query->whereIn('status', $statuses);
+            }
         }
 
+        // ✅ MODEL
+        if (!empty($filter['model_id'])) {
+            $modelIds = is_array($filter['model_id'])
+                ? $filter['model_id']
+                : explode(',', $filter['model_id']);
 
-        $query->when(
-            isset($filters['request_status']),
-            function ($q) use ($filters) {
+            $query->whereIn('model', array_map('intval', $modelIds));
+        }
 
-                $status = is_array($filters['request_status'])
-                    ? $filters['request_status']
-                    : explode(',', $filters['request_status']);
+        // ✅ DATE (IMPORTANT: same parsing)
+        if (!empty($filter['from_date']) && !empty($filter['to_date'])) {
+            $from = Carbon::parse($filter['from_date'])->startOfDay();
+            $to   = Carbon::parse($filter['to_date'])->endOfDay();
+            $query->whereBetween('created_at', [$from, $to]);
+        } elseif (!empty($filter['from_date'])) {
+            $query->where('created_at', '>=', Carbon::parse($filter['from_date'])->startOfDay());
+        } elseif (!empty($filter['to_date'])) {
+            $query->where('created_at', '<=', Carbon::parse($filter['to_date'])->endOfDay());
+        }
 
-                $q->whereIn('status', $status);
-            }
-        );
+        // dd($query->count());
+        // ❌ REMOVE THIS DEBUG
+        // dd($query->count());
+
         return $query->latest()->get()->map(function ($item) {
+
+            $item = \App\Helpers\ApprovalHelper::attach($item, 'Chiller_Request');
 
             $warehouse = $item->warehouse;
             $area = optional($warehouse)->area;
@@ -256,7 +170,6 @@ class CRFRequestExport implements FromCollection, WithHeadings, ShouldAutoSize
                 $item->landmark,
                 optional($item->customer)->district,
                 optional($item->customer)->town,
-                // $item->machine_number,
                 optional($fridgeChiller)->osa_code,
                 optional($fridgeChiller)->serial_number,
                 optional($item->modelNumber)->name,
@@ -266,8 +179,8 @@ class CRFRequestExport implements FromCollection, WithHeadings, ShouldAutoSize
                 (optional($warehouse)->warehouse_code ?? '') . ' - ' . (optional($warehouse)->warehouse_name ?? ''),
                 (optional($area)->area_code ?? '') . ' - ' . (optional($area)->area_name ?? ''),
                 (optional($region)->region_code ?? '') . ' - ' . (optional($region)->region_name ?? ''),
-                // ($this->fridgeStatusMap[$item->fridge_status] ?? $item->fridge_status),
-                ($this->statusMap[$item->status] ?? $item->status),
+
+                $this->resolveWorkflowStatus($item),
             ];
         });
     }
@@ -284,7 +197,7 @@ class CRFRequestExport implements FromCollection, WithHeadings, ShouldAutoSize
             'Landmark',
             'District',
             'City',
-            'Fridge Code',
+            'Chiller Code',
             'Serial Number',
             'Model Number',
             'Brand',
@@ -293,8 +206,41 @@ class CRFRequestExport implements FromCollection, WithHeadings, ShouldAutoSize
             'Warehouse',
             'Area',
             'Region',
-            // 'Fridge Status',
             'Status',
+        ];
+    }
+
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => function (AfterSheet $event) {
+
+                $sheet = $event->sheet->getDelegate();
+                $lastColumn = $sheet->getHighestColumn();
+
+                $sheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
+                    'font' => [
+                        'bold'  => true,
+                        'color' => ['rgb' => 'FFFFFF'],
+                    ],
+                    'alignment' => [
+                        'horizontal' => Alignment::HORIZONTAL_CENTER,
+                        'vertical'   => Alignment::VERTICAL_CENTER,
+                    ],
+                    'fill' => [
+                        'fillType'   => Fill::FILL_SOLID,
+                        'startColor' => ['rgb' => '993442'],
+                    ],
+                    'borders' => [
+                        'allBorders' => [
+                            'borderStyle' => Border::BORDER_THIN,
+                            'color'       => ['rgb' => '000000'],
+                        ],
+                    ],
+                ]);
+
+                $sheet->getRowDimension(1)->setRowHeight(25);
+            },
         ];
     }
 }

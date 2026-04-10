@@ -11,8 +11,8 @@ class StoreInvoiceRequest extends FormRequest
          return [
             'invoice_code' => 'required|string|unique:invoice_headers,invoice_code',
             'warehouse_id' => 'required|integer|exists:tbl_warehouse,id',
-            'order_number' => 'nullable|integer|exists:agent_order_headers,id',
-            'delivery_number' => 'nullable|integer|exists:agent_delivery_headers,id',
+            'order_id' => 'nullable|integer|exists:agent_order_headers,id',
+            'delivery_id' => 'nullable|integer|exists:agent_delivery_headers,id',
             'customer_id' => 'required|integer|exists:agent_customers,id',
             'route_id' => 'nullable|integer|exists:tbl_route,id',
             'salesman_id' => 'nullable|integer|exists:salesman,id',
