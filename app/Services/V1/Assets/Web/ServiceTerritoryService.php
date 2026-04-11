@@ -33,53 +33,107 @@ class ServiceTerritoryService
 
 
 
+    // public function getAll(int $perPage = 50, array $filters = [])
+    // {
+    //     try {
+    //         $query = ServiceTerritory::query();
+
+    //         if (!empty($filters['warehouse_id'])) {
+    //             $query->where('warehouse_id', $filters['warehouse_id']);
+    //         }
+
+    //         if (!empty($filters['region_id'])) {
+    //             $query->where('region_id', $filters['region_id']);
+    //         }
+
+    //         if (!empty($filters['area_id'])) {
+    //             $query->where('area_id', $filters['area_id']);
+    //         }
+
+    //         if (!empty($filters['technician_id'])) {
+    //             $query->where('technician_id', $filters['technician_id']);
+    //         }
+
+    //         if (!empty($filters['search'])) {
+    //             $term = strtolower($filters['search']);
+    //             $like = "%{$term}%";
+
+    //             $query->where(function ($q) use ($like) {
+    //                 $q->orWhereRaw("LOWER(warehouse_id) LIKE ?", [$like])
+    //                     ->orWhereRaw("LOWER(region_id) LIKE ?", [$like])
+    //                     ->orWhereRaw("LOWER(area_id) LIKE ?", [$like])
+    //                     ->orWhereRaw("LOWER(technician_id) LIKE ?", [$like])
+    //                     ->orWhereRaw("LOWER(osa_code) LIKE ?", [$like]);
+    //             });
+    //         }
+
+    //         $query->orderBy('created_at', 'desc');
+
+    //         return $query->paginate($perPage);
+    //     } catch (Throwable $e) {
+
+    //         Log::error("ServiceTerritory filter failed", [
+    //             'error' => $e->getMessage(),
+    //             'filters' => $filters,
+    //         ]);
+
+    //         throw new \Exception("Failed to fetch Service Territories: " . $e->getMessage());
+    //     }
+    // }
     public function getAll(int $perPage = 50, array $filters = [])
-    {
-        try {
-            $query = ServiceTerritory::query();
+{
+    try {
+        $query = ServiceTerritory::query();
 
-            if (!empty($filters['warehouse_id'])) {
-                $query->where('warehouse_id', $filters['warehouse_id']);
-            }
-
-            if (!empty($filters['region_id'])) {
-                $query->where('region_id', $filters['region_id']);
-            }
-
-            if (!empty($filters['area_id'])) {
-                $query->where('area_id', $filters['area_id']);
-            }
-
-            if (!empty($filters['technician_id'])) {
-                $query->where('technician_id', $filters['technician_id']);
-            }
-
-            if (!empty($filters['search'])) {
-                $term = strtolower($filters['search']);
-                $like = "%{$term}%";
-
-                $query->where(function ($q) use ($like) {
-                    $q->orWhereRaw("LOWER(warehouse_id) LIKE ?", [$like])
-                        ->orWhereRaw("LOWER(region_id) LIKE ?", [$like])
-                        ->orWhereRaw("LOWER(area_id) LIKE ?", [$like])
-                        ->orWhereRaw("LOWER(technician_id) LIKE ?", [$like])
-                        ->orWhereRaw("LOWER(osa_code) LIKE ?", [$like]);
-                });
-            }
-
-            $query->orderBy('created_at', 'desc');
-
-            return $query->paginate($perPage);
-        } catch (Throwable $e) {
-
-            Log::error("ServiceTerritory filter failed", [
-                'error' => $e->getMessage(),
-                'filters' => $filters,
-            ]);
-
-            throw new \Exception("Failed to fetch Service Territories: " . $e->getMessage());
+        if (!empty($filters['warehouse_id'])) {
+            $query->where('warehouse_id', $filters['warehouse_id']);
         }
+
+        if (!empty($filters['region_id'])) {
+            $query->where('region_id', $filters['region_id']);
+        }
+
+        if (!empty($filters['area_id'])) {
+            $query->where('area_id', $filters['area_id']);
+        }
+
+        if (!empty($filters['technician_id'])) {
+            $query->where('technician_id', $filters['technician_id']);
+        }
+
+        if (!empty($filters['from_date']) && !empty($filters['to_date'])) {
+            $query->whereBetween('created_at', [
+                $filters['from_date'] . ' 00:00:00',
+                $filters['to_date'] . ' 23:59:59'
+            ]);
+        }
+
+        if (!empty($filters['search'])) {
+            $like = "%{$filters['search']}%";
+
+            $query->where(function ($q) use ($like) {
+                $q->orWhereRaw("CAST(warehouse_id AS TEXT) ILIKE ?", [$like])
+                ->orWhereRaw("CAST(region_id AS TEXT) ILIKE ?", [$like])
+                ->orWhereRaw("CAST(area_id AS TEXT) ILIKE ?", [$like])
+                ->orWhereRaw("CAST(technician_id AS TEXT) ILIKE ?", [$like])
+                ->orWhere("osa_code", 'ILIKE', $like);
+            });
+        }
+
+        $query->orderBy('created_at', 'desc');
+
+        return $query->paginate($perPage);
+
+    } catch (Throwable $e) {
+
+        Log::error("ServiceTerritory filter failed", [
+            'error' => $e->getMessage(),
+            'filters' => $filters,
+        ]);
+
+        throw new \Exception("Failed to fetch Service Territories: " . $e->getMessage());
     }
+}
 
 
     public function create(array $data): ServiceTerritory

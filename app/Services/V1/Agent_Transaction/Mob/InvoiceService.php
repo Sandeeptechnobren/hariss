@@ -4,6 +4,7 @@ namespace App\Services\V1\Agent_transaction\Mob;
 
 use App\Models\Agent_Transaction\InvoiceHeader;
 use App\Models\Agent_Transaction\InvoiceDetail;
+use App\Models\Agent_Transaction\OrderHeader;
 use App\Models\Agent_Transaction\AgentDeliveryHeaders;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -59,6 +60,10 @@ class InvoiceService
             if (!empty($data['delivery_id'])) {
                 AgentDeliveryHeaders::where('id', $data['delivery_id'])
                     ->update(['status' => 2]);
+                    }
+            if (!empty($data['order_id'])) {
+                OrderHeader::where('id', $data['order_id'])
+                    ->update(['order_flag' => 3]);
                     }
             if (!empty($data['details']) && is_array($data['details'])) {
                 foreach ($data['details'] as $detail) {

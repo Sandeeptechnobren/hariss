@@ -5,7 +5,7 @@ namespace App\Http\Controllers\V1\EfrisAPI;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use App\Services\V1\EfrisAPI\UraInvoiceService;
-use App\Models\InvoiceHeader;
+use App\Models\Agent_Transaction\InvoiceHeader;
 
 class UraInvoiceController extends Controller
 {
@@ -224,6 +224,43 @@ class UraInvoiceController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function updateUraInvoice(Request $request)
+    {
+        try {
+            $request->validate([
+                'invoice_FNo' => 'required|string'
+            ]);
+
+            $invoiceFNo = $request->invoice_FNo;
+            // dd($invoiceFNo);
+            $updated = InvoiceHeader::where('ura_invoice_no', $invoiceFNo)
+                ->whereNull('ura_invoice_id')
+                ->update([
+                    'ura_invoice_id' => '1234'
+                ]);
+
+            if ($updated === 0) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'No record found or already updated.'
+                ], 404);
+            }
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Invoice updated successfully.',
+                'updated_rows' => $updated
+            ]);
+        } catch (Throwable $e) {
+
+            return response()->json([
+                'status' => false,
+                'message' => 'Something went wrong.',
+                'error' => $e->getMessage()
             ], 500);
         }
     }

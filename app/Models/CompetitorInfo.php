@@ -9,7 +9,7 @@ use Illuminate\Support\Str;
 
 class CompetitorInfo extends Model
 {
-      use SoftDeletes, Blames;
+    use SoftDeletes, Blames;
     protected $table = 'competitor_infos';
 
     protected $fillable = [

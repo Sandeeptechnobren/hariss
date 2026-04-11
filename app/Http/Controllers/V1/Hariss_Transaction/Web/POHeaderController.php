@@ -19,8 +19,10 @@ use Illuminate\Support\Facades\Storage;
 use App\Helpers\LogHelper;
 use App\Exports\ItemPoOrderCollapseExport;
 use App\Helpers\DataAccessHelper;
-
+use App\Exports\PoOrderCustomerExport;
+use Carbon\Carbon;
 use App\Helpers\CommonLocationFilter;
+
 
 class POHeaderController extends Controller
 {
@@ -79,20 +81,13 @@ public function exportPoOrderHeader(Request $request)
 {
     $format    = strtolower($request->input('format', 'xlsx'));
     $extension = $format === 'csv' ? 'csv' : 'xlsx';
-
     $filename = 'Purchase_Order_' . now()->format('Ymd_His') . '.' . $extension;
     $path     = 'poorderexports/' . $filename;
-
     $filters = $request->input('filter', []);
     $user    = auth()->user();
-
     $filter = $filters;
-
     $query = PoOrderHeader::latest('id');
-
-    // SAME AS GLOBAL FILTER
     // $query = DataAccessHelper::filterAgentTransaction($query, $user);
-
     $warehouseIds = CommonLocationFilter::resolveWarehouseIds([
         'company_id'   => $filter['company_id'] ?? null,
         'region_id'    => $filter['region_id'] ?? null,
@@ -101,29 +96,20 @@ public function exportPoOrderHeader(Request $request)
         'route_id'     => $filter['route_id'] ?? null,
         'salesman_id'     => $filter['salesman_id'] ?? null,
     ]);
-
     if (!empty($warehouseIds)) {
-        $warehouseIds = is_array($warehouseIds)
-            ? $warehouseIds
-            : explode(',', $warehouseIds);
-
+        $warehouseIds = is_array($warehouseIds)? $warehouseIds: explode(',', $warehouseIds);
         $query->whereIn('warehouse_id', $warehouseIds);
     }
-
     if (!empty($filter['salesman_id'])) {
         $salesmanIds = is_array($filter['salesman_id'])
             ? $filter['salesman_id']
             : explode(',', $filter['salesman_id']);
-
         $query->whereIn('salesman_id', $salesmanIds);
     }
-
     if (isset($filter['status'])) {
         $query->where('status', $filter['status']);
     }
-
     if (!empty($filter['from_date']) && !empty($filter['to_date'])) {
-        // IMPORTANT FIX: use whereBetween correctly
         $query->whereBetween('order_date', [
             $filter['from_date'],
             $filter['to_date']
@@ -132,13 +118,10 @@ public function exportPoOrderHeader(Request $request)
         if (!empty($filter['from_date'])) {
             $query->whereDate('order_date', '>=', $filter['from_date']);
         }
-
         if (!empty($filter['to_date'])) {
             $query->whereDate('order_date', '<=', $filter['to_date']);
         }
     }
-
-    // 🔥 KEY FIX: PASS FILTERS (NOT DATA)
     $export = new PoOrderExport(
         $filter['from_date'] ?? null,
         $filter['to_date'] ?? null,
@@ -146,24 +129,17 @@ public function exportPoOrderHeader(Request $request)
         !empty($filter['route_id']) ? explode(',', $filter['route_id']) : [],
         !empty($filter['salesman_id']) ? explode(',', $filter['salesman_id']) : []
     );
-
-    // ALSO FORCE SAME QUERY LOGIC IN EXPORT USING GLOBAL SCOPE
     PoOrderHeader::addGlobalScope('export_filter', function ($builder) use ($query) {
         $builder->whereIn('id', $query->pluck('id'));
     });
-
     if ($format === 'csv') {
         Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
     } else {
         Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
     }
-
-    // REMOVE SCOPE AFTER USE (IMPORTANT)
     PoOrderHeader::withoutGlobalScope('export_filter');
-
     $appUrl  = rtrim(config('app.url'), '/');
     $fullUrl = $appUrl . '/storage/app/public/' . $path;
-
     return response()->json([
         'status'       => 'success',
         'download_url' => $fullUrl,
@@ -433,18 +409,63 @@ public function exportPoOrderHeader(Request $request)
         $format = strtolower($request->input('format', 'xlsx'));
         $extension = $format === 'csv' ? 'csv' : 'xlsx';
 
-        $fromDate   = $request->input('from_date');
-        $toDate     = $request->input('to_date');
-        $customerId = $request->input('customer_id');
         $itemId     = $request->input('item_id');
+        $customerId = $request->input('customer_id');
 
-        $filename = 'po_order_collapse_export_' . now()->format('Ymd_His') . '.' . $extension;
+        $fromDate = $request->input('from_date')
+            ? \Carbon\Carbon::parse($request->from_date)->startOfDay()
+            : \Carbon\Carbon::now()->startOfMonth();
+
+        $toDate = $request->input('to_date')
+            ? \Carbon\Carbon::parse($request->to_date)->endOfDay()
+            : \Carbon\Carbon::now()->endOfMonth();
+
+        $filename = 'po_order_export_' . now()->format('Ymd_His') . '.' . $extension;
         $path = 'poorderexports/' . $filename;
+
         $export = new ItemPoOrderCollapseExport(
             $fromDate,
             $toDate,
             $customerId,
             $itemId
+        );
+
+        if ($format === 'csv') {
+            Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
+        } else {
+            Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
+        }
+
+        $appUrl = rtrim(config('app.url'), '/');
+        $fullUrl = $appUrl . '/storage/app/public/' . $path;
+
+        return response()->json([
+            'status'       => 'success',
+            'download_url' => $fullUrl,
+        ]);
+    }
+
+    public function exportCustomerBasedPoOrder(Request $request)
+    {
+        $format = strtolower($request->input('format', 'xlsx'));
+        $extension = $format === 'csv' ? 'csv' : 'xlsx';
+
+        $fromDate    = $request->input('from_date');
+        $toDate      = $request->input('to_date');
+        $customerId  = $request->input('customer_id');
+
+        $warehouseIds = $request->input('warehouse_ids', []);
+        $salesmanIds  = $request->input('salesman_ids', []);
+
+        $filename = 'customer_po_order_export_' . now()->format('Ymd_His') . '.' . $extension;
+        $path = 'poorderexports/' . $filename;
+
+        $export = new PoOrderCustomerExport(
+            $customerId,
+            $fromDate,
+            $toDate,
+            $warehouseIds,
+            $salesmanIds
         );
 
         if ($format === 'csv') {
@@ -558,18 +579,32 @@ public function exportPoOrderHeader(Request $request)
     public function getByItem(Request $request)
     {
         $request->validate([
-            'item_id' => 'required|integer',
+            'item_id'  => 'required|integer',
+            'from_date'=> 'nullable|date',
+            'to_date'  => 'nullable|date',
         ]);
 
         $limit  = $request->input('limit', 10);
         $itemId = $request->item_id;
 
-        $headers = PoOrderHeader::whereHas('details', function ($q) use ($itemId) {
-            $q->where('item_id', $itemId);
-        })
+        // ✅ Proper date handling
+        $fromDate = $request->input('from_date')
+            ? Carbon::parse($request->from_date)->startOfDay()
+            : Carbon::now()->startOfMonth();
+
+        $toDate = $request->input('to_date')
+            ? Carbon::parse($request->to_date)->endOfDay()
+            : Carbon::now()->endOfMonth();
+
+        // ✅ MAIN FIX: filter on details.created_at
+        $headers = PoOrderHeader::whereHas('details', function ($q) use ($itemId, $fromDate, $toDate) {
+                $q->where('item_id', $itemId)
+                ->whereBetween('created_at', [$fromDate, $toDate]);
+            })
             ->with([
-                'details' => function ($q) use ($itemId) {
-                    $q->where('item_id', $itemId);
+                'details' => function ($q) use ($itemId, $fromDate, $toDate) {
+                    $q->where('item_id', $itemId)
+                    ->whereBetween('created_at', [$fromDate, $toDate]);
                 }
             ])
             ->paginate($limit);

@@ -11,7 +11,6 @@ use App\Http\Resources\V1\Settings\Web\RoleResource;
 use App\Services\V1\Settings\Web\RoleService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-
 use App\Traits\ApiResponse;
 use Throwable;
 

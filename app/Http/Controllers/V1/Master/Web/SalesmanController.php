@@ -17,6 +17,7 @@ use App\Helpers\LogHelper;
 use App\Helpers\CommonLocationFilter;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use App\Exports\InvoiceSalesmanExport;
 
 /**
  * @OA\Schema(
@@ -947,7 +948,6 @@ class SalesmanController extends Controller
         $toDate     = $request->to_date;
         $perPage    = $request->input('limit', 10);
         $currect = Carbon::now();
-        // dd($currect);
         $query = DB::table('salesman_attendance as sa')
             ->leftJoin('tbl_route as r', 'r.id', '=', 'sa.route_id')
             ->leftJoin('tbl_warehouse as w', 'w.id', '=', 'sa.warehouse_id')
@@ -1141,10 +1141,11 @@ class SalesmanController extends Controller
         $path     = 'salesteamAttendance/' . $filename;
 
         $filters = $request->input('filter', []);
-        // dd($filters);
         $fromDate = $filters['from_date'] ?? null;
+
         $toDate   = $filters['to_date'] ?? null;
-        $salesman_id   = $filters['salesman_id'] ?? null;
+        $salesman_id = $request->input('salesman_id') 
+            ?? ($filters['salesman_id'] ?? null);
 
         $export = new SalesTeamAttendanceExport(
             $fromDate,
@@ -1164,5 +1165,33 @@ class SalesmanController extends Controller
             'status' => 'success',
             'download_url' => $fullUrl,
         ]);
+    }
+
+    public function exportInvoiceSalesman(Request $request)
+    {
+        $format    = strtolower($request->input('format', 'xlsx'));
+        $extension = $format === 'csv' ? 'csv' : 'xlsx';
+
+        $filename = 'SalesTeam_Invoice.' . $extension;
+        $path     = 'salesteamInvoice/' . $filename;
+
+        $filters = $request->input('filter', []);
+        $fromDate = $filters['from_date'] ?? null;
+        $toDate   = $filters['to_date'] ?? null;
+
+        $salesmanId = $request->input('salesman_id') 
+            ?? ($filters['salesman_id'] ?? null);
+
+        $export = new InvoiceSalesmanExport($salesmanId,$fromDate,$toDate);
+
+        if ($format === 'csv') {
+            Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
+        } else {
+            Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
+        }
+
+        $fullUrl = rtrim(config('app.url'), '/') . '/storage/app/public/' . $path;
+
+        return response()->json(['status' => 'success', 'download_url' => $fullUrl]);
     }
 }

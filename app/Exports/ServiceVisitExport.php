@@ -203,7 +203,7 @@ public function registerEvents(): array
                 'fill' => [
                     'fillType' => Fill::FILL_SOLID,
                     'startColor' => [
-                        'argb' => 'FFDC3545', // 🔥 proper red (same as your image)
+                        'rgb' => '993442', // 🔥 proper red (same as your image)
                     ],
                 ],
                 'borders' => [

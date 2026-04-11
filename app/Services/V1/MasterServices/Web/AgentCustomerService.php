@@ -114,26 +114,25 @@ class AgentCustomerService
                     $query->where('customer_type', '!=', 20);
                 }
             }
-                    if (!empty($filters['warehouse_id'])) {
-            $warehouseIds = is_array($filters['warehouse_id'])
-                ? $filters['warehouse_id']
-                : explode(',', $filters['warehouse_id']);
+            if (!empty($filters['warehouse_id'])) {
+                $warehouseIds = is_array($filters['warehouse_id'])
+                    ? $filters['warehouse_id']
+                    : explode(',', $filters['warehouse_id']);
 
-            $query->whereIn('warehouse', array_map('intval', $warehouseIds));
-        }
+                $query->whereIn('warehouse', array_map('intval', $warehouseIds));
+            }
 
             foreach ($filters as $field => $value) {
-            if (in_array($field, ['status', 'warehouse_id'])) {
-                continue;
-            }
+                if (in_array($field, ['status', 'warehouse_id'])) {
+                    continue;
+                }
                 if (!empty($value)) {
                     if (in_array($field, ['osa_code', 'name', 'owner_name', 'business_name'])) {
                         $query->whereRaw("LOWER({$field}) LIKE ?", ['%' . strtolower($value) . '%']);
                     } elseif ($field === 'customer_type') {
                         // customer_type is SMALLINT
                         $query->where('customer_type', (int) $value);
-                    } 
-                    elseif (in_array($field, [
+                    } elseif (in_array($field, [
                         'route_id',
                         'outlet_channel_id',
                         'category_id',
@@ -144,14 +143,14 @@ class AgentCustomerService
                         // 'warehouse'
                     ])) {
                         if (is_array($value)) {
-                            $query->whereIn($field, $value); 
+                            $query->whereIn($field, $value);
                         } else {
                             $query->where($field, $value);
                         }
                     }
                 }
             }
-           
+
             if (!empty($filters['warehouse_name'])) {
                 $query->whereHas('getWarehouse', function ($q) use ($filters) {
                     $q->whereRaw('LOWER(warehouse_name) LIKE ?', ['%' . strtolower($filters['warehouse_name']) . '%']);
@@ -319,7 +318,8 @@ class AgentCustomerService
             'category:id,customer_category_code,customer_category_name',
             'subcategory:id,customer_category_id,customer_sub_category_name,customer_sub_category_code',
             'route:id,route_code,route_name',
-            'getWarehouse:id,warehouse_code,warehouse_name'
+            'getWarehouse:id,warehouse_code,warehouse_name',
+            'visitDays:customer_id,days'
         ])->where('uuid', $uuid)->first();
     }
 

@@ -27,6 +27,7 @@ class AgentDeliveryHeaderResource extends JsonResource
             'status' => $this->status,
             'latitude' => $this->latitude,
             'longitude' => $this->longitude,
+            'order_id' => $this->order?->id,
             'details' => AgentDeliveryDetailResource::collection($this->whenLoaded('details')),
         ];
     }

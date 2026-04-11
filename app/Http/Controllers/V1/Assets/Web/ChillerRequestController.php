@@ -585,7 +585,7 @@ class ChillerRequestController extends Controller
             $filters = $request->all();
 
             $requests = $this->service->globalFilter($perPage, $filters);
-
+            
             return $this->success(
                 ChillerRequestResource::collection($requests->items()),
                 'Asset Request fetched successfully',

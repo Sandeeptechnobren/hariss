@@ -1,164 +1,5 @@
 <?php
 
-// namespace App\Exports;
-
-// use App\Models\Hariss_Transaction\Web\PoOrderHeader;
-// use Maatwebsite\Excel\Concerns\FromQuery;
-// use Maatwebsite\Excel\Concerns\WithHeadings;
-// use Maatwebsite\Excel\Concerns\ShouldAutoSize;
-// use Maatwebsite\Excel\Concerns\WithEvents;
-// use Maatwebsite\Excel\Concerns\WithMapping;
-// use Maatwebsite\Excel\Concerns\WithChunkReading;
-// use Maatwebsite\Excel\Events\AfterSheet;
-// use PhpOffice\PhpSpreadsheet\Style\Fill;
-// use PhpOffice\PhpSpreadsheet\Style\Alignment;
-// use PhpOffice\PhpSpreadsheet\Style\Border;
-// use App\Helpers\DataAccessHelper;
-// use Illuminate\Support\Facades\Auth;
-
-// class PoOrderExport implements
-//     FromQuery,
-//     WithMapping,
-//     WithHeadings,
-//     ShouldAutoSize,
-//     WithEvents,
-//     WithChunkReading
-// {
-
-//     protected $from_date;
-//     protected $to_date;
-//     protected $warehouseIds;
-//     protected $salesmanIds;
-
-//     public function __construct($from_date = null, $to_date = null, $warehouseIds = [], $salesmanIds = [])
-//     {
-//         $this->from_date = $from_date ?: now()->toDateString();
-//         $this->to_date   = $to_date   ?: now()->toDateString();
-//         $this->warehouseIds = $warehouseIds;
-//         $this->salesmanIds = $salesmanIds;
-//     }
-
-//     /**
-//      * Export Query
-//      */
-//     public function query()
-//     {
-
-//         $query = PoOrderHeader::query()
-//             ->with([
-//                 'customer:id,osa_code,business_name',
-//                 'salesman:id,osa_code,name',
-//                 'warehouse:id,warehouse_code,warehouse_name'
-//             ])
-//             ->select([
-//                 'id',
-//                 'order_code',
-//                 'order_date',
-//                 'delivery_date',
-//                 'sap_id',
-//                 'sap_msg',
-//                 'customer_id',
-//                 'salesman_id',
-//                 'comment',
-//                 'vat',
-//                 'net',
-//                 'total',
-//                 'status',
-//                 'warehouse_id'
-//             ]);
-
-//         if ($this->from_date && $this->to_date) {
-//             $query->whereBetween('order_date', [$this->from_date, $this->to_date]);
-//         }
-
-//         if (!empty($this->warehouseIds)) {
-//             $query->whereIn('warehouse_id', $this->warehouseIds);
-//         }
-
-//         if (!empty($this->salesmanIds)) {
-//             $query->whereIn('salesman_id', $this->salesmanIds);
-//         }
-
-//         $query = DataAccessHelper::filterAgentTransaction($query, Auth::user());
-
-//         return $query;
-//     }
-// public function map($h): array
-//     {
-//         return [
-//             (string) $h->sap_id,
-//             (string) $h->order_code,
-//             optional($h->order_date)->format('d M Y'),
-//             optional($h->delivery_date)->format('d M Y'),
-//             (string) $h->sap_msg,
-//             trim(
-//                 ($h->customer->osa_code ?? '') . '-' .
-//                     ($h->customer->business_name ?? '')
-//             ),
-//             trim(
-//                 ($h->salesman->osa_code ?? '') . '-' .
-//                     ($h->salesman->name ?? '')
-//             ),
-//             (string) $h->comment,
-//             number_format((float) $h->vat, 2, '.', ','),
-//             number_format((float) $h->net, 2, '.', ','),
-//             number_format((float) $h->total, 2, '.', ','),
-//         ];
-//     }
-//     public function headings(): array
-//     {
-//         return [
-//             'SAP ID',
-//             'Order Code',
-//             'Order Date',
-//             'Delivery Date',
-//             'SAP MSG',
-//             'Customer',
-//             'Salesman',
-//             'Comment',
-//             // 'Status',
-//             'VAT',
-//             'Net Amount',
-//             'Total',
-//         ];
-//     }
-//     public function chunkSize(): int
-//     {
-//         return 1000;
-//     }
-//     public function registerEvents(): array
-//     {
-//         return [
-//             AfterSheet::class => function (AfterSheet $event) {
-//                 $sheet = $event->sheet->getDelegate();
-//                 $lastColumn = $sheet->getHighestColumn();
-//                 $sheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
-//                     'font' => [
-//                         'bold' => true,
-//                         'color' => ['rgb' => 'F5F5F5'],
-//                     ],
-//                     'alignment' => [
-//                         'horizontal' => Alignment::HORIZONTAL_CENTER,
-//                         'vertical' => Alignment::VERTICAL_CENTER,
-//                     ],
-//                     'fill' => [
-//                         'fillType' => Fill::FILL_SOLID,
-//                         'startColor' => ['rgb' => '993442'],
-//                     ],
-//                     'borders' => [
-//                         'allBorders' => [
-//                             'borderStyle' => Border::BORDER_THIN,
-//                             'color' => ['rgb' => '000000'],
-//                         ],
-//                     ],
-//                 ]);
-
-//                 $sheet->getRowDimension(1)->setRowHeight(25);
-//             }
-
-//         ];
-//     }
-// }
 namespace App\Exports;
 
 use App\Models\Hariss_Transaction\Web\PoOrderHeader;
@@ -174,8 +15,9 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use App\Helpers\DataAccessHelper;
 use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 
-class PoOrderExport implements
+class PoOrderCustomerExport implements
     FromQuery,
     WithMapping,
     WithHeadings,
@@ -185,19 +27,24 @@ class PoOrderExport implements
 {
     protected $from_date;
     protected $to_date;
+    protected $customer_id;
     protected $warehouseIds;
     protected $routeIds;
     protected $salesmanIds;
 
     public function __construct(
+        $customer_id  = null,
         $from_date    = null,
         $to_date      = null,
         $warehouseIds = [],
         $routeIds     = [],
         $salesmanIds  = []
     ) {
-        $this->from_date    = $from_date ?: now()->toDateString();
-        $this->to_date      = $to_date   ?: now()->toDateString();
+        $this->customer_id  = $customer_id;
+
+        $this->from_date = $from_date;
+        $this->to_date   = $to_date;
+
         $this->warehouseIds = $warehouseIds;
         $this->routeIds     = $routeIds;
         $this->salesmanIds  = $salesmanIds;
@@ -209,7 +56,7 @@ class PoOrderExport implements
             ->with([
                 'customer:id,osa_code,business_name',
                 'salesman:id,osa_code,name',
-                'warehouse:id,warehouse_code,warehouse_name',  // ← added for Distributor column
+                'warehouse:id,warehouse_code,warehouse_name',
             ])
             ->select([
                 'id',
@@ -228,8 +75,20 @@ class PoOrderExport implements
                 'warehouse_id',
             ]);
 
+        if (!empty($this->customer_id)) {
+            $query->where('customer_id', $this->customer_id);
+        }
+
         if ($this->from_date && $this->to_date) {
-            $query->whereBetween('order_date', [$this->from_date, $this->to_date]);
+            $query->whereBetween('created_at', [
+                $this->from_date,
+                $this->to_date
+            ]);
+        } else {
+            $query->whereBetween('created_at', [
+                Carbon::now()->startOfMonth(),
+                Carbon::now()->endOfMonth()
+            ]);
         }
 
         if (!empty($this->warehouseIds)) {
@@ -251,13 +110,16 @@ class PoOrderExport implements
             ($h->warehouse->warehouse_code ?? '') . ' - ' .
             ($h->warehouse->warehouse_name ?? '')
         );
+
         $distributor = ($distributor === ' - ' || $distributor === '-') ? '-' : $distributor;
+
         $statusLabel = match ((int) $h->status) {
             1 => 'Order Created',
             2 => 'Delivery Created',
             3 => 'Delivered',
             default => '-',
         };
+
         return [
             (string) ($h->sap_id ?? '-'),
             (string) $h->order_code,
@@ -301,7 +163,6 @@ class PoOrderExport implements
                 $lastColumn = $sheet->getHighestColumn();
                 $lastRow    = $sheet->getHighestRow();
 
-                // Header styling
                 $sheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
                     'font' => [
                         'bold'  => true,
@@ -322,6 +183,7 @@ class PoOrderExport implements
                         ],
                     ],
                 ]);
+
                 if ($lastRow > 1) {
                     $sheet->getStyle("A2:{$lastColumn}{$lastRow}")->applyFromArray([
                         'font' => [
@@ -340,6 +202,7 @@ class PoOrderExport implements
                         ],
                     ]);
                 }
+
                 $sheet->getRowDimension(1)->setRowHeight(25);
                 $sheet->freezePane('A2');
             },

@@ -21,7 +21,6 @@ use Illuminate\Pagination\Paginator;
 
 class FrigeCustomerUpdateService
 {
-
     // public function list(array $filters): LengthAwarePaginator
     // {
     //     $query = FrigeCustomerUpdate::query()
@@ -68,55 +67,15 @@ class FrigeCustomerUpdateService
 
     //     $limit = (int) ($filters['limit'] ?? 20);
     //     $result = $query->paginate($limit);
-
     //     $result->getCollection()->transform(function ($item) {
 
-    //         $workflowRequest = \DB::table('htapp_workflow_requests')
-    //             ->where('process_type', 'Frige_Customer_Update')
-    //             ->where('process_id', $item->id)
-    //             ->latest()
-    //             ->first();
-
-    //         $item->approval_status = null;
-    //         $item->current_step    = null;
-    //         $item->request_step_id = null;
-    //         $item->progress        = null;
-
-    //         if ($workflowRequest) {
-
-    //             $currentStep = \DB::table('htapp_workflow_request_steps')
-    //                 ->where('workflow_request_id', $workflowRequest->id)
-    //                 ->whereIn('status', ['PENDING', 'IN_PROGRESS'])
-    //                 ->orderBy('step_order')
-    //                 ->first();
-
-    //             $totalSteps = \DB::table('htapp_workflow_request_steps')
-    //                 ->where('workflow_request_id', $workflowRequest->id)
-    //                 ->count();
-
-    //             $approvedSteps = \DB::table('htapp_workflow_request_steps')
-    //                 ->where('workflow_request_id', $workflowRequest->id)
-    //                 ->where('status', 'APPROVED')
-    //                 ->count();
-
-    //             $lastApprovedStep = \DB::table('htapp_workflow_request_steps')
-    //                 ->where('workflow_request_id', $workflowRequest->id)
-    //                 ->where('status', 'APPROVED')
-    //                 ->orderBy('step_order', 'desc')
-    //                 ->first();
-
-    //             $item->approval_status = $lastApprovedStep
-    //                 ? $lastApprovedStep->message
-    //                 : 'Initiated';
-
-    //             $item->current_step    = $currentStep->title ?? null;
-    //             $item->request_step_id = $currentStep->id ?? null;
-    //             $item->progress        = $totalSteps > 0
-    //                 ? "{$approvedSteps}/{$totalSteps}"
-    //                 : null;
+    //         if ($item->customer_id) {
+    //             $item->last_three_month_sales =
+    //                 $this->calculateLastThreeMonthSales($item->customer_id);
+    //         } else {
+    //             $item->last_three_month_sales = 0;
     //         }
-
-    //         return $item;
+    //         return \App\Helpers\PetitApprovalHelper::attach($item, 'Frige_Customer_Update');
     //     });
 
     //     return $result;
@@ -124,23 +83,24 @@ class FrigeCustomerUpdateService
 
     public function list(array $filters): LengthAwarePaginator
     {
-        $query = FrigeCustomerUpdate::query()
-            ->orderByDesc('id');
+        $query = FrigeCustomerUpdate::query();
 
-        if (!empty($filters) && isset($filters['filter']) && is_array($filters['filter'])) {
+        $fromDate = $filters['from_date'] ?? null;
+        $toDate   = $filters['to_date'] ?? null;
 
-            $warehouseIds = \App\Helpers\CommonLocationFilter::resolveWarehouseIds([
-                'company'   => $filters['filter']['company_id']   ?? null,
-                'region'    => $filters['filter']['region_id']    ?? null,
-                'area'      => $filters['filter']['area_id']      ?? null,
-                'warehouse' => $filters['filter']['warehouse_id'] ?? null,
-                'route'     => $filters['filter']['route_id']     ?? null,
-            ]);
-
-            if (!empty($warehouseIds)) {
-                $query->whereIn('warehouse_id', $warehouseIds);
-            }
+        if (empty($fromDate) && empty($toDate)) {
+            $fromDate = Carbon::now()->startOfMonth()->toDateString();
+            $toDate   = Carbon::now()->endOfMonth()->toDateString();
+        } else {
+            $fromDate = $fromDate ?? Carbon::now()->startOfMonth()->toDateString();
+            $toDate   = $toDate   ?? Carbon::now()->endOfMonth()->toDateString();
         }
+
+        $query->whereBetween('created_at', [
+            $fromDate . ' 00:00:00',
+            $toDate   . ' 23:59:59'
+        ]);
+
         if (!empty($filters['search'])) {
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
@@ -150,12 +110,8 @@ class FrigeCustomerUpdateService
             });
         }
 
-        if (!empty($filters['osa_code'])) {
-            $query->where('osa_code', 'ILIKE', '%' . $filters['osa_code'] . '%');
-        }
-
-        if (isset($filters['status'])) {
-            $query->where('status', $filters['status']);
+        if (!empty($filters['warehouse_id'])) {
+            $query->where('warehouse_id', $filters['warehouse_id']);
         }
 
         if (!empty($filters['salesman_id'])) {
@@ -166,16 +122,24 @@ class FrigeCustomerUpdateService
             $query->where('route_id', $filters['route_id']);
         }
 
+        if (isset($filters['status'])) {
+            $direction = strtolower($filters['status']) === 1 ? 0 : 1;
+            $query->orderBy('status', $direction);
+        } else {
+            $query->orderByDesc('id'); // default fallback
+        }
+
         $limit = (int) ($filters['limit'] ?? 20);
+
         $result = $query->paginate($limit);
+
+        // ✅ Transform
         $result->getCollection()->transform(function ($item) {
 
-            if ($item->customer_id) {
-                $item->last_three_month_sales =
-                    $this->calculateLastThreeMonthSales($item->customer_id);
-            } else {
-                $item->last_three_month_sales = 0;
-            }
+            $item->last_three_month_sales = $item->customer_id
+                ? $this->calculateLastThreeMonthSales($item->customer_id)
+                : 0;
+
             return \App\Helpers\PetitApprovalHelper::attach($item, 'Frige_Customer_Update');
         });
 
@@ -363,9 +327,13 @@ class FrigeCustomerUpdateService
         $path     = $directory . '/' . $filename;
         $filters = $request->input('filter', []);
 
-        $fromDate = $filters['from_date'] ?? now()->toDateString();
-        $toDate   = $filters['to_date'] ?? now()->toDateString();
+        $fromDate = $filters['from_date'] ?? null;
+        $toDate   = $filters['to_date'] ?? null;
 
+        if (empty($fromDate) && empty($toDate)) {
+            $fromDate = Carbon::now()->startOfMonth()->toDateString();
+            $toDate   = Carbon::now()->endOfMonth()->toDateString();
+        }
         $parseIds = function ($value) {
             if (empty($value)) return [];
             return array_map('intval', array_filter(array_map('trim', explode(',', $value))));

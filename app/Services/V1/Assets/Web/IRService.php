@@ -45,23 +45,34 @@ class IRService
                     if (empty($value) || $field === 'warehouse_id') {
                         continue;
                     }
+                    // if (in_array($field, ['osa_code', 'iro_id', 'status'])) {
+                          
+                    //     $query->whereRaw("LOWER({$field}) LIKE ?", ['%' . strtolower($value) . '%']);
+                    // } else {
+                    //     $query->where($field, $value);
+                    // }
+                    if (in_array($field, ['osa_code', 'iro_id'])) {
+                            $query->whereRaw("LOWER({$field}) LIKE ?", ['%' . strtolower($value) . '%']);
+                         
+                        } elseif ($field === 'status') {
+                            // dd($value);
+                             $statusValues = is_array($value) ? $value : explode(',', $value);
 
-                    if (in_array($field, ['osa_code', 'iro_id', 'status'])) {
-                        $query->whereRaw("LOWER({$field}) LIKE ?", ['%' . strtolower($value) . '%']);
-                    } else {
-                        $query->where($field, $value);
-                    }
+                            // clean + integer convert
+                            $statusValues = array_filter(array_map('intval', $statusValues));
+
+                            $query->whereIn($field, $statusValues);
+                            // $query->where($field, (int)$value);
+
+                        } else {
+                            $query->where($field, $value);
+                        }
                 }
             }
 
             return $query->paginate($perPage);
         } catch (Throwable $e) {
-
-            Log::error("Failed to fetch IR Headers", [
-                'error'   => $e->getMessage(),
-                'filters' => $filters,
-            ]);
-
+           
             throw new \Exception("Unable to fetch IR Headers at this time.");
         }
     }

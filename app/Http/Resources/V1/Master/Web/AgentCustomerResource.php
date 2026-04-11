@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Resources\V1\Master\Web;
 
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -13,12 +14,12 @@ class AgentCustomerResource extends JsonResource
             'osa_code' => $this->osa_code,
             'name' => $this->name,
             'owner_name' => $this->owner_name,
-            'customer_type' => $this->customertype?[
-                'id'=>$this->customertype->id,
-                'code'=>$this->customertype->code,
-                'name'=>$this->customertype->name,
-            ]:null,
-            'vat_no'=>$this->vat_no,
+            'customer_type' => $this->customertype ? [
+                'id' => $this->customertype->id,
+                'code' => $this->customertype->code,
+                'name' => $this->customertype->name,
+            ] : null,
+            'vat_no' => $this->vat_no,
             'route' => $this->route ? [
                 'id' => $this->route->id,
                 'route_code' => $this->route->route_code,
@@ -47,7 +48,7 @@ class AgentCustomerResource extends JsonResource
             'subcategory' => $this->subcategory ? [
                 'id' => $this->subcategory->id,
                 // 'customer_category_id' => $this->subcategory->customer_category_id,
-                'customer_sub_category_name'=>$this->subcategory->customer_sub_category_name, 
+                'customer_sub_category_name' => $this->subcategory->customer_sub_category_name,
                 'customer_sub_category_code' => $this->subcategory->customer_sub_category_code,
             ] : null,
             'getWarehouse' => $this->getWarehouse ? [
@@ -63,7 +64,7 @@ class AgentCustomerResource extends JsonResource
             'street' => $this->street,
             'town' => $this->town,
             'whatsapp_no' => $this->whatsapp_no,
-            'contact_no'=>$this->contact_no,
+            'contact_no' => $this->contact_no,
             'contact_no2' => $this->contact_no2,
             'payment_type' => $this->payment_type,
             'creditday' => $this->creditday,

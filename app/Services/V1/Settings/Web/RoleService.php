@@ -91,7 +91,7 @@ class RoleService
                 'rolePermissions.menu',
                 'rolePermissions.submenu'
             ])->findOrFail($user->role);
-
+            
             return $role;
         } catch (Throwable $e) {
             // dd($e);

@@ -849,29 +849,25 @@ class ItemService
     public function getItemInvoices(int $itemId, int $perPage = 50)
     {
         try {
-            $fromDate = request()->get('from_date'); // YYYY-MM-DD
-            $toDate   = request()->get('to_date');   // YYYY-MM-DD
+            $fromDate = request()->get('from_date'); 
+            $toDate   = request()->get('to_date');  
 
             return InvoiceHeader::whereHas('details', function ($q) use ($itemId) {
                 $q->where('item_id', $itemId);
             })
 
-                // 🔹 If both dates provided → date range
                 ->when($fromDate && $toDate, function ($q) use ($fromDate, $toDate) {
                     $q->whereBetween('invoice_date', [$fromDate, $toDate]);
                 })
 
-                // 🔹 If only from_date
                 ->when($fromDate && !$toDate, function ($q) use ($fromDate) {
                     $q->whereDate('invoice_date', '>=', $fromDate);
                 })
 
-                // 🔹 If only to_date
                 ->when(!$fromDate && $toDate, function ($q) use ($toDate) {
                     $q->whereDate('invoice_date', '<=', $toDate);
                 })
 
-                // 🔹 Default = Current Month (when no date filter)
                 ->when(!$fromDate && !$toDate, function ($q) {
                     $q->whereBetween('invoice_date', [
                         now()->startOfMonth()->toDateString(),

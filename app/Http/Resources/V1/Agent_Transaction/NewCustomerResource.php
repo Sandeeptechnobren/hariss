@@ -68,6 +68,8 @@ class NewCustomerResource extends JsonResource
             'longitude' => $this->longitude,
             'approval_status' => $this->approval_status,
             'reject_reason' => $this->reject_reason,
+            'avelable_fridge' => $this->avelable_fridge,
+            'visit_on' => $this->visit_on,
             'status' => $this->status,
             'created_at' => $this->created_at
         ];

@@ -93,7 +93,7 @@ class ChillerController extends Controller
     public function index(Request $request): JsonResponse
     {
         $perPage  = (int) $request->get('limit', 50);
-        $filters  = $request->only(['osa_code', 'serial_number']);
+        $filters  = $request->only(['osa_code', 'serial_number', 'warehouse_id']);
         $dropdown = filter_var($request->get('dropdown', false), FILTER_VALIDATE_BOOLEAN);
 
         $chillers = $this->service->all($perPage, $filters, $dropdown);
@@ -102,14 +102,9 @@ class ChillerController extends Controller
             'status'  => 'success',
             'code'    => 200,
             'message' => 'Chillers fetched successfully',
-
-            // 🔹 Dropdown → raw list
-            // 🔹 Normal → resource collection
             'data' => $dropdown
                 ? $chillers
                 : ChillerResource::collection($chillers->items()),
-
-            // 🔹 Pagination ONLY when dropdown = false
             'pagination' => $dropdown ? null : [
                 'page'         => $chillers->currentPage(),
                 'limit'        => $chillers->perPage(),
@@ -219,68 +214,67 @@ class ChillerController extends Controller
             ], 404);
         }
     }
-public function exportChillers(Request $request)
-{
-    try {
-        $uuid = $request->input('uuid');
-        $format = strtolower($request->input('format', 'xlsx'));
+    public function exportChillers(Request $request)
+    {
+        try {
+            $uuid = $request->input('uuid');
+            $format = strtolower($request->input('format', 'xlsx'));
 
-        $extension = $format === 'csv' ? 'csv' : 'xlsx';
-        $writerType = $format === 'csv'
-            ? \Maatwebsite\Excel\Excel::CSV
-            : \Maatwebsite\Excel\Excel::XLSX;
+            $extension = $format === 'csv' ? 'csv' : 'xlsx';
+            $writerType = $format === 'csv'
+                ? \Maatwebsite\Excel\Excel::CSV
+                : \Maatwebsite\Excel\Excel::XLSX;
 
-        $filename = 'Fridge_' . now()->format('Ymd_His') . '.' . $extension;
-        $path = 'addchillerexports/' . $filename;
+            $filename = 'Fridge_' . now()->format('Ymd_His') . '.' . $extension;
+            $path = 'addchillerexports/' . $filename;
 
-        $filters = $request->input('filter', []);
+            $filters = $request->input('filter', []);
 
-        $status = $this->parseArrayFilter($filters['status'] ?? []);
-        $model  = $this->parseArrayFilter($filters['model_id'] ?? []);
+            $status = $this->parseArrayFilter($filters['status'] ?? []);
+            $model  = $this->parseArrayFilter($filters['model_id'] ?? []);
 
-        $warehouseIds = CommonLocationFilter::resolveWarehouseIds($filters);
+            $warehouseIds = CommonLocationFilter::resolveWarehouseIds($filters);
 
-        $export = new AddChillerFullExport(
-            $uuid,
-            $warehouseIds,
-            $status,
-            $model
-        );
+            $export = new AddChillerFullExport(
+                $uuid,
+                $warehouseIds,
+                $status,
+                $model
+            );
 
-        Excel::store($export, $path, 'public', $writerType);
-        $fullUrl = rtrim(config('app.url'), '/') . '/storage/app/public/' . $path;
+            Excel::store($export, $path, 'public', $writerType);
+            $fullUrl = rtrim(config('app.url'), '/') . '/storage/app/public/' . $path;
 
-        return response()->json([
-            'status' => 'success',
-            'download_url' => $fullUrl,
-        ]);
+            return response()->json([
+                'status' => 'success',
+                'download_url' => $fullUrl,
+            ]);
+        } catch (\Throwable $e) {
 
-    } catch (\Throwable $e) {
+            \Log::error('Chiller Export Failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
 
-        \Log::error('Chiller Export Failed', [
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString(),
-        ]);
-
-        return response()->json([
-            'status' => 'error',
-            'message' => 'Export failed. Please try again.',
-        ], 500);
-    }
-}
-
-private function parseArrayFilter($value): array
-{
-    if (empty($value)) return [];
-
-    if (!is_array($value)) {
-        $value = explode(',', $value);
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Export failed. Please try again.',
+            ], 500);
+        }
     }
 
-    return array_values(array_filter(array_map('intval', $value)));
-}
+    private function parseArrayFilter($value): array
+    {
+        if (empty($value)) return [];
 
-public function globalSearch(Request $request)
+        if (!is_array($value)) {
+            $value = explode(',', $value);
+        }
+
+        return array_values(array_filter(array_map('intval', $value)));
+    }
+
+    public function globalSearch(Request $request)
     {
         $query = $request->get('query');
 
@@ -296,7 +290,7 @@ public function globalSearch(Request $request)
         return ChillerResource::collection($records);
     }
 
-public function transfer(Request $request)
+    public function transfer(Request $request)
     {
         $request->validate([
             'from_warehouse_id' => 'required|integer|exists:tbl_warehouse,id',
@@ -315,7 +309,7 @@ public function transfer(Request $request)
         ]);
     }
 
-public function transferindex(Request $request): JsonResponse
+    public function transferindex(Request $request): JsonResponse
     {
         $request->validate([
             'warehouse_id'      => 'nullable|integer',
@@ -344,7 +338,7 @@ public function transferindex(Request $request): JsonResponse
         ]);
     }
 
-public function filterByStatus(Request $request): JsonResponse
+    public function filterByStatus(Request $request): JsonResponse
     {
         $perPage = (int) $request->input('per_page', 10);
         $data = $this->service->filterByStatus($request->all(), $perPage);
@@ -362,7 +356,7 @@ public function filterByStatus(Request $request): JsonResponse
         ]);
     }
 
-public function filterData(Request $request): JsonResponse
+    public function filterData(Request $request): JsonResponse
     {
         $perPage = (int) $request->input('per_page', 50);
         $data = $this->service->filterData($request->all(), $perPage);
@@ -380,7 +374,7 @@ public function filterData(Request $request): JsonResponse
         ]);
     }
 
-public function getByWarehouse(Request $request): JsonResponse
+    public function getByWarehouse(Request $request): JsonResponse
     {
         $request->validate([
             'warehouse_id' => ['required']
@@ -405,7 +399,7 @@ public function getByWarehouse(Request $request): JsonResponse
             ]
         ]);
     }
-public function import(Request $request): JsonResponse
+    public function import(Request $request): JsonResponse
     {
         ini_set('memory_limit', '512M');
         set_time_limit(0);

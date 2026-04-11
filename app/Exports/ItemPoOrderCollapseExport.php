@@ -6,7 +6,6 @@ use App\Models\Hariss_Transaction\Web\PoOrderHeader;
 use App\Models\Hariss_Transaction\Web\PoOrderDetail;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
-use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithStyles;
@@ -15,10 +14,10 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Border;
+use Carbon\Carbon;
 
 class ItemPoOrderCollapseExport implements
     FromCollection,
-    WithHeadings,
     ShouldAutoSize,
     WithEvents,
     WithStyles
@@ -29,116 +28,146 @@ class ItemPoOrderCollapseExport implements
     protected $fromDate;
     protected $toDate;
     protected $customerId;
-    protected $itemId; 
+    protected $itemId;
 
     public function __construct($fromDate = null, $toDate = null, $customerId = null, $itemId = null)
     {
         $this->fromDate   = $fromDate;
         $this->toDate     = $toDate;
         $this->customerId = $customerId;
-        $this->itemId     = $itemId; 
+        $this->itemId     = $itemId;
     }
 
     public function collection()
     {
         $rows = [];
+        
+        $rows[] = [
+            'Order Code',
+            'Order Date',
+            'Delivery Date',
+            'Customer',
+            'Salesman',
+            'Net Amount',
+            'VAT',
+            'Item Count',
+            'Total'
+        ];
 
-        $query = PoOrderHeader::with(['customer', 'salesman']);
+        $this->rowIndex = 2;
 
-        if ($this->fromDate && $this->toDate) {
-            $query->whereBetween('order_date', [$this->fromDate, $this->toDate]);
+        $fromDate = $this->fromDate
+            ? Carbon::parse($this->fromDate)->startOfDay()
+            : Carbon::now()->startOfMonth();
+
+        $toDate = $this->toDate
+            ? Carbon::parse($this->toDate)->endOfDay()
+            : Carbon::now()->endOfMonth();
+
+        $query = PoOrderHeader::with([
+            'customer:id,osa_code,business_name',
+            'salesman:id,osa_code,name'
+        ]);
+
+        if (!empty($this->itemId)) {
+            $query->whereHas('details', function ($q) use ($fromDate, $toDate) {
+                $q->where('item_id', $this->itemId)
+                  ->whereBetween('created_at', [$fromDate, $toDate]);
+            });
+        } else {
+            $query->whereHas('details', function ($q) use ($fromDate, $toDate) {
+                $q->whereBetween('created_at', [$fromDate, $toDate]);
+            });
         }
 
         if (!empty($this->customerId)) {
             $query->where('customer_id', $this->customerId);
         }
-        if (!empty($this->itemId)) {
-            $query->whereHas('details', function ($q) {
-                $q->where('item_id', $this->itemId);
-            });
+
+        $headers = $query->get();
+
+        if ($headers->isEmpty()) {
+            return collect([]);
         }
 
-        foreach ($query->get() as $header) {
+        $details = PoOrderDetail::with(['item', 'uom'])
+            ->whereIn('header_id', $headers->pluck('id'))
+            ->whereBetween('created_at', [$fromDate, $toDate])
+            ->when(!empty($this->itemId), function ($q) {
+                $q->where('item_id', $this->itemId);
+            })
+            ->get()
+            ->groupBy('header_id');
+
+        foreach ($headers as $header) {
+
+            $detailList = $details[$header->id] ?? [];
+            $count = count($detailList);
 
             $rows[] = [
-                'Order Code'     => $header->order_code,
-                'Order Date'     => optional($header->order_date)->format('Y-m-d'),
-                'Delivery Date'  => optional($header->delivery_date)->format('Y-m-d'),
-                'Customer'       => trim(($header->customer->osa_code ?? '') . ' - ' . ($header->customer->business_name ?? '')),
-                'Salesman'       => trim(($header->salesman->osa_code ?? '') . ' - ' . ($header->salesman->name ?? '')),
-
-                'Item'           => '',
-                'UOM Name'       => '',
-                'Item Price'     => '',
-                'Quantity'       => '',
-                'Net'            => '',
-                'Excise Detail'  => '',
-                'Detail VAT'     => '',
-                'Detail Total'   => '',
+                $header->order_code,
+                optional($header->order_date)->format('d M Y'),
+                optional($header->delivery_date)->format('d M Y'),
+                trim(($header->customer->osa_code ?? '') . ' - ' . ($header->customer->business_name ?? '')),
+                trim(($header->salesman->osa_code ?? '') . ' - ' . ($header->salesman->name ?? '')),
+                number_format((float)$header->net, 2),
+                number_format((float)$header->vat, 2),
+                $count,
+                number_format((float)$header->total, 2),
             ];
 
             $this->rowIndex++;
-            $detailsQuery = PoOrderDetail::with(['item', 'uom'])
-                ->where('header_id', $header->id);
 
-            if (!empty($this->itemId)) {
-                $detailsQuery->where('item_id', $this->itemId);
-            }
+            $start = $this->rowIndex;
 
-            $details = $detailsQuery->get();
+            $rows[] = [
+                '',
+                'Item',
+                'UOM',
+                'Price',
+                'Qty',
+                'VAT',
+                'Excise',
+                'Net',
+                'Total'
+            ];
 
-            $detailRows = [];
+            $this->rowIndex++;
 
-            foreach ($details as $detail) {
-
+            foreach ($detailList as $d) {
                 $rows[] = [
-                    'Order Code'     => '',
-                    'Order Date'     => '',
-                    'Delivery Date'  => '',
-                    'Customer'       => '',
-                    'Salesman'       => '',
-
-                    'Item'           => trim(($detail->item->erp_code ?? '') . ' - ' . ($detail->item->name ?? '')),
-                    'UOM Name'       => $detail->uom->name ?? '',
-                    'Item Price'     => $detail->item_price,
-                    'Quantity'       => $detail->quantity,
-                    'Net'            => $detail->net,
-                    'Excise Detail'  => $detail->excise,
-                    'Detail VAT'     => $detail->vat,
-                    'Detail Total'   => $detail->total,
+                    '',
+                    trim(($d->item->erp_code ?? '') . ' - ' . ($d->item->name ?? '')),
+                    $d->uom->name ?? '',
+                    number_format((float)$d->item_price, 2),
+                    $d->quantity,
+                    number_format((float)$d->vat, 2),
+                    number_format((float)$d->excise, 2),
+                    number_format((float)$d->net, 2),
+                    number_format((float)$d->total, 2),
                 ];
-
-                $detailRows[] = $this->rowIndex;
                 $this->rowIndex++;
             }
 
-            if (!empty($detailRows)) {
+            if ($count > 0) {
                 $this->groups[] = [
-                    'start' => min($detailRows),
-                    'end'   => max($detailRows),
+                    'start' => $start,
+                    'end'   => $this->rowIndex - 1
                 ];
             }
 
-            $rows[] = array_fill_keys(array_keys($rows[0]), '');
+            // Spacer
+            $rows[] = [''];
             $this->rowIndex++;
         }
 
-        return new Collection($rows);
-    }
-     public function headings(): array
-    {
-        return [
-            'Order Code','Order Date','Delivery Date',
-            'Customer','Salesman',
-            'Item','UOM Name','Item Price',
-            'Quantity','Net','Excise Detail','Detail VAT','Detail Total'
-        ];
+        return collect($rows);
     }
 
     public function styles(Worksheet $sheet)
     {
-        $sheet->getStyle('A1:M1')->getFont()->setBold(true);
-        $sheet->getStyle('A1:M1')->getAlignment()
+        $sheet->getStyle('A1:I1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:I1')->getAlignment()
               ->setHorizontal(Alignment::HORIZONTAL_CENTER);
     }
 
@@ -149,7 +178,9 @@ class ItemPoOrderCollapseExport implements
 
                 $sheet = $event->sheet->getDelegate();
                 $lastColumn = $sheet->getHighestColumn();
+                $lastRow = $sheet->getHighestRow();
 
+                // Header styling
                 $sheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
                     'fill' => [
                         'fillType' => Fill::FILL_SOLID,
@@ -161,17 +192,17 @@ class ItemPoOrderCollapseExport implements
                     ],
                     'alignment' => [
                         'horizontal' => Alignment::HORIZONTAL_CENTER,
-                        'vertical'   => Alignment::VERTICAL_CENTER,
-                    ],
-                    'borders' => [
-                        'allBorders' => [
-                            'borderStyle' => Border::BORDER_THIN,
-                        ],
                     ],
                 ]);
 
-                $sheet->setShowSummaryBelow(false);
+                // Detail header styling
+                for ($i = 2; $i <= $lastRow; $i++) {
+                    if ($sheet->getCell("B{$i}")->getValue() === 'Item') {
+                        $sheet->getStyle("B{$i}:I{$i}")->getFont()->setBold(true);
+                    }
+                }
 
+                // Collapse logic
                 foreach ($this->groups as $group) {
                     for ($r = $group['start']; $r <= $group['end']; $r++) {
                         $sheet->getRowDimension($r)
@@ -180,6 +211,8 @@ class ItemPoOrderCollapseExport implements
                     }
                     $sheet->getRowDimension($group['end'])->setCollapsed(true);
                 }
+
+                $sheet->setShowSummaryBelow(false);
             }
         ];
     }

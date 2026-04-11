@@ -55,7 +55,6 @@ class SalesmanExport implements FromCollection, WithHeadings, WithMapping
             });
         }
 
-        /* ---- FILTERS ---- */
         foreach ($this->filters as $field => $value) {
             if ($value) {
                 $query->where($field, $value);
@@ -73,7 +72,6 @@ class SalesmanExport implements FromCollection, WithHeadings, WithMapping
         return $query->get();
     }
 
-    /* ---------------- COLUMN MAP ---------------- */
     private function columnMap($salesman): array
     {
         return [
@@ -88,8 +86,9 @@ class SalesmanExport implements FromCollection, WithHeadings, WithMapping
             'Block Date To' => $salesman->block_date_to,
             'Block Date From' => $salesman->block_date_from,
             'Contact No' => $salesman->contact_no,
-            'Warehouse Name' => optional($salesman->warehouse)->warehouse_name,
-            'Warehouse Owner Name' => optional($salesman->warehouse)->owner_name,
+            'Distributor Code' => optional($salesman->warehouse)->warehouse_code,
+            'Distributor Name' => optional($salesman->warehouse)->warehouse_name,
+            'Distributor Owner Name' => optional($salesman->warehouse)->owner_name,
             'SAP ID' => $salesman->sap_id,
             'Is Login' => $salesman->is_login ? 'Yes' : 'No',
             'Email' => $salesman->email,
@@ -102,7 +101,6 @@ class SalesmanExport implements FromCollection, WithHeadings, WithMapping
         ];
     }
 
-    /* ---------------- MAPPING ---------------- */
     public function map($salesman): array
     {
         $data = $this->columnMap($salesman);
@@ -116,7 +114,6 @@ class SalesmanExport implements FromCollection, WithHeadings, WithMapping
         return array_values($data);
     }
 
-    /* ---------------- HEADINGS ---------------- */
     public function headings(): array
     {
         $all = array_keys($this->columnMap(new Salesman));

@@ -1,255 +1,185 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
+
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="UTF-8">
     <title>Company Delivery #{{ $order->delivery_code }}</title>
-
-    <style>
-        body {
-            font-family: "Inter", Arial, sans-serif;
-            background: #f3f4f6;
-            margin: 0;
-            padding: 10px;
-            font-size: 12px;
-            line-height: 1.2; /* REDUCED LINE SPACING */
-        }
-
-        .invoice-container {
-            background: #fff;
-            max-width: 900px;
-            margin: auto;
-            border-radius: 8px;
-            padding: 20px; /* REDUCED PADDING */
-            border: 1px solid #e5e7eb;
-        }
-
-        header {
-            display: flex;
-            justify-content: flex-end;
-            border-bottom: 1px solid #ddd;
-            padding-bottom: 8px; /* SMALLER */
-            margin-bottom: 15px; /* SMALLER */
-        }
-
-        .invoice-title h2 {
-            margin: 0;
-            font-size: 18px; /* SMALLER */
-            font-weight: 700;
-        }
-
-        .invoice-title span {
-            font-size: 10px;
-        }
-        .address-table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 10px; /* spacing between boxes */
-        }
-
-        .address-cell {
-            width: 50%;
-            vertical-align: top;
-            background: #fafafa;
-            padding: 10px;
-            border: 1px solid #ececec;
-            border-radius: 6px;
-            font-size: 11px;
-            text-align: left; /* IMPORTANT: keeps text left aligned */
-        }
-        .address-cell h4 {
-            margin: 0 0 5px;
-            font-size: 11px;
-            font-weight: 600;
-        }
-
-        /* TABLE */
-        .table-wrapper {
-            overflow-x: auto;
-            border-radius: 6px;
-            border: 1px solid #ddd;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 11px; /* SMALLER FONT */
-        }
-
-        th {
-            background: #f0f2f5;
-            padding: 6px; /* REDUCED */
-            border-bottom: 1px solid #ccc;
-            font-size: 11px;
-        }
-
-        td {
-            padding: 5px; /* REDUCED */
-            text-align: left;
-            border-bottom: 1px solid #eee;
-        }
-
-        /* TOTALS */
-        .totals {
-            max-width: 260px; /* REDUCED WIDTH */
-            margin-left: auto;
-            margin-top: 15px;
-        }
-
-        .totals td {
-            font-size: 11px;
-            padding: 4px 0; /* REDUCED */
-        }
-
-        .totals tr:last-child td {
-            font-size: 13px;
-            font-weight: 600;
-            border-top: 1px solid #666;
-            padding-top: 6px;
-        }
-
-        .note {
-            margin-top: 15px;
-            font-size: 11px;
-            padding: 10px;
-            line-height: 1.1;
-            border-left: 3px solid #ccc;
-        }
-
-        .payment {
-            margin-top: 10px;
-            font-size: 12px;
-            font-weight: bold;
-        }
-
-        @media print {
-            body { background: #fff; }
-            .invoice-container { box-shadow: none; border: none; }
-        }
-    </style>
 </head>
 
-<body>
+<body style="font-family: Arial, Helvetica, sans-serif; font-size:14px;">
 
-<div class="invoice-container">
-
-    <header>
-        <div class="invoice-title" align="right">
-            <h2>Company Delivery</h2>
-            <span>{{ $order->delivery_code }}</span>
-        </div>
-    </header>
-
-    <table class="address-table">
+    <!-- Header -->
+    <table width="100%" cellpadding="8" cellspacing="0"
+        style="border-collapse:collapse; border:1px solid #000;">
         <tr>
-            {{-- SELLER --}}
-            <td class="address-cell">
-                <h4>Seller</h4>
-
-                @if(!empty($order->warehouse_id) && $order->warehouse)
-                    {{-- Seller from Warehouse --}}
-                    <strong>
-                        {{ $order->warehouse->warehouse_code ? $order->warehouse->warehouse_code . ' - ' : '' }}
-                        {{ $order->warehouse->warehouse_name ?? '' }}
-                    </strong><br>
-                    {{ $order->warehouse->city ?? '' }}<br>
-                    Phone: {{ $order->warehouse->owner_number ?? '' }}<br>
-                    TIN: {{ $order->warehouse->tin_no ?? '' }}
-
-                @elseif(!empty($order->company_id) && $order->company)
-                    {{-- Seller from Company --}}
-                    <strong>
-                        {{ $order->company->company_code ? $order->company->company_code . ' - ' : '' }}
-                        {{ $order->company->company_name ?? '' }}
-                    </strong><br>
-                    {{ $order->company->city ?? '' }}<br>
-                    Tin: {{ $order->company->tin_number ?? '' }}<br>
-                    Phone: {{ $order->company->primary_contact ?? '' }}
-
-                @else
-                    <em>No seller information</em>
-                @endif
-            </td>
-
-            {{-- BUYER (UNCHANGED) --}}
-            <td class="address-cell">
-                <h4>Buyer</h4>
-                  <strong>
-                        {{ $order->customer->osa_code ? $order->customer->osa_code . ' - ' : '' }}
-                        {{ $order->customer->business_name ?? '' }}
-                    </strong><br>
-                {{ $order->customer->town ?? '' }}<br> 
-                Phone: {{ $order->customer->contact_number ?? '' }}<br>
+            <td style="border:1px solid #000; text-align:center; color:red; font-size:22px; font-weight:bold;">
+                COMPANY DELIVERY
+                <div style="font-size:14px; margin-top:4px; color:black;">
+                    {{ $order->delivery_code }}
+                </div>
             </td>
         </tr>
     </table>
 
-    <div class="table-wrapper">
-        <table>
-            <thead>
+    <!-- Seller Details -->
+    <table width="100%" cellpadding="2" cellspacing="0"
+        style="border-collapse:collapse; border:1px solid #000;">
+        <tr>
+            <th colspan="2" style="border:1px solid #000; text-align:center;">
+                Seller's Detail
+            </th>
+        </tr>
+
+        @if(!empty($order->warehouse_id) && $order->warehouse)
             <tr>
-                <th>#</th>
-                <th>Item Code</th>
-                <th>Item Name</th>
-                <th>UOM</th>
-                <th>Qty</th>
-                <th>Price</th>
-                <th>Net</th>
-                <th>VAT</th>
-                <th>Total</th>
+                <td style="border:1px solid #000; width:30%;">TIN No:</td>
+                <td style="border:1px solid #000;">{{ $order->warehouse->tin_no ?? '' }}</td>
             </tr>
-            </thead>
-
-            <tbody>
-            @foreach($orderDetails as $i => $item)
-                <tr>
-                   <td>{{ $i + 1 }}</td>
-                    <td>{{ $item->item->code ?? '' }}</td>
-                    <td>{{ $item->item->name ?? '' }}</td>
-                    <td>{{ $item->uoms->name ?? '' }}</td>
-                    <td>{{ number_format($item->quantity, 0) }}</td>
-                    <td>{{ number_format($item->item_price, 2) }}</td>
-                    <td>{{ number_format($item->net, 2) }}</td>
-                    <td>{{ number_format($item->vat, 2) }}</td>
-                    <td>{{ number_format($item->total, 2) }}</td>
-                </tr>
-            @endforeach
-            </tbody>
-        </table>
-    </div>
-
-    <!-- TOTALS -->
-    <div class="totals">
-        <table>
             <tr>
-            <td>Net Total</td>
-            <td align="right">
-                {{ $order->currency }} {{ number_format($order->net, 2) }}
+                <td style="border:1px solid #000;">Agent Name:</td>
+                <td style="border:1px solid #000;">
+                    {{ $order->warehouse->warehouse_code ?? '' }} -
+                    {{ $order->warehouse->warehouse_name ?? '' }}
+                </td>
+            </tr>
+            <tr>
+                <td style="border:1px solid #000;">Tel No:</td>
+                <td style="border:1px solid #000;">{{ $order->warehouse->owner_number ?? '' }}</td>
+            </tr>
+            <tr>
+                <td style="border:1px solid #000;">Address:</td>
+                <td style="border:1px solid #000;">{{ $order->warehouse->city ?? '' }}</td>
+            </tr>
+
+        @elseif(!empty($order->company_id) && $order->company)
+            <tr>
+                <td style="border:1px solid #000; width:30%;">TIN No:</td>
+                <td style="border:1px solid #000;">{{ $order->company->tin_number ?? '' }}</td>
+            </tr>
+            <tr>
+                <td style="border:1px solid #000;">Agent Name:</td>
+                <td style="border:1px solid #000;">
+                    {{ $order->company->company_code ?? '' }} -
+                    {{ $order->company->company_name ?? '' }}
+                </td>
+            </tr>
+            <tr>
+                <td style="border:1px solid #000;">Tel No:</td>
+                <td style="border:1px solid #000;">{{ $order->company->primary_contact ?? '' }}</td>
+            </tr>
+            <tr>
+                <td style="border:1px solid #000;">Address:</td>
+                <td style="border:1px solid #000;">{{ $order->company->city ?? '' }}</td>
+            </tr>
+
+        @else
+            <tr>
+                <td colspan="2" style="border:1px solid #000; text-align:center;">
+                    No seller information
+                </td>
+            </tr>
+        @endif
+    </table>
+
+    <!-- Customer Information -->
+    <table width="100%" cellpadding="2" cellspacing="0"
+        style="border-collapse:collapse; border:1px solid #000;">
+        <tr>
+            <th colspan="2" style="border:1px solid #000; text-align:center;">
+                Customer Information
+            </th>
+        </tr>
+        <tr>
+            <td style="border:1px solid #000; width:30%;">Order Date:</td>
+            <td style="border:1px solid #000;">
+                {{ \Carbon\Carbon::parse($order->created_at)->format('d M Y') }}
             </td>
         </tr>
         <tr>
-            <td>VAT</td>
-            <td align="right">
-                {{ $order->currency }} {{ number_format($order->vat, 2) }}
+            <td style="border:1px solid #000;">Customer:</td>
+            <td style="border:1px solid #000;">
+                {{ $order->customer->osa_code ?? '' }} -
+                {{ $order->customer->business_name ?? '' }}
             </td>
         </tr>
         <tr>
-            <td><b>Total</b></td>
-            <td align="right">
-                <b>{{ $order->currency }} {{ number_format($order->total, 2) }}</b>
+            <td style="border:1px solid #000;">Address:</td>
+            <td style="border:1px solid #000;">
+                {{ $order->customer->town ?? '' }}
             </td>
         </tr>
-        </table>
-    </div>
+        <tr>
+            <td style="border:1px solid #000;">Telephone:</td>
+            <td style="border:1px solid #000;">{{ $order->customer->contact_number ?? '' }}</td>
+        </tr>
+    </table>
 
-    <!-- NOTE -->
-    <!-- <div class="note">
-        <strong>Customer Note:</strong> {{ $order->comment ?? 'No notes added.' }}
-    </div> -->
+    <!-- Delivery Details -->
+    <table width="100%" cellpadding="2" cellspacing="0" style="border-collapse:collapse;">
+        <tr>
+            <th style="text-align:center;" colspan="9">Delivery Details</th>
+        </tr>
+        <tr>
+            <th style="border:1px solid #000;">S/N</th>
+            <th style="border:1px solid #000;">Item Code</th>
+            <th style="border:1px solid #000;">Item Name</th>
+            <th style="border:1px solid #000;">UOM</th>
+            <th style="border:1px solid #000;">Qty</th>
+            <th style="border:1px solid #000;">Price</th>
+            <th style="border:1px solid #000;">Net</th>
+            <th style="border:1px solid #000;">VAT</th>
+            <th style="border:1px solid #000;">Total</th>
+        </tr>
 
-    <!-- PAYMENT -->
+        @foreach($orderDetails as $i => $item)
+        <tr>
+            <td style="border:1px solid #000; text-align:center;">{{ $i + 1 }}</td>
+            <td style="border:1px solid #000;">{{ $item->item->code ?? '' }}</td>
+            <td style="border:1px solid #000;">{{ $item->item->name ?? '' }}</td>
+            <td style="border:1px solid #000; text-align:center;">{{ $item->uoms->name ?? '' }}</td>
+            <td style="border:1px solid #000; text-align:center;">{{ number_format($item->quantity, 0) }}</td>
+            <td style="border:1px solid #000; text-align:right;">{{ number_format($item->item_price, 2) }}</td>
+            <td style="border:1px solid #000; text-align:right;">{{ number_format($item->net, 2) }}</td>
+            <td style="border:1px solid #000; text-align:right;">{{ number_format($item->vat, 2) }}</td>
+            <td style="border:1px solid #000; text-align:right;">{{ number_format($item->total, 2) }}</td>
+        </tr>
+        @endforeach
+    </table>
 
-</div>
+    <!-- Totals -->
+    <table width="100%" cellspacing="0"
+        style="border-collapse:collapse; border-bottom:2px solid #000; margin-top:5px;">
+        <tr>
+            <td style="vertical-align:middle; padding:6px; width:50%; font-weight:bold;">
+                VAT: {{ number_format($order->vat, 2) }}
+            </td>
+            <td style="vertical-align:middle; padding:6px; width:20%; font-weight:bold;">
+                NET: {{ number_format($order->net, 2) }}
+            </td>
+            <td style="vertical-align:middle; padding:6px; font-weight:bold;">
+                Total ({{ $order->currency }})
+            </td>
+            <td style="vertical-align:middle; padding:6px; text-align:right; font-weight:bold;">
+                {{ number_format($order->total, 2) }}
+            </td>
+        </tr>
+    </table>
+
+    <span style="font-weight:bolder;">Order Value is Inclusive of VAT</span>
+
+    <!-- Footer -->
+    <table width="100%" cellpadding="2" cellspacing="0">
+        <tr>
+            <td colspan="2" style="text-align:center; font-size:12px;">
+                <span style="font-weight:bolder;">
+                    This is a system generated delivery and doesn't require any signature
+                    <br><br>
+                </span>
+                Thank you for your business
+            </td>
+        </tr>
+    </table>
 
 </body>
+
 </html>

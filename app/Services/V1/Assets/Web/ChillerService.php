@@ -58,15 +58,20 @@ class ChillerService
     public function all(int $perPage = 50, array $filters = [], bool $dropdown = false)
     {
         $user = auth()->user();
+        $hasFilters = collect($filters)
+            ->except(['page', 'per_page'])
+            ->filter()
+            ->isNotEmpty();
+
         $query = AddChiller::query()
-            ->where('status', 3)
+            ->when(!$hasFilters, fn($q) => $q->where('status', 3))
             ->when(!$dropdown, fn($q) => $q->with('vendor'))
             ->latest();
 
         if ($dropdown) {
-            $query = AddChiller::query()      // 🔥 fresh query (no filters, no latest)
+            $query = AddChiller::query()
                 ->whereNotNull('serial_number')
-                ->select('serial_number')
+                ->select('id', 'serial_number')
                 ->distinct();
 
             if (!empty($filters['serial_number'])) {
@@ -78,11 +83,21 @@ class ChillerService
 
             return $query
                 ->orderBy('serial_number')
-                ->pluck('serial_number');
+                ->get()
+                ->map(function ($item) {
+                    return [
+                        'id' => $item->id,
+                        'serial_number' => $item->serial_number,
+                    ];
+                });
         }
         // $query = DataAccessHelper::filterAssets($query, $user);
         foreach ($filters as $field => $value) {
             if (!empty($value)) {
+                if ($field === 'warehouse_id') {
+                    continue; // already handled
+                }
+
                 if (in_array($field, ['osa_code', 'serial_number'])) {
                     $query->whereRaw(
                         "LOWER({$field}) LIKE ?",
@@ -91,6 +106,22 @@ class ChillerService
                 } else {
                     $query->where($field, $value);
                 }
+            }
+        }
+        if (!empty($filters['warehouse_id'])) {
+
+            $warehouseIds = $filters['warehouse_id'];
+
+            // ✅ अगर string "47,48" आये तो array बना दो
+            if (is_string($warehouseIds)) {
+                $warehouseIds = array_map('intval', explode(',', $warehouseIds));
+            }
+
+            // ✅ Apply filter
+            if (is_array($warehouseIds)) {
+                $query->whereIn('warehouse_id', $warehouseIds);
+            } else {
+                $query->where('warehouse_id', $warehouseIds);
             }
         }
 
@@ -442,7 +473,7 @@ class ChillerService
     // }
 
 
-public function filterData(array $filters = [], int $perPage = 50)
+    public function filterData(array $filters = [], int $perPage = 50)
     {
         $query = AddChiller::query()->whereNull('deleted_at')->orderByDesc('id');
         $filter = $filters['filter'] ?? [];

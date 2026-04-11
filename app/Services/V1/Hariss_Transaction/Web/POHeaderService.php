@@ -111,13 +111,11 @@ public function getAll(int $perPage, array $filters = [], bool $dropdown = false
                 ->orWhere('status', 'LIKE', "%$search%");
         });
     }
-
     foreach (['warehouse_id', 'company_id', 'country_id', 'status'] as $field) {
         if (!empty($filters[$field])) {
             $query->where($field, $filters[$field]);
         }
     }
-
     $fromDate = !empty($filters['from_date'])
         ? Carbon::parse($filters['from_date'])->toDateString()
         : null;
@@ -125,8 +123,6 @@ public function getAll(int $perPage, array $filters = [], bool $dropdown = false
     $toDate = !empty($filters['to_date'])
         ? Carbon::parse($filters['to_date'])->toDateString()
         : null;
-
-    // ✅ FIXED: using order_date instead of created_at
     if ($fromDate || $toDate) {
 
         if ($fromDate && $toDate) {

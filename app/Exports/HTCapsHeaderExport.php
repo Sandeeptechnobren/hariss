@@ -12,6 +12,7 @@ use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
+use Carbon\Carbon;
 
 class HTCapsHeaderExport implements FromCollection, WithHeadings, ShouldAutoSize, WithEvents
 {
@@ -42,19 +43,31 @@ class HTCapsHeaderExport implements FromCollection, WithHeadings, ShouldAutoSize
         }
         $headers = $query->get();
 
+
         foreach ($headers as $header) {
             $rows[] = [
-                'OSA Code'                  => $header->osa_code,
-                'Warehouse Code'            => $header->warehouse->warehouse_code ?? null,
-                'Warehouse Name'            => $header->warehouse->warehouse_name ?? null,
-                'Driver Code'               => $header->driverinfo->osa_code ?? null,
-                'Driver Name'               => $header->driverinfo->driver_name ?? null,
-                'Driver Contact No'         => $header->driverinfo->contactno ?? null,
+                'OSA Code' => $header->osa_code,
+                // ✅ Date format: d M Y
+                'Claim Date'   => $header->claim_date
+                    ? Carbon::parse($header->claim_date)->format('d M Y')
+                    : null,
 
-                'Truck No'                  => $header->truck_no,
-                'Claim No'                  => $header->claim_no,
-                'Claim Date'                => $header->claim_date,
-                'Claim Amount'              => $header->claim_amount,
+                // ✅ Merge Warehouse Code + Name
+                'Distributor' => ($header->warehouse->warehouse_code ?? '') .
+                    ' - ' .
+                    ($header->warehouse->warehouse_name ?? ''),
+
+                'Driver' => ($header->driverinfo->osa_code ?? '') .
+                    ' - ' .
+                    ($header->driverinfo->driver_name ?? ''),
+
+                'Driver Contact No' => $header->driverinfo->contactno ?? null,
+
+                'Truck No'     => $header->truck_no,
+                'Claim No'     => $header->claim_no,
+
+
+                'Claim Amount' => $header->claim_amount,
             ];
         }
 
@@ -65,16 +78,14 @@ class HTCapsHeaderExport implements FromCollection, WithHeadings, ShouldAutoSize
     {
         return [
             'OSA Code',
-            'Distributors Code',
-            'Distributors Name',
+            'Claim Date',
+            'Distributor',
 
-            'Driver Code',
-            'Driver Name',
+            'Driver',
             'Driver Contact No',
 
             'Truck No',
             'Claim No',
-            'Claim Date',
             'Claim Amount',
         ];
     }

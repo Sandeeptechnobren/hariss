@@ -50,6 +50,8 @@ class NewCustomerRequest extends FormRequest
             'qr_code' => 'nullable|string|max:100',
             'status' => 'required|integer|in:0,1',
             'enable_promotion' => 'nullable|integer|in:0,1',
+            'avelable_fridge' => 'nullable|string|max:100',
+            'visit_on' => 'nullable|string|max:100',
 
             // Newly added fields
             'approval_status' => 'nullable|in:1,2,3', // 1=Approved, 2=Pending, 3=Rejected

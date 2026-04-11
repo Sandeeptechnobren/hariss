@@ -174,7 +174,7 @@ class HTInvoiceController extends Controller
     {
         $format = strtolower($request->input('format', 'xlsx'));
         $extension = $format === 'csv' ? 'csv' : 'xlsx';
-         $filename = 'invoice_collapse_export_' . now()->format('Ymd_His') . '.' . $extension;
+        $filename = 'invoice_collapse_export_' . now()->format('Ymd_His') . '.' . $extension;
         $path = 'invoiceexports/' . $filename;
 
         $filters = $request->input('filter', []);
@@ -195,7 +195,7 @@ class HTInvoiceController extends Controller
             $salesmanIds
         );
 
-       
+
         // $export = new HtInvoiceCollapseExport($fromDate, $toDate);
 
         if ($format === 'csv') {

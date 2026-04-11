@@ -1025,22 +1025,17 @@ class ChillerRequestService
             $user   = auth()->user();
             $filter = $filters['filter'] ?? [];
 
-            $query = ChillerRequest::query(); // ❌ no eager load, no extra data
-
-            // 🔐 Agent access control
-            // if (method_exists(DataAccessHelper::class, 'filterAgentTransaction')) {
-            //     $query = DataAccessHelper::filterAgentTransaction($query, $user);
-            // }
-            $query = DataAccessHelper::filterWarehouses($query, $user);
+            $query = ChillerRequest::query();
+            // $query = DataAccessHelper::filterWarehouses($query, $user);
 
             // 🌍 Location hierarchy filter
             if (!empty($filter)) {
                 $warehouseIds = CommonLocationFilter::resolveWarehouseIds([
-                    'company'   => $filter['company_id']   ?? null,
-                    'region'    => $filter['region_id']    ?? null,
-                    'area'      => $filter['area_id']      ?? null,
-                    'warehouse' => $filter['warehouse_id'] ?? null,
-                    'route'     => $filter['route_id']     ?? null,
+                    'company_id'   => $filter['company_id']   ?? null,
+                    'region_id'    => $filter['region_id']    ?? null,
+                    'area_id'      => $filter['area_id']      ?? null,
+                    'warehouse_id' => $filter['warehouse_id'] ?? null,
+                    'route_id'     => $filter['route_id']     ?? null,
                 ]);
 
                 if (!empty($warehouseIds)) {

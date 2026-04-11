@@ -8,50 +8,11 @@ use Illuminate\Support\Facades\DB;
 use App\Models\Hariss_Transaction\Web\HTInvoiceHeader;
 use App\Models\Hariss_Transaction\Web\HTInvoiceDetail;
 use App\Models\WarehouseStock;
+use Carbon\Carbon;
+use App\Helpers\CommonLocationFilter;
 
 class CreditNoteService
 {
-    // public function create($data)
-    // {
-    //     return DB::transaction(function () use ($data) {
-
-    //         $totalAmount = 0;
-
-    //         $creditNote = CreditNoteHeader::create([
-    //             'credit_note_no' => $data['credit_note_no'],
-    //             'purchase_invoice_id' => $data['purchase_invoice_id'],
-    //             'supplier_id' => $data['supplier_id'],
-    //             'customer_id' => $data['customer_id'],
-    //             'salesman_id' => $data['salesman_id'] ?? null,
-    //             'distributor_id' => $data['distributor_id'],
-    //             'reason' => $data['reason'] ?? null,
-    //             'status' => $data['status'] ?? 1,
-    //             'total_amount' => 0
-    //         ]);
-
-    //         foreach ($data['details'] as $item) {
-
-    //             $lineTotal = $item['qty'] * $item['price'];
-    //             $totalAmount += $lineTotal;
-
-    //             CreditNoteDetail::create([
-    //                 'credit_note_id' => $creditNote->id,
-    //                 'purchase_invoice_id' => $data['purchase_invoice_id'],
-    //                 'item_id' => $item['item_id'],
-    //                 'qty' => $item['qty'],
-    //                 'price' => $item['price'],
-    //                 'total' => $lineTotal,
-    //             ]);
-    //         }
-
-    //         $creditNote->update([
-    //             'total_amount' => $totalAmount
-    //         ]);
-
-    //         return $creditNote->load(['details', 'supplier', 'purchaseInvoice']);
-    //     });
-    // }
-
     public function create($data)
     {
         return DB::transaction(function () use ($data) {
@@ -139,26 +100,6 @@ class CreditNoteService
         });
     }
 
-    // public function list($request)
-    // {    
-    //     $perPage = min($request->get('per_page', 50), 100);
-
-    //     return CreditNoteHeader::with(['details', 'supplier', 'purchaseInvoice'])
-    //         ->when($request->supplier_id, function ($q) use ($request) {
-    //             $q->where('supplier_id', $request->supplier_id);
-    //         })
-    //         ->latest()
-    //         ->paginate($perPage);
-    // }
-
-    // public function list($request)
-    // {        
-    //     $perPage = min($request->get('per_page', 50), 100);
-    //     return CreditNoteHeader::with(['details', 'supplier', 'purchaseInvoice'])
-    //        ->oldest()
-    //        ->paginate($perPage);
-    // }
-
     public function list($request)
     {
         $data = CreditNoteHeader::with([
@@ -227,4 +168,100 @@ class CreditNoteService
         $creditNote->delete();
         return true;
     }
+
+ public function globalFilter($request)
+{
+    $query = CreditNoteHeader::query()
+        ->with([
+            'purchaseInvoice:id,invoice_code',
+            'customer:id,business_name,osa_code',
+            'distributor:id,warehouse_name,warehouse_code',
+            'details:id,credit_note_id,item_id,qty,price,total'
+        ]);
+        
+    // if ($request->from_date && $request->to_date) {
+    //     $query->whereDate('created_at', '>=', $request->from_date)
+    //           ->whereDate('created_at', '<=', $request->to_date);
+    // }
+    // if ($request->distributor_id) {
+    //     $query->where('distributor_id', $request->distributor_id);
+    // }
+
+    $filter = $request->input('filter', []);
+
+    $fromDate = $filter['from_date'] ?? null;
+    $toDate   = $filter['to_date'] ?? null;
+    $distributorId = $filter['distributor_id'] ?? $request->distributor_id ?? null;
+
+    // ✅ DATE FILTER
+    if ($fromDate && $toDate) {
+        $query->whereDate('created_at', '>=', $fromDate)
+              ->whereDate('created_at', '<=', $toDate);
+    }
+
+    // ✅ DISTRIBUTOR FILTER
+    if ($distributorId) {
+        $query->where('distributor_id', $distributorId);
+    }
+
+    $limit = $request->limit ?? 50;
+    $data = $query->orderBy('id', 'asc')->paginate($limit);
+
+    $formattedData = collect($data->items())->map(function ($item) {
+        return [
+            'id' => $item->id,
+            'uuid' => $item->uuid,
+            'credit_note_no' => $item->credit_note_no,
+
+            'purchase_invoice' => [
+                'id' => $item->purchaseInvoice->id ?? null,
+                'invoice_code' => $item->purchaseInvoice->invoice_code ?? null,
+            ],
+
+            'supplier_id' => $item->supplier_id,
+            'total_amount' => $item->total_amount,
+            'reason' => $item->reason,
+            'status' => $item->status,
+
+            'customer' => [
+                'id' => $item->customer->id ?? null,
+                'code' => $item->customer->osa_code ?? null,
+                'name' => $item->customer->business_name ?? null,
+            ],
+            // 'salesman' => null,
+            'salesman' => $item->salesman ? [
+                'id' => $item->salesman->id,
+                'name' => $item->salesman->name
+            ] : null,
+            'distributor' => [
+                'id' => $item->distributor->id ?? null,
+                'code' => $item->distributor->warehouse_code ?? null,
+                'name' => $item->distributor->warehouse_name ?? null,
+            ],
+
+            'details' => collect($item->details)->map(function ($d) {
+                return [
+                    'id' => $d->id,
+                    'item_id' => $d->item_id,
+                    'qty' => $d->qty,
+                    'price' => $d->price,
+                    'total' => (string)$d->total,
+                ];
+            }),
+            'created_at' => $item->created_at,
+            'updated_at' => $item->updated_at,
+        ];
+    });
+    return [
+        'status' => 'success',
+        'code' => 200,
+        'data' => $formattedData,
+        'pagination' => [
+            'page' => $data->currentPage(),
+            'limit' => (int)$limit,
+            'totalPages' => $data->lastPage(),
+            'totalRecords' => $data->total(),
+        ]
+    ];
+}
 }

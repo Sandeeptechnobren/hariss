@@ -29,38 +29,58 @@ class ServiceTerritoryController extends Controller
     /**
      * List with Pagination + Filters
      */
+    // public function index(Request $request): JsonResponse
+    // {
+    //     try {
+    //         $perPage = $request->get('per_page', 50);
+    //         $filters = $request->all();
+    //         $result = $this->service->getAll($perPage, $filters);
+    //         return response()->json([
+    //             'status'  => 'success',
+    //             'message' => 'Service territories fetched successfully',
+    //             'data' => ServiceTerritoryResource::collection($result->items()),
+    //             'pagination' => [
+    //                 'total'        => $result->total(),
+    //                 'current_page' => $result->currentPage(),
+    //                 'per_page'     => $result->perPage(),
+    //                 'last_page'    => $result->lastPage(),
+    //             ],
+    //         ]);
+    //     } catch (Throwable $e) {
+    //         return response()->json([
+    //             'status'  => 'error',
+    //             'message' => 'Failed to fetch service territories',
+    //             'error'   => $e->getMessage()
+    //         ], 500);
+    //     }
+    // }
     public function index(Request $request): JsonResponse
-    {
-        try {
-            $perPage = $request->get('per_page', 50);
-            $filters = $request->all();
+{
+    try {
+        $perPage = $request->get('per_page', 50);
+        $filters = $request->get('filter', []);
 
-            $result = $this->service->getAll($perPage, $filters);
+        $result = $this->service->getAll($perPage, $filters);
 
-            return response()->json([
-                'status'  => 'success',
-                'message' => 'Service territories fetched successfully',
-
-                // 👇 Only transformed data
-                'data' => ServiceTerritoryResource::collection($result->items()),
-
-                // 👇 Standard pagination structure
-                'pagination' => [
-                    'total'        => $result->total(),
-                    'current_page' => $result->currentPage(),
-                    'per_page'     => $result->perPage(),
-                    'last_page'    => $result->lastPage(),
-                ],
-            ]);
-        } catch (Throwable $e) {
-
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Failed to fetch service territories',
-                'error'   => $e->getMessage()
-            ], 500);
-        }
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Service territories fetched successfully',
+            'data' => ServiceTerritoryResource::collection($result->items()),
+            'pagination' => [
+                'total'        => $result->total(),
+                'current_page' => $result->currentPage(),
+                'per_page'     => $result->perPage(),
+                'last_page'    => $result->lastPage(),
+            ],
+        ]);
+    } catch (Throwable $e) {
+        return response()->json([
+            'status'  => 'error',
+            'message' => 'Failed to fetch service territories',
+            'error'   => $e->getMessage()
+        ], 500);
     }
+}
 
 
     /**

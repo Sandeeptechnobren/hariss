@@ -118,7 +118,7 @@ class AgentCustomerExport implements FromCollection, WithHeadings
 
                 'payment_type'   => match ((int) ($item->payment_type ?? 0)) {
                     1 => 'Cash',
-                    2 => 'Cheque',
+                    2 => 'Credit',
                     3 => 'Transfer',
                     default => '',
                 },

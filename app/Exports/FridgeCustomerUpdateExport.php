@@ -334,6 +334,7 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use App\Helpers\ApprovalHelper;
+use Carbon\Carbon;
 
 class FridgeCustomerUpdateExport implements
     FromQuery,
@@ -346,8 +347,16 @@ class FridgeCustomerUpdateExport implements
 
     public function __construct($fromDate, $toDate, $warehouseIds = [], $salesmanIds = [])
     {
-        $this->fromDate     = $fromDate;
-        $this->toDate       = $toDate;
+        // ✅ Case 1: both empty → current month
+        if (empty($fromDate) && empty($toDate)) {
+            $this->fromDate = Carbon::now()->startOfMonth()->toDateString();
+            $this->toDate   = Carbon::now()->endOfMonth()->toDateString();
+        } else {
+            // ✅ Case 2: partial handling
+            $this->fromDate = $fromDate ?? Carbon::now()->startOfMonth()->toDateString();
+            $this->toDate   = $toDate   ?? Carbon::now()->endOfMonth()->toDateString();
+        }
+
         $this->warehouseIds = $warehouseIds;
         $this->salesmanIds  = $salesmanIds;
     }
@@ -455,7 +464,7 @@ class FridgeCustomerUpdateExport implements
             $row->brand,
             $row->asset_number,
             $row->serial_no,
-            $row->created_at,
+            $row->created_at?->format('d M Y'),
             $this->resolveWorkflowStatus($row)
         ];
     }

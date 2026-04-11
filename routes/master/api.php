@@ -347,6 +347,7 @@ Route::prefix('master')->group(function () {
             Route::get('/item-returns/{id}', [ItemController::class, 'getItemReturns']);
         });
         Route::prefix('salesmen')->group(function () {
+            Route::post('exportsalesbsdinvoice', [SalesmanController::class, 'exportInvoiceSalesman']);
             Route::post('exportAttendance', [SalesmanController::class, 'exportAttendance']);
             Route::get('getattendance', [SalesmanController::class, 'report']);
             Route::get('list', [SalesmanController::class, 'index']);
@@ -857,7 +858,7 @@ Route::prefix('assets')->group(function () {
         });
         Route::prefix('service-territory')->group(function () {
             Route::get('/export', [ServiceTerritoryController::class, 'exportTerritory']);
-            Route::get('/list', [ServiceTerritoryController::class, 'index']);
+            Route::post('/list', [ServiceTerritoryController::class, 'index']);
             Route::post('/add', [ServiceTerritoryController::class, 'store']);
             Route::get('{uuid}', [ServiceTerritoryController::class, 'show']);
             Route::get('getViewData/{uuid}', [ServiceTerritoryController::class, 'getViewData']);
@@ -1214,6 +1215,7 @@ Route::prefix('hariss_transaction')->group(function () {
             Route::post('create', [CapsHController::class, 'store']);
         });
         Route::prefix('po_orders')->group(function () {
+            Route::post('customerbsdorderpo', [POHeaderController::class, 'exportCustomerBasedPoOrder']);
             Route::post('/globalFilter', [POHeaderController::class, 'globalFilter']);
             Route::get('exportclitembsdpoorders', [POHeaderController::class, 'exportItembsPoOrderCollapse']);
             Route::get('itembsdpoorders', [POHeaderController::class, 'getByItem']);
@@ -1280,8 +1282,13 @@ Route::prefix('hariss_transaction')->group(function () {
             Route::get('list/{uuid}', [CreditNoteController::class, 'show']);
             Route::delete('{uuid}', [CreditNoteController::class, 'destroy']);
             Route::get('/header_list', [CreditNoteController::class, 'list']);
-            Route::get('export', [CreditNoteController::class, 'exportHeader']);
-            Route::get('exportcollapse', [CreditNoteController::class, 'exportCollapse']);
+            Route::post('export', [CreditNoteController::class, 'exportHeader']);
+            Route::post('exportcollapse', [CreditNoteController::class, 'exportCollapse']);
+            Route::get('invoicedropdown', [CreditNoteController::class, 'dropdown']);
+            Route::get('creditnote/{uuid}', [CreditNoteController::class, 'getCreditNoteFullByInvoiceUuid']);
+            Route::post('globalfilter', [CreditNoteController::class, 'globalFilter']);
+            Route::post('distributorListExportlist', [CreditNoteController::class, 'exportList']);
+            Route::post('distributorglobalFilter', [CreditNoteController::class, 'distributorglobalFilter']);
         });
     });
 });
@@ -1374,6 +1381,7 @@ Route::prefix('EFRIS')->group(function () {
         Route::post('/sync_ura', [UraSyncController::class, 'sync']);
         Route::post('/stock_sync_test', [EfrisStockSyncTestController::class, 'syncItems_test']);
         Route::post('/sync_invoice_ura', [UraInvoiceController::class, 'sync']);
+        Route::post('/update_ura_invoice', [UraInvoiceController::class, 'updateUraInvoice']);
         Route::post('/sync_delivery', [UraDeliverySyncController::class, 'syncDelivery']);
         Route::post('/get_unsync_delivery', [UraDeliverySyncController::class, 'getUnsyncDelivery']);
         Route::post('/ura_customer_valid', [UraCustomerValidateController::class, 'customerValidate']);

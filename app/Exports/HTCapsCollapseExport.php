@@ -13,6 +13,7 @@ use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use Carbon\Carbon;
 
 class HTCapsCollapseExport implements
     FromCollection,
@@ -43,9 +44,14 @@ class HTCapsCollapseExport implements
         $rowIndex = 1;
 
         $rows[] = [
-            'OSA Code','Distributors Code','Distributors Name',
-            'Driver Code','Driver Name','Driver Contact',
-            'Truck No','Claim No','Claim Date','Claim Amount'
+            'OSA Code',
+            'Claim Date',
+            'Distributor',
+            'Driver',
+            'Driver Contact',
+            'Truck No',
+            'Claim No',
+            'Claim Amount'
         ];
         $rowIndex++;
 
@@ -77,9 +83,9 @@ class HTCapsCollapseExport implements
         $headers = $query->get();
 
         $allDetails = HtCapsDetail::with([
-                'item:id,code,name',
-                'uoms:id,name'
-            ])
+            'item:id,code,name',
+            'uoms:id,name'
+        ])
             ->whereIn('header_id', $headers->pluck('id'))
             ->get()
             ->groupBy('header_id');
@@ -90,22 +96,34 @@ class HTCapsCollapseExport implements
 
             $rows[] = [
                 $header->osa_code ?? '',
-                optional($header->warehouse)->warehouse_code ?? '',
-                optional($header->warehouse)->warehouse_name ?? '',
-                optional($header->driverinfo)->osa_code ?? '',
-                optional($header->driverinfo)->driver_name ?? '',
+                $header->claim_date
+                    ? Carbon::parse($header->claim_date)->format('d M Y')
+                    : '',
+                trim(
+                    (optional($header->warehouse)->warehouse_code ?? '') .
+                        (optional($header->warehouse)->warehouse_name ? ' - ' . optional($header->warehouse)->warehouse_name : '')
+                ),
+                trim(
+                    (optional($header->driverinfo)->osa_code ?? '') .
+                        (optional($header->driverinfo)->driver_name ? ' - ' . optional($header->driverinfo)->driver_name : '')
+                ),
                 optional($header->driverinfo)->contactno ?? '',
                 $header->truck_no ?? '',
                 $header->claim_no ?? '',
-                $header->claim_date ?? '',
+
                 $header->claim_amount ?? '',
             ];
             $rowIndex++;
 
             $rows[] = [
                 '',
-                'Item Code','Item Name','UOM','Qty','Receive Qty',
-                'Receive Amt','Receive Date','Remarks','Remarks2'
+                'Item',
+                'Qty',
+                'Receive Qty',
+                'Receive Amt',
+                'Receive Date',
+                'Remarks',
+                'Remarks2'
             ];
             $rowIndex++;
 
@@ -114,13 +132,16 @@ class HTCapsCollapseExport implements
             foreach ($details as $d) {
                 $rows[] = [
                     '',
-                    optional($d->item)->code ?? '',
-                    optional($d->item)->name ?? '',
-                    optional($d->uoms)->name ?? '',
+                    trim(
+                        (optional($d->item)->code ?? '') .
+                            (optional($d->item)->name ? ' - ' . optional($d->item)->name : '')
+                    ),
                     $d->quantity ?? '',
                     $d->receive_qty ?? '',
                     $d->receive_amount ?? '',
-                    $d->receive_date ?? '',
+                    $d->receive_date
+                        ? Carbon::parse($d->receive_date)->format('d M Y')
+                        : '',
                     $d->remarks ?? '',
                     $d->remarks2 ?? '',
                 ];
@@ -156,21 +177,21 @@ class HTCapsCollapseExport implements
                 $sheet = $event->sheet->getDelegate();
                 $lastRow = $sheet->getHighestRow();
 
-                $sheet->getStyle("A1:J1")->applyFromArray([
-                    'fill'=>[
-                        'fillType'=>Fill::FILL_SOLID,
-                        'startColor'=>['rgb'=>'993442']
+                $sheet->getStyle("A1:H1")->applyFromArray([
+                    'fill' => [
+                        'fillType' => Fill::FILL_SOLID,
+                        'startColor' => ['rgb' => '993442']
                     ],
-                    'font'=>[
-                        'bold'=>true,
-                        'color'=>['rgb'=>'FFFFFF']
+                    'font' => [
+                        'bold' => true,
+                        'color' => ['rgb' => 'FFFFFF']
                     ],
                 ]);
 
-                for ($i=2;$i<=$lastRow;$i++) {
-                    if ($sheet->getCell("B{$i}")->getValue()==='Item Code') {
-                        $sheet->getStyle("B{$i}:J{$i}")->getFont()->setBold(true);
-                        $sheet->getStyle("B{$i}:J{$i}")
+                for ($i = 2; $i <= $lastRow; $i++) {
+                    if ($sheet->getCell("B{$i}")->getValue() === 'Item') {
+                        $sheet->getStyle("B{$i}:H{$i}")->getFont()->setBold(true);
+                        $sheet->getStyle("B{$i}:H{$i}")
                             ->getAlignment()
                             ->setHorizontal(Alignment::HORIZONTAL_CENTER);
                     }

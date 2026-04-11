@@ -25,39 +25,26 @@ use App\Helpers\CommonLocationFilter;
 
 class HtReturnController extends Controller
 {
-    protected $service;
-
-    public function __construct(HtReturnService $service)
+protected $service;
+public function __construct(HtReturnService $service)
     {
         $this->service = $service;
     }
-
-    public function exportHtReturnHeader(Request $request)
+public function exportHtReturnHeader(Request $request)
     {
         $format = strtolower($request->input('format', 'xlsx'));
         $extension = $format === 'csv' ? 'csv' : 'xlsx';
         $filename = 'returnht_header_export_' . now()->format('Ymd_His') . '.' . $extension;
         $path = 'htreturnexports/' . $filename;
-
         $filters = $request->input('filter', []);
-
         $fromDate = $filters['from_date'] ?? Null;
         $toDate   = $filters['to_date'] ?? Null;
-
-        // $salesmanIds = !empty($filters['salesman_id'])
-        //     ? explode(',', $filters['salesman_id'])
-        //     : [];
-
         $warehouseIds = CommonLocationFilter::resolveWarehouseIds($filters);
-
         $export = new HTReturnExport(
             $fromDate,
             $toDate,
             $warehouseIds
         );
-
-        // $export = new HTReturnExport($fromDate, $toDate);
-
         if ($format === 'csv') {
             Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
         } else {
@@ -65,28 +52,23 @@ class HtReturnController extends Controller
         }
         $appUrl = rtrim(config('app.url'), '/');
         $fullUrl = $appUrl . '/storage/app/public/' . $path;
-
         return response()->json([
             'status'       => 'success',
             'download_url' => $fullUrl,
         ]);
     }
-
-    public function exportReturnCollapse(Request $request)
+public function exportReturnCollapse(Request $request)
     {
         $format = strtolower($request->input('format', 'xlsx'));
         $extension = $format === 'csv' ? 'csv' : 'xlsx';
         $filename = 'return_collapse_export_' . now()->format('Ymd_His') . '.' . $extension;
         $path = 'returnexports/' . $filename;
-
         $filters = $request->input('filter', []);
         $fromDate = $filters['from_date'] ?? Null;
         $toDate   = $filters['to_date'] ?? Null;
-
         $salesmanIds = !empty($filters['salesman_id'])
             ? explode(',', $filters['salesman_id'])
             : [];
-        // dd($filters);
         $warehouseIds = CommonLocationFilter::resolveWarehouseIds($filters);
         $export = new ReturnHCollapseExport(
             $fromDate,
@@ -94,23 +76,19 @@ class HtReturnController extends Controller
             $warehouseIds,
             $salesmanIds
         );
-
         if ($format === 'csv') {
             Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
         } else {
             Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
         }
-
         $appUrl = rtrim(config('app.url'), '/');
         $fullUrl = $appUrl . '/storage/app/public/' . $path;
-
         return response()->json([
             'status'       => 'success',
             'download_url' => $fullUrl,
         ]);
     }
-
-    public function exportHtReturns(Request $request)
+public function exportHtReturns(Request $request)
     {
         $uuid = $request->input('uuid');
         $format = strtolower($request->input('format', 'pdf'));
@@ -118,25 +96,17 @@ class HtReturnController extends Controller
         $filename = 'htreturn_export_' . now()->format('Ymd_His') . '.' . $extension;
         $path = 'exports/' . $filename;
         if ($extension === 'pdf') {
-            $order = TempReturnH::with(['customer'])
-                ->where('uuid', $uuid)
-                ->first();
-            
-            if (!$order) {
+            $order = TempReturnH::with(['customer'])->where('uuid', $uuid)->first();
+            if (!$order){
                 return response()->json([
                     'status'  => 'error',
                     'message' => 'Record not found for given UUID'
                 ], 404);
             }
-
-            $orderDetails = TempReturnD::with(['item'])
-                ->where('header_id', $order->id)
-                ->get();
-
+            $orderDetails = TempReturnD::with(['item'])->where('header_id', $order->id)->get();
             $order->vat   = $orderDetails->sum('vat');
             $order->net   = $orderDetails->sum('net');
             $order->total = $orderDetails->sum('total');
-
             $pdf = \PDF::loadView('htreturn', [
                 'order'         => $order,
                 'orderDetails'  => $orderDetails
@@ -144,20 +114,17 @@ class HtReturnController extends Controller
             Storage::disk('public')->put($path, $pdf->output());
             $appUrl = rtrim(config('app.url'), '/');
             $fullUrl = $appUrl . '/storage/app/public/' . $path;
-
             return response()->json([
                 'status'        => 'success',
                 'download_url'  => $fullUrl
             ]);
         }
-
         return response()->json([
             'status' => 'error',
             'message' => 'Unsupported export format.'
         ], 400);
     }
-
-    public function index(Request $request): JsonResponse
+public function index(Request $request): JsonResponse
     {
         try {
             $perPage  = $request->get('limit', 50);
@@ -192,8 +159,7 @@ class HtReturnController extends Controller
             ], 500);
         }
     }
-
-    public function show(Request $request, string $uuid)
+public function show(Request $request, string $uuid)
     {
         try {
             $record = $this->service->viewByUuid($uuid);
@@ -218,8 +184,7 @@ class HtReturnController extends Controller
             ], 500);
         }
     }
-
-    public function fetchBatch(Request $request)
+public function fetchBatch(Request $request)
     {
         $request->validate([
             'expery_date' => 'required',
@@ -228,7 +193,6 @@ class HtReturnController extends Controller
             'uom_id'      => 'required|integer',
             'customer_id' => 'required|integer',
         ]);
-
         $data = $this->service->fetchBatch(
             $request->expery_date,
             $request->item_id,
@@ -236,14 +200,12 @@ class HtReturnController extends Controller
             $request->qty,
             $request->uom_id
         );
-
         return response()->json([
             'status' => true,
             'data' => $data
         ]);
     }
-
-    public function saveReturn(Request $request)
+public function saveReturn(Request $request)
     {
         DB::beginTransaction();
         try {

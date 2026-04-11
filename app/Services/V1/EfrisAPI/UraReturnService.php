@@ -7,12 +7,14 @@ use App\Models\Agent_Transaction\InvoiceHeader;
 use App\Models\Agent_Transaction\ReturnHeader;
 use App\Models\Agent_Transaction\ReturnDetail;
 use App\Models\Item;
+use App\Models\Uom;
+use Illuminate\Support\Facades\DB;
 
 class UraReturnService extends BaseEfrisService
 {
-    public function getReturnsList($depotId, $date, $toDate)
+    public function getReturnsList($warehouseId, $date, $toDate)
     {
-        $warehouse = Warehouse::find($depotId);
+        $warehouse = Warehouse::find($warehouseId);
 
         if (!$warehouse) {
             return [
@@ -141,7 +143,7 @@ class UraReturnService extends BaseEfrisService
     public function getReturnDetails($invoiceNo, $warehouseId)
     {
         $warehouse = Warehouse::find($warehouseId);
-
+        // dd($warehouse);
         if (!$warehouse) {
             return [
                 'status' => false,
@@ -223,6 +225,10 @@ class UraReturnService extends BaseEfrisService
         ];
     }
 
+    private function clean($value)
+    {
+        return trim(preg_replace('/[^0-9A-Za-z]/', '', $value));
+    }
 
     public function syncReturn($data)
     {
@@ -248,28 +254,31 @@ class UraReturnService extends BaseEfrisService
         $goodsdetails = [];
 
         foreach ($data['item'] as $key => $name) {
-
+            $qty   = (float) ($data['quantity'][$key] ?? 0);
+            $price = (float) ($data['unitprice'][$key] ?? 0);
+            $total = (float) ($data['total'][$key] ?? 0);
+            $vat   = (float) ($data['vat'][$key] ?? 0);
             $goodsdetails[] = [
                 "item" => $name,
-                "itemCode" => $data['code'][$key],
-                "qty" => -$data['quantity'][$key],
-                "unitOfMeasure" => $data['uom'][$key],
-                "unitPrice" => $data['unitprice'][$key],
-                "total" => -$data['total'][$key],
+                "itemCode" => $data['code'][$key] ?? '',
+                "qty" => -$qty,
+                "unitOfMeasure" => $data['uom'][$key] ?? '',
+                "unitPrice" => $price,
+                "total" => -$total,
                 "taxRate" => "0.18",
-                "tax" => -$data['vat'][$key],
+                "tax" => -$vat,
                 "orderNumber" => (string)$key,
                 "deemedFlag" => "2",
                 "exciseFlag" => "2",
-                "goodsCategoryId" => $data['categoryId'][$key]
+                "goodsCategoryId" => $data['categoryId'][$key] ?? ''
             ];
         }
-
+        // dd($data['invoiceId']);
         $count = count($goodsdetails);
 
         $payload = [
-            "oriInvoiceId" => $data['invoiceId'],
-            "oriInvoiceNo" => $data['invoiceNo'],
+            "oriInvoiceId" => $this->clean($data['invoiceId']),
+            "oriInvoiceNo" => $this->clean($data['invoiceNo']),
             "reasonCode" => "102",
             "applicationTime" => now()->format('Y-m-d H:i:s'),
             "sellersReferenceNo" => "RETURN" . time(),
@@ -278,16 +287,16 @@ class UraReturnService extends BaseEfrisService
             "source" => "103",
             "goodsDetails" => $goodsdetails,
             "taxDetails" => [[
-                "netAmount" => -$data['total_net'],
                 "taxRate" => "0.18",
-                "taxAmount" => -$data['total_vat'],
-                "grossAmount" => -$data['total_total'],
+                "netAmount" => -(float) ($data['total_net'] ?? 0),
+                "taxAmount" => -(float) ($data['total_vat'] ?? 0),
+                "grossAmount" => -(float) ($data['total_total'] ?? 0),
                 "taxCategoryCode" => "01"
             ]],
             "summary" => [
-                "netAmount" => -$data['total_net'],
-                "taxAmount" => -$data['total_vat'],
-                "grossAmount" => -$data['total_total'],
+                "netAmount" => -(float) ($data['total_net'] ?? 0),
+                "taxAmount" => -(float) ($data['total_vat'] ?? 0),
+                "grossAmount" => -(float) ($data['total_total'] ?? 0),
                 "itemCount" => (string)$count,
                 "modeCode" => "0",
                 "qrCode" => ""
@@ -309,7 +318,16 @@ class UraReturnService extends BaseEfrisService
         // dd($payload);
         // 🔥 CALL EFRIS
         $resp = $this->makePost("T110", $payload, $warehouse);
+        $innerResponse = $resp['inner_response'] ?? [];
 
+        // 🔥 NEW: handle response (for debug/log)
+        $this->handleResponse(
+            $data['header'] ?? null,
+            $warehouse,
+            $payload,
+            $resp,
+            $innerResponse
+        );
         if (($resp['returnCode'] ?? null) == "00") {
 
             DB::beginTransaction();
@@ -318,12 +336,14 @@ class UraReturnService extends BaseEfrisService
 
                 // 🔥 GET INVOICE
                 $invoice = InvoiceHeader::where('ura_invoice_no', $data['invoiceNo'])->first();
-
-                // 🔥 INSERT RETURN HEADER
+                $returnCode = $this->generateReturnCode();
                 $returnHeader = ReturnHeader::create([
+                    'osa_code' => $returnCode,
                     'invoice_id' => $invoice->id ?? null,
                     'warehouse_id' => $warehouse->id,
                     'customer_id' => $invoice->customer_id ?? null,
+                    'route_id' => $invoice->route_id ?? null,
+                    'salesman_id' => $invoice->salesman_id ?? null,
                     'gross_total' => $data['total_total'],
                     'net_amount' => $data['total_net'],
                     'vat' => $data['total_vat'],
@@ -342,12 +362,12 @@ class UraReturnService extends BaseEfrisService
                         'header_id' => $returnHeader->id,
                         'item_id' => $item->id,
                         'uom_id' => $this->getUomId($data['uom'][$key]),
-                        'item_price' => $data['unitprice'][$key],
-                        'item_quantity' => $data['quantity'][$key],
-                        'gross_total' => $data['total'][$key],
-                        'net_total' => $data['netamount'][$key],
-                        'vat' => $data['vat'][$key],
-                        'total' => $data['total'][$key],
+                        'item_price' => (float) ($data['unitprice'][$key] ?? 0),
+                        'item_quantity' => (float) ($data['quantity'][$key] ?? 0),
+                        'gross_total' => (float) ($data['total'][$key] ?? 0),
+                        'net_total' => (float) ($data['netamount'][$key] ?? 0),
+                        'vat' => (float) ($data['vat'][$key] ?? 0),
+                        'total' => (float) ($data['total'][$key] ?? 0),
                         'status' => 1
                     ]);
                 }
@@ -357,7 +377,8 @@ class UraReturnService extends BaseEfrisService
                 return [
                     'status' => true,
                     'message' => 'Return created successfully',
-                    'response' => $resp
+                    'response' => $resp,
+                    'inner_response' => $innerResponse
                 ];
             } catch (\Exception $e) {
 
@@ -372,7 +393,50 @@ class UraReturnService extends BaseEfrisService
 
         return [
             'status' => false,
-            'message' => $resp['message'] ?? 'EFRIS Error'
+            'message' => $resp['message'] ?? 'EFRIS Error',
+            'inner_response' => $innerResponse
         ];
+    }
+
+    private function generateReturnCode()
+    {
+        $last = ReturnHeader::whereNotNull('osa_code')
+            ->lockForUpdate() // 🔥 IMPORTANT
+            ->orderBy('id', 'desc')
+            ->first();
+
+        if (!$last || !$last->osa_code) {
+            return 'RETNHD-001';
+        }
+
+        preg_match('/RETNHD-(\d+)/', $last->osa_code, $matches);
+
+        $number = isset($matches[1]) ? (int)$matches[1] : 0;
+
+        return 'RETNHD-' . str_pad($number + 1, 3, '0', STR_PAD_LEFT);
+    }
+
+    private function getUomId($uomName)
+    {
+        if (!$uomName) {
+            return null;
+        }
+
+        return Uom::where(function ($q) use ($uomName) {
+            $q->where('name', $uomName)
+                ->orWhere('sap_name', $uomName);
+        })
+            ->value('id');
+    }
+
+    private function handleResponse($header, $warehouse, $payload, $response, $innerResponse)
+    {
+        \Log::info('EFRIS RETURN DEBUG', [
+            'header' => $header,
+            'warehouse_id' => $warehouse->id ?? null,
+            'payload' => $payload,
+            'response' => $response,
+            'inner_response' => $innerResponse
+        ]);
     }
 }

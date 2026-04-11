@@ -9,11 +9,10 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\Exportable;
 use Maatwebsite\Excel\Events\AfterSheet;
-
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
-
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use App\Helpers\DataAccessHelper;
 
@@ -25,39 +24,35 @@ class SalesTeamAttendanceExport implements FromQuery, WithMapping, WithHeadings,
     protected $toDate;
     protected $salesman_id;
 
-    public function __construct($fromDate, $toDate, $salesman_id)
+    public function __construct($fromDate = null, $toDate = null, $salesman_id = null)
     {
-        $today = now()->toDateString();
-
-        $this->fromDate = $fromDate ?: $today;
-        $this->toDate   = $toDate   ?: $today;
-        $this->salesman_id   = $salesman_id;
+        $this->fromDate = $fromDate;
+        $this->toDate   = $toDate;
+        $this->salesman_id = $salesman_id;
     }
 
+    
     public function query()
     {
-        // dd($this->salesman_id);
         $query = SalesmanAttendance::with([
             'salesman',
             'warehouse',
             'route'
         ])
-            ->when(
+        ->when($this->salesman_id, function ($q) {
+            $q->where('salesman_id', $this->salesman_id);
+        });
+
+        if ($this->fromDate && $this->toDate) {
+            $query->whereBetween('attendance_date', [
                 $this->fromDate,
-                fn($q) =>
-                $q->whereDate('attendance_date', '>=', $this->fromDate)
-            )
-            ->when(
-                $this->toDate,
-                fn($q) =>
-                $q->whereDate('attendance_date', '<=', $this->toDate)
-            )
-            ->when(
-                $this->salesman_id,
-                fn($q) =>
-                $q->where('salesman_id', $this->salesman_id)
-            );
-        // dd($query->count());
+                $this->toDate
+            ]);
+        }
+        else {
+            $query->whereDate('attendance_date', Carbon::today());
+        }
+
         return $query;
     }
 

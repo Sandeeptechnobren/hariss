@@ -90,21 +90,27 @@ class AgentCustomer extends Model
     {
         return $this->belongsTo(User::class, 'updated_user');
     }
-    public function getWarehouse(){
+    public function getWarehouse()
+    {
         return $this->belongsTo(Warehouse::class, 'warehouse');
     }
 
-        public function invoiceHeaders()
+    public function invoiceHeaders()
     {
         return $this->hasMany(InvoiceHeader::class, 'customer_id', 'id');
     }
-        public function returnHeaders()
+    public function returnHeaders()
     {
         return $this->hasMany(ReturnHeader::class, 'customer_id', 'id');
     }
     public function fridgeStatus()
     {
         return $this->hasMany(AcFridgeStatus::class, 'customer_id', 'id')
-                    ->whereNull('remove_date');
+            ->whereNull('remove_date');
+    }
+
+    public function visitDays()
+    {
+        return $this->hasMany(RouteVisit::class, 'customer_id', 'id');
     }
 }

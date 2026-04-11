@@ -15,12 +15,11 @@ use App\Helpers\SearchHelper;
 
 class CompetitorInfoService
 {
-   public function getByUuid(string $uuid): ?CompetitorInfo
+public function getByUuid(string $uuid): ?CompetitorInfo
     {
         return CompetitorInfo::where('uuid', $uuid)->first();
     }
-
-        public function getAll()
+public function getAll()
     {
       $search = request()->input('search');
       $query = CompetitorInfo::with(['merchandiser'])->latest();
@@ -36,9 +35,8 @@ class CompetitorInfoService
         'code',
         'created_user.firstname',
         'updated_user.firstname',
-        
-    ]);
-    return $query->paginate(request()->get('per_page', 50));
+        ]);
+        return $query->paginate(request()->get('per_page', 50));
     }
 
 public function store(CompetitorInfoRequest $request): array

@@ -115,4 +115,12 @@ class HTInvoiceHeader extends Model
     {
         return $this->belongsTo(Warehouse::class, 'warehouse_id');
     }
+    public function creditNotes()
+{
+    return $this->hasMany(CreditNoteHeader::class, 'purchase_invoice_id');
+}
+public function distributor()
+{
+    return $this->belongsTo(Warehouse::class, 'warehouse_id','id');
+}
 }

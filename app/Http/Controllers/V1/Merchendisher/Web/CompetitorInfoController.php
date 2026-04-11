@@ -12,6 +12,8 @@ use App\Http\Requests\V1\Merchendisher\Web\CompetitorInfoRequest;
 use Illuminate\Http\JsonResponse;
 use App\Exports\CompetitorInfoExport;
 use Maatwebsite\Excel\Facades\Excel;
+use Carbon\Carbon;
+
 
 class CompetitorInfoController extends Controller
 {
@@ -142,7 +144,7 @@ class CompetitorInfoController extends Controller
      *     )
      * )
      */
-            public function index()
+public function index()
     {
         $competitorinfo = $this->service->getAll();
         return ResponseHelper::paginatedResponse(
@@ -280,28 +282,83 @@ public function store(CompetitorInfoRequest $request, CompetitorInfoService $ser
  *     ),
  * )
  */
+// public function export(Request $request)
+// {
+//     $request->validate([
+//         'start_date' => 'nullable|date',
+//         'end_date'   => 'nullable|date|after_or_equal:start_date',
+//         'format'     => 'required|in:csv,xlsx',
+//     ]);
+//     $startDate = $request->input('start_date');
+//     $endDate = $request->input('end_date');
+//     $format = $request->input('format');
+//     $data = $this->service->getFilteredData($startDate, $endDate);
+//     $fileName = "competitor_infos";
+//     if ($startDate && $endDate) {
+//         $fileName .= "_{$startDate}_to_{$endDate}";
+//     }
+//     $fileName .= "." . $format;
+//     return Excel::download(new CompetitorInfoExport($data), $fileName);
+// }
+
 public function export(Request $request)
 {
     $request->validate([
-        'start_date' => 'nullable|date',
-        'end_date'   => 'nullable|date|after_or_equal:start_date',
-        'format'     => 'required|in:csv,xlsx',
+        'start_date' => 'nullable|date_format:Y-m-d',
+        'end_date'   => 'nullable|date_format:Y-m-d|after_or_equal:start_date',
+        'format'     => 'nullable|in:csv,xlsx',
+        'file_type'  => 'nullable|in:csv,xlsx',
+        'search'     => 'nullable|string|max:255',
     ]);
 
-    $startDate = $request->input('start_date');
-    $endDate = $request->input('end_date');
-    $format = $request->input('format');
+    $format     = $request->input('file_type') ?? $request->input('format', 'xlsx');
+    $startDate  = $request->input('start_date');
+    $endDate    = $request->input('end_date');
+    $searchTerm = $request->input('search');
 
-    $data = $this->service->getFilteredData($startDate, $endDate);
+    // Check data exists before generating file
+    $hasData = CompetitorInfo::join('salesman', 'competitor_infos.merchendiser_id', '=', 'salesman.id')
+                ->when($startDate && $endDate, fn($q) =>
+                    $q->whereBetween('competitor_infos.created_at', [
+                        Carbon::parse($startDate)->startOfDay(),
+                        Carbon::parse($endDate)->endOfDay(),
+                    ])
+                )
+                ->when(!empty($searchTerm), function ($q) use ($searchTerm) {
+                    $like = '%' . strtolower($searchTerm) . '%';
+                    $q->where(function ($inner) use ($like) {
+                        $inner->orWhereRaw('LOWER(competitor_infos.company_name) LIKE ?', [$like])
+                              ->orWhereRaw('LOWER(competitor_infos.brand) LIKE ?', [$like])
+                              ->orWhereRaw('LOWER(competitor_infos.item_name) LIKE ?', [$like])
+                              ->orWhereRaw('LOWER(competitor_infos.code) LIKE ?', [$like])
+                              ->orWhereRaw('LOWER(salesman.name) LIKE ?', [$like]);
+                    });
+                })
+                ->exists();
 
-    $fileName = "competitor_infos";
-
-    if ($startDate && $endDate) {
-        $fileName .= "_{$startDate}_to_{$endDate}";
+    if (!$hasData) {
+        return response()->json([
+            'status'  => 'error',
+            'message' => 'No data found for the given filters.',
+        ], 404);
     }
 
-    $fileName .= "." . $format;
+    $export   = new CompetitorInfoExport($startDate, $endDate, $searchTerm);
+    $fileName = 'competitor_info_' . now()->format('Ymd_His') . '.' . $format;
+    $path     = 'competitor_info_exports/' . $fileName;
 
-    return Excel::download(new CompetitorInfoExport($data), $fileName);
+    if ($format === 'csv') {
+        Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
+    } else {
+        Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
+    }
+
+    $downloadUrl = rtrim(config('app.url'), '/') . '/storage/app/public/' . $path;
+
+    return response()->json([
+        'status'       => 'success',
+        'message'      => 'Export file generated successfully',
+        'download_url' => $downloadUrl,
+    ]);
 }
 }

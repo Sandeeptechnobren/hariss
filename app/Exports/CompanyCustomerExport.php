@@ -119,7 +119,7 @@ class CompanyCustomerExport implements FromCollection, WithHeadings, WithMapping
             'Town' => $c->town,
             'Landmark' => $c->landmark,
             'District' => $c->district,
-            'Payment Type' => $c->payment_type,
+            'Payment Type' => $c->payment_type == 1 ? 'Cash' : ($c->payment_type == 2 ? 'Credit' : 'Unknown'),
             'Credit Days' => $c->creditday,
             'TIN No' => $c->tin_no,
             'Credit Limit' => $c->creditlimit,

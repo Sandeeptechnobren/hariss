@@ -59,7 +59,7 @@ class ServiceTerritoryExport implements FromArray, WithStyles, WithCustomStartCe
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
             'fill' => [
                 'fillType' => Fill::FILL_SOLID,
-                'color' => ['rgb' => '4A90E2']
+                'color' => ['rgb' => '993442']
             ]
         ]);
 
@@ -71,7 +71,7 @@ class ServiceTerritoryExport implements FromArray, WithStyles, WithCustomStartCe
         $rows = [];
 
         // Header Row
-        $rows[] = ['Region', 'Area', 'Warehouse(s)'];
+        $rows[] = ['Region', 'Area', 'Distributor(s)'];
 
         foreach ($this->hierarchy as $region) {
 

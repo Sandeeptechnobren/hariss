@@ -56,6 +56,7 @@ class UraDeliverySyncService extends BaseEfrisService
                 ->map(function ($item) {
                     return [
                         'id'              => $item->id,
+                        'delivery_uuid'   => $item->uuid,
                         'delivery_code'   => $item->delivery_code,
                         'delivery_date'   => $item->delivery_date,
 

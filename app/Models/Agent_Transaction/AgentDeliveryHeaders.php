@@ -78,4 +78,8 @@ class AgentDeliveryHeaders extends Model
     {
         return $this->belongsTo(Salesman::class, 'salesman_id');
     }
+        public function order()
+    {
+        return $this->belongsTo(OrderHeader::class, 'order_code', 'order_code');
+    }
 }

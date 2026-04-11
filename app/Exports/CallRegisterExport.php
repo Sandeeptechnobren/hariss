@@ -8,6 +8,7 @@ use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
+use Carbon\Carbon;
 
 class CallRegisterExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize, WithEvents
 {
@@ -28,11 +29,14 @@ class CallRegisterExport implements FromQuery, WithHeadings, WithMapping, Should
         return [
             $row->osa_code,
             $row->ticket_type,
-            $row->ticket_date,
+            $row->ticket_date
+                ? Carbon::parse($row->ticket_date)->format('d M Y')
+                : '',
+
 
             trim(
                 ($row->technician?->osa_code ?? '') . ' - ' .
-                ($row->technician?->name ?? ''),
+                    ($row->technician?->name ?? ''),
                 ' -'
             ),
 
@@ -46,7 +50,7 @@ class CallRegisterExport implements FromQuery, WithHeadings, WithMapping, Should
 
             trim(
                 ($row->asset?->customer?->osa_code ?? '') . ' - ' .
-                ($row->asset?->customer?->name ?? ''),
+                    ($row->asset?->customer?->name ?? ''),
                 ' -'
             ),
 
@@ -57,8 +61,14 @@ class CallRegisterExport implements FromQuery, WithHeadings, WithMapping, Should
             $row->asset?->customer?->contact_no2 ?? '',
 
             $row->nature_of_call,
-            $row->created_at,
-            $row->completion_date,
+            $row->created_at
+                ? Carbon::parse($row->created_at)->format('d M Y')
+                : '',
+
+            // ✅ Completion Date
+            $row->completion_date
+                ? Carbon::parse($row->completion_date)->format('d M Y')
+                : '',
             $row->status,
         ];
     }

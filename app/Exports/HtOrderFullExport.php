@@ -68,7 +68,7 @@ class HtOrderFullExport implements FromCollection, WithHeadings, ShouldAutoSize,
                         ' - ' .
                         ($h->customer->business_name ?? '')
                 ),
-                'Warehouse' => trim(
+                'Distributor' => trim(
                     ($h->warehouse->warehouse_code ?? '') .
                         ' - ' .
                         ($h->warehouse->warehouse_name ?? '')
@@ -108,7 +108,7 @@ class HtOrderFullExport implements FromCollection, WithHeadings, ShouldAutoSize,
             'Order Date',
             'Delivery Date',
             'Customer',
-            'Warehouse',
+            'Distributor',
             'Salesman',
             'SAP ID',
             'SAP MSG',

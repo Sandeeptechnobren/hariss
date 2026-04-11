@@ -5,6 +5,7 @@ namespace App\Exports;
 use App\Models\AgentCustomer;
 use App\Models\Agent_Transaction\InvoiceHeader;
 use Illuminate\Support\Collection;
+use Carbon\Carbon;
 use Maatwebsite\Excel\Concerns\{
     FromCollection,
     WithHeadings,
@@ -26,7 +27,6 @@ class InvoiceAgentCustomerExport implements
     protected $uuid;
     protected $from;
     protected $to;
-    protected $groupIndexes = [];
 
     public function __construct($uuid = null, $from = null, $to = null)
     {
@@ -38,33 +38,32 @@ class InvoiceAgentCustomerExport implements
     public function collection()
     {
         $rows = [];
-        $rowIndex = 2;
+
         $customer = AgentCustomer::where('uuid', trim($this->uuid))->first();
         if (!$customer) {
             return new Collection([]);
         }
+
         $headers = InvoiceHeader::with([
-            'company',
-            'order',
-            'delivery',
             'warehouse',
             'route',
             'customer',
             'salesman',
-            'details.item',
-            'details.uoms',
-            'details.promotion',
+            'details'
         ])
-            ->where('customer_id', $customer->id)
-            ->when($this->from, fn($q) => $q->whereDate('invoice_date', '>=', $this->from))
-            ->when($this->to, fn($q) => $q->whereDate('invoice_date', '<=', $this->to))
-            ->get();
+        ->where('customer_id', $customer->id)
+        ->when($this->from && $this->to, function ($q) {
+            $q->whereBetween('created_at', [$this->from, $this->to]);
+        }, function ($q) {
+            $q->whereBetween('created_at', [
+                Carbon::now()->startOfMonth(),
+                Carbon::now()->endOfMonth()
+            ]);
+        })
+        ->get();
 
         foreach ($headers as $header) {
 
-            $details   = $header->details;
-            $itemCount = $details->count();
-            $headerRow = $rowIndex;
             $rows[] = [
                 $header->invoice_code,
                 optional($header->invoice_date)->format('Y-m-d'),
@@ -72,49 +71,8 @@ class InvoiceAgentCustomerExport implements
                 trim(($header->route->route_code ?? '') . ' - ' . ($header->route->route_name ?? '')),
                 trim(($header->customer->osa_code ?? '') . ' - ' . ($header->customer->name ?? '')),
                 trim(($header->salesman->osa_code ?? '') . ' - ' . ($header->salesman->name ?? '')),
-                $itemCount,
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
+                $header->details->count(),
             ];
-
-            $rowIndex++;
-            $detailRowIndexes = [];
-            foreach ($details as $d) {
-                $rows[] = [
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    trim(($d->item->erp_code ?? '') . ' - ' . ($d->item->name ?? '')),
-                    $d->uoms->name ?? '',
-                    (float) $d->quantity,
-                    (float) $d->item_value,
-                    (float) $d->vat,
-                    (float) $d->net_total,
-                    (float) $d->item_total,
-                ];
-
-                $detailRowIndexes[] = $rowIndex;
-                $rowIndex++;
-            }
-
-            if (!empty($detailRowIndexes)) {
-                $this->groupIndexes[] = [
-                    'start' => $headerRow + 1,
-                    'end'   => max($detailRowIndexes),
-                ];
-            }
-
-            $rows[] = array_fill(0, count($rows[0]), '');
-            $rowIndex++;
         }
 
         return new Collection($rows);
@@ -130,13 +88,6 @@ class InvoiceAgentCustomerExport implements
             'Customer',
             'Salesman',
             'Item Count',
-            'Item',
-            'UOM',
-            'Quantity',
-            'Item Value',
-            'VAT (Detail)',
-            'Net (Detail)',
-            'Item Total',
         ];
     }
 
@@ -168,14 +119,6 @@ class InvoiceAgentCustomerExport implements
                     ],
                 ]);
 
-                foreach ($this->groupIndexes as $group) {
-                    for ($i = $group['start']; $i <= $group['end']; $i++) {
-                        $sheet->getRowDimension($i)->setOutlineLevel(1);
-                        $sheet->getRowDimension($i)->setVisible(false);
-                    }
-                }
-
-                $sheet->setShowSummaryBelow(false);
                 $sheet->getRowDimension(1)->setRowHeight(25);
             },
         ];

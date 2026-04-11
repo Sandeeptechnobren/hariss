@@ -37,7 +37,8 @@ class HtDeliveryFullExport implements FromCollection, WithHeadings, ShouldAutoSi
             'country',
             'salesman',
             'poorder',
-            'order'
+            'order',
+            'warehouse'
         ]);
 
         if ($this->from_date && $this->to_date) {
@@ -76,6 +77,11 @@ class HtDeliveryFullExport implements FromCollection, WithHeadings, ShouldAutoSi
                         ' - ' .
                         ($d->customer->business_name ?? '')
                 ),
+                'Distributor' => trim(
+                    ($d->warehouse->warehouse_code ?? '') .
+                        ' - ' .
+                        ($d->warehouse->warehouse_name ?? '')
+                ),
 
                 'Salesman' => trim(
                     ($d->salesman->osa_code ?? '') .
@@ -107,6 +113,7 @@ class HtDeliveryFullExport implements FromCollection, WithHeadings, ShouldAutoSi
             'PurchaseOrder Code',
             'Order Code',
             'Customer',
+            'Distributor',
             'Salesman',
             'VAT',
             'Excise',

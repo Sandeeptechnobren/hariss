@@ -3,6 +3,7 @@
 namespace App\Exports;
 
 use App\Models\Hariss_Transaction\Web\CreditNoteHeader;
+use App\Helpers\CommonLocationFilter;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithEvents;
@@ -14,32 +15,81 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
 class CreditNoteCollapseExport implements FromCollection, WithHeadings, WithEvents
 {
     protected $groupIndexes = [];
+    protected $request;
+
+    public function __construct($request)
+    {
+        $this->request = $request;
+    }
 
     public function collection()
     {
+        $request = $this->request;
+
         $data = [];
         $row = 2;
 
-        $headers = CreditNoteHeader::with([
+        // 🔥 FILTER ARRAY
+        $filter = $request->input('filter', []);
+
+        $fromDate = $filter['from_date'] ?? null;
+        $toDate   = $filter['to_date'] ?? null;
+        $distributorId = $filter['distributor_id'] ?? null;
+
+        // 🔥 QUERY
+        $query = CreditNoteHeader::with([
             'customer',
             'distributor',
             'purchaseInvoice',
             'salesman',
             'creditNoteDetails.item'
-        ])->orderBy('id', 'asc')->get();
+        ]);
 
+        // ✅ DATE FILTER
+        if ($fromDate && $toDate) {
+            $query->whereDate('created_at', '>=', $fromDate)
+                  ->whereDate('created_at', '<=', $toDate);
+        }
+
+        // 🔥 PRIORITY LOGIC
+        if (!empty($distributorId)) {
+
+            // 👉 direct distributor filter
+            $query->where('distributor_id', $distributorId);
+
+        } else {
+
+            // 👉 helper filter
+            $warehouseIds = CommonLocationFilter::resolveWarehouseIds($filter);
+
+            if (!empty($warehouseIds)) {
+                $query->whereHas('distributor', function ($q) use ($warehouseIds) {
+                    $q->whereIn('id', $warehouseIds);
+                });
+            }
+        }
+
+        $headers = $query->orderBy('id', 'asc')->get();
+
+        // 🔽 DATA BUILD
         foreach ($headers as $header) {
 
-            // ✅ HEADER ROW
+            // HEADER ROW
             $data[] = [
                 optional($header->created_at)->format('d M Y'),
                 $header->credit_note_no,
                 $header->supplier_id,
                 optional($header->purchaseInvoice)->invoice_code,
-                optional($header->distributor)->warehouse_code . ' - ' .
-                optional($header->distributor)->warehouse_name,
-                optional($header->customer)->osa_code . ' - ' .
-                optional($header->customer)->business_name,
+                trim(
+                    (optional($header->distributor)->warehouse_code ?? '') . ' - ' .
+                    (optional($header->distributor)->warehouse_name ?? ''),
+                    ' -'
+                ),
+                trim(
+                    (optional($header->customer)->osa_code ?? '') . ' - ' .
+                    (optional($header->customer)->business_name ?? ''),
+                    ' -'
+                ),
                 optional($header->salesman)->name ?? '-',
                 $header->total_amount,
                 $header->reason,
@@ -48,25 +98,33 @@ class CreditNoteCollapseExport implements FromCollection, WithHeadings, WithEven
             $headerRow = $row;
             $row++;
 
-            // ✅ DETAIL HEADER (Code ke niche)
+            // DETAIL HEADER
             $start = $row;
 
-            $data[] = [
-                '', 'Item', 'Qty', 'Price', 'Total'
-            ];
+            $data[] = ['', 'Item', 'Qty', 'Price', 'Total'];
             $row++;
 
-            // ✅ DETAIL ROWS
+            // DETAIL ROWS
             if ($header->creditNoteDetails->count()) {
                 foreach ($header->creditNoteDetails as $detail) {
+
+                    $item = $detail->item;
+
+                    $itemText = '-';
+                    if ($item) {
+                        $code = $item->item_code ?? $item->erp_code ?? '';
+                        $name = $item->item_name ?? $item->name ?? '';
+                        $itemText = trim($code . ' - ' . $name, ' -');
+                    }
+
                     $data[] = [
                         '',
-                        optional($detail->item)->item_code . ' - ' .
-                        optional($detail->item)->item_name,
+                        $itemText,
                         $detail->qty,
                         $detail->price,
                         $detail->total,
                     ];
+
                     $row++;
                 }
             } else {
@@ -76,7 +134,6 @@ class CreditNoteCollapseExport implements FromCollection, WithHeadings, WithEven
 
             $end = $row - 1;
 
-            // grouping save
             $this->groupIndexes[] = [
                 'header_row' => $headerRow,
                 'start' => $start,
@@ -133,12 +190,10 @@ class CreditNoteCollapseExport implements FromCollection, WithHeadings, WithEven
 
                 foreach ($this->groupIndexes as $group) {
 
-                    // HEADER visible
                     $sheet->getRowDimension($group['header_row'])
                         ->setOutlineLevel(0)
                         ->setVisible(true);
 
-                    // 🔥 collapse details
                     for ($i = $group['start']; $i <= $group['end']; $i++) {
                         $sheet->getRowDimension($i)
                             ->setOutlineLevel(1)
@@ -146,25 +201,30 @@ class CreditNoteCollapseExport implements FromCollection, WithHeadings, WithEven
                             ->setCollapsed(true);
                     }
 
-                    // ✅ DETAIL HEADER BOLD
                     $sheet->getStyle("B{$group['start']}:E{$group['start']}")
                         ->getFont()
                         ->setBold(true);
                 }
 
-                // enable +
                 $sheet->setShowSummaryBelow(false);
 
-                // auto width
+                // AUTO WIDTH
                 foreach (range('A', $lastColumn) as $col) {
                     $sheet->getColumnDimension($col)->setAutoSize(true);
                 }
 
-                // borders
-                $sheet->getStyle("A1:{$lastColumn}{$lastRow}")
-                    ->getBorders()
-                    ->getAllBorders()
-                    ->setBorderStyle(Border::BORDER_THIN);
+                // THIN BORDER
+                for ($row = 1; $row <= $lastRow; $row++) {
+                    $sheet->getStyle("A{$row}:{$lastColumn}{$row}")
+                        ->applyFromArray([
+                            'borders' => [
+                                'bottom' => [
+                                    'borderStyle' => Border::BORDER_THIN,
+                                    'color' => ['rgb' => 'D3D3D3'],
+                                ],
+                            ],
+                        ]);
+                }
             },
         ];
     }

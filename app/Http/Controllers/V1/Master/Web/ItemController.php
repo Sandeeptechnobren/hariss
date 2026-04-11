@@ -1007,23 +1007,37 @@ class ItemController extends Controller
         $itemId = (int) $request->query('item_id');
         $format = strtolower($request->query('format', 'xlsx'));
 
-        if (! $itemId) {
+        if (!$itemId) {
             return response()->json([
                 'message' => 'item_id is required'
             ], 422);
         }
 
-        if (! in_array($format, ['xlsx', 'csv'])) {
+        if (!in_array($format, ['xlsx', 'csv'])) {
             return response()->json([
                 'message' => 'Invalid format. Allowed: xlsx, csv'
             ], 422);
         }
 
+        $fromDate = $request->query('from_date')
+            ? \Carbon\Carbon::parse($request->query('from_date'))->startOfDay()
+            : null;
+
+        $toDate = $request->query('to_date')
+            ? \Carbon\Carbon::parse($request->query('to_date'))->endOfDay()
+            : null;
+
         $filename = 'invoices_item_' . $itemId . '_' . now()->format('Ymd_His') . '.' . $format;
         $filePath = "exports/{$filename}";
 
+        $export = new ItemWiseInvoiceExport(
+            $itemId,
+            $fromDate,
+            $toDate
+        );
+
         Excel::store(
-            new ItemWiseInvoiceExport($itemId),
+            $export,
             $filePath,
             'public',
             $format === 'xlsx'
@@ -1035,6 +1049,8 @@ class ItemController extends Controller
             'status'       => 'success',
             'item_id'      => $itemId,
             'format'       => $format,
+            'from_date'    => $fromDate,
+            'to_date'      => $toDate,
             'download_url' => rtrim(config('app.url'), '/') . '/storage/app/public/' . $filePath,
         ], 200);
     }
