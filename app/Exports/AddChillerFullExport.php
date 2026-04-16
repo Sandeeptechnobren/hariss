@@ -135,7 +135,7 @@ class AddChillerFullExport implements
                 $sheet->getStyle("A1:{$lastColumn}{$lastRow}")
                     ->getBorders()
                     ->getAllBorders()
-                    ->setBorderStyle(Border::BORDER_THIN);
+                    ->setBorderStyle(Border::BORDER_NONE);
 
                 $sheet->getStyle("A1:{$lastColumn}{$lastRow}")
                     ->getAlignment()

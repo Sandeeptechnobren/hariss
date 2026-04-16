@@ -12,11 +12,11 @@ class CreditNoteDetail extends Model
 
     protected $fillable = [
         'credit_note_id',
-        'purchase_invoice_id',
         'item_id',
         'qty',
         'price',
         'total',
+        'batch_no',
     ];
 
     // 🔥 Relations

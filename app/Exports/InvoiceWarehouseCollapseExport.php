@@ -32,21 +32,21 @@ class InvoiceWarehouseCollapseExport implements FromCollection, WithHeadings, Sh
     {
         return [
             'Invoice Code',
-            'Warehouse',
+            'Distributor',
             'Route',
             'Customer',
             'Salesman',
             'Invoice Date',
             'Invoice Time',
-            'Item',
-            'UOM Name',
-            'Quantity',
-            'Item Value',
-            'Detail VAT',
-            'Detail Net Total',
-            'Item Total',
-            'Item CTN Price',
-            'Item PCS Price',
+            // 'Item',
+            // 'UOM Name',
+            // 'Quantity',
+            // 'Item Value',
+            // 'Detail VAT',
+            // 'Detail Net Total',
+            // 'Item Total',
+            // 'Item CTN Price',
+            // 'Item PCS Price',
         ];
     }
 
@@ -55,96 +55,146 @@ class InvoiceWarehouseCollapseExport implements FromCollection, WithHeadings, Sh
         return array_fill_keys($this->headings(), '');
     }
 
+    // public function collection(): Collection
+    // {
+    //     $rows     = [];
+    //     $rowIndex = 2; 
+
+    //     $query = InvoiceHeader::with([
+    //         'warehouse',
+    //         'route',
+    //         'customer',
+    //         'salesman',
+    //         'details.item',
+    //         'details.itemuom',
+    //         'details.itemprice',
+    //     ])->where('warehouse_id', $this->warehouseId);
+
+    //     if ($this->startDate) {
+    //         $query->whereDate('invoice_date', '>=', $this->startDate);
+    //     }
+
+    //     if ($this->endDate) {
+    //         $query->whereDate('invoice_date', '<=', $this->endDate);
+    //     }
+
+    //     $invoices = $query->orderBy('id')->get();
+
+    //     foreach ($invoices as $invoice) {
+    //         $headerRowIndex = $rowIndex;
+    //         $headerRow      = $this->emptyRow();
+
+    //         $headerRow['Invoice Code'] = $invoice->invoice_code;
+    //         $headerRow['Warehouse']    = trim(
+    //             ($invoice->warehouse->warehouse_code ?? '') . ' - ' .
+    //             ($invoice->warehouse->warehouse_name ?? '')
+    //         );
+    //         $headerRow['Route'] = trim(
+    //             ($invoice->route->route_code ?? '') . ' - ' .
+    //             ($invoice->route->route_name ?? '')
+    //         );
+    //         $headerRow['Customer'] = trim(
+    //             ($invoice->customer->osa_code ?? '') . ' - ' .
+    //             ($invoice->customer->name ?? '')
+    //         );
+    //         $headerRow['Salesman'] = trim(
+    //             ($invoice->salesman->osa_code ?? '') . ' - ' .
+    //             ($invoice->salesman->name ?? '')
+    //         );
+    //         $headerRow['Invoice Date'] = $invoice->invoice_date
+    //             ? Carbon::parse($invoice->invoice_date)->format('Y-m-d')
+    //             : '';
+    //         $headerRow['Invoice Time'] = $invoice->invoice_time
+    //             ? Carbon::parse($invoice->invoice_time)->format('H:i:s')
+    //             : '';
+
+    //         $rows[] = $headerRow;
+    //         $rowIndex++;
+    //         $detailRowIndexes = [];
+
+    //         foreach ($invoice->details as $detail) {
+    //             $detailRow = $this->emptyRow();
+
+    //             $detailRow['Item'] = trim(
+    //                 ($detail->item->erp_code ?? '') . ' - ' .
+    //                 ($detail->item->name ?? '')
+    //             );
+    //             $detailRow['UOM Name']         = $detail->uoms->name ?? '';
+    //             $detailRow['Quantity']         = $detail->quantity;
+    //             $detailRow['Item Value']       = $detail->itemvalue;
+    //             $detailRow['Detail VAT']       = $detail->vat;
+    //             $detailRow['Detail Net Total'] = $detail->net_total;
+    //             $detailRow['Item Total']       = $detail->item_total;
+    //             $detailRow['Item CTN Price']   = $detail->itemprice->buom_ctn_price ?? '';
+    //             $detailRow['Item PCS Price']   = $detail->itemprice->auom_pc_price ?? '';
+
+    //             $rows[] = $detailRow;
+    //             $detailRowIndexes[] = $rowIndex;
+    //             $rowIndex++;
+    //         }
+    //         if (!empty($detailRowIndexes)) {
+    //             $this->groupIndexes[] = [
+    //                 'start' => $headerRowIndex + 1,
+    //                 'end'   => max($detailRowIndexes),
+    //             ];
+    //         }
+
+    //         $rows[] = $this->emptyRow();
+    //         $rowIndex++;
+    //     }
+
+    //     return new Collection($rows);
+    // }
+
     public function collection(): Collection
-    {
-        $rows     = [];
-        $rowIndex = 2; 
+{
+    $query = InvoiceHeader::with([
+        'warehouse',
+        'route',
+        'customer',
+        'salesman',
+    ])->where('warehouse_id', $this->warehouseId);
 
-        $query = InvoiceHeader::with([
-            'warehouse',
-            'route',
-            'customer',
-            'salesman',
-            'details.item',
-            'details.itemuom',
-            'details.itemprice',
-        ])->where('warehouse_id', $this->warehouseId);
+    // ✅ Date filter
+    if ($this->startDate) {
+        $query->whereDate('invoice_date', '>=', $this->startDate);
+    }
 
-        if ($this->startDate) {
-            $query->whereDate('invoice_date', '>=', $this->startDate);
-        }
+    if ($this->endDate) {
+        $query->whereDate('invoice_date', '<=', $this->endDate);
+    }
 
-        if ($this->endDate) {
-            $query->whereDate('invoice_date', '<=', $this->endDate);
-        }
+    $invoices = $query->orderBy('id')->get();
 
-        $invoices = $query->orderBy('id')->get();
+    $rows = [];
 
-        foreach ($invoices as $invoice) {
-            $headerRowIndex = $rowIndex;
-            $headerRow      = $this->emptyRow();
+    foreach ($invoices as $invoice) {
 
-            $headerRow['Invoice Code'] = $invoice->invoice_code;
-            $headerRow['Warehouse']    = trim(
+        $rows[] = [
+            $invoice->invoice_code,
+            trim(
                 ($invoice->warehouse->warehouse_code ?? '') . ' - ' .
                 ($invoice->warehouse->warehouse_name ?? '')
-            );
-            $headerRow['Route'] = trim(
+            ),
+            trim(
                 ($invoice->route->route_code ?? '') . ' - ' .
                 ($invoice->route->route_name ?? '')
-            );
-            $headerRow['Customer'] = trim(
+            ),
+            trim(
                 ($invoice->customer->osa_code ?? '') . ' - ' .
                 ($invoice->customer->name ?? '')
-            );
-            $headerRow['Salesman'] = trim(
+            ),
+            trim(
                 ($invoice->salesman->osa_code ?? '') . ' - ' .
                 ($invoice->salesman->name ?? '')
-            );
-            $headerRow['Invoice Date'] = $invoice->invoice_date
-                ? Carbon::parse($invoice->invoice_date)->format('Y-m-d')
-                : '';
-            $headerRow['Invoice Time'] = $invoice->invoice_time
-                ? Carbon::parse($invoice->invoice_time)->format('H:i:s')
-                : '';
-
-            $rows[] = $headerRow;
-            $rowIndex++;
-            $detailRowIndexes = [];
-
-            foreach ($invoice->details as $detail) {
-                $detailRow = $this->emptyRow();
-
-                $detailRow['Item'] = trim(
-                    ($detail->item->erp_code ?? '') . ' - ' .
-                    ($detail->item->name ?? '')
-                );
-                $detailRow['UOM Name']         = $detail->uoms->name ?? '';
-                $detailRow['Quantity']         = $detail->quantity;
-                $detailRow['Item Value']       = $detail->itemvalue;
-                $detailRow['Detail VAT']       = $detail->vat;
-                $detailRow['Detail Net Total'] = $detail->net_total;
-                $detailRow['Item Total']       = $detail->item_total;
-                $detailRow['Item CTN Price']   = $detail->itemprice->buom_ctn_price ?? '';
-                $detailRow['Item PCS Price']   = $detail->itemprice->auom_pc_price ?? '';
-
-                $rows[] = $detailRow;
-                $detailRowIndexes[] = $rowIndex;
-                $rowIndex++;
-            }
-            if (!empty($detailRowIndexes)) {
-                $this->groupIndexes[] = [
-                    'start' => $headerRowIndex + 1,
-                    'end'   => max($detailRowIndexes),
-                ];
-            }
-
-            $rows[] = $this->emptyRow();
-            $rowIndex++;
-        }
-
-        return new Collection($rows);
+            ),
+            $invoice->invoice_date,
+            $invoice->invoice_time,
+        ];
     }
+
+    return new Collection($rows);
+}
 
     public function registerEvents(): array
     {

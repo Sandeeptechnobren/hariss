@@ -144,7 +144,7 @@ class InvoiceHeaderExport implements FromQuery, WithMapping, WithHeadings, WithE
             'Distributor',
             'Route',
             'Customer',
-            'Salesman',
+            'Sales Team',
             'VAT',
             'Net Total',
             // 'Gross Total',

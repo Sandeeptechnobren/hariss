@@ -114,7 +114,7 @@ class WarehousesExport implements FromQuery, WithHeadings, WithMapping, WithEven
                 'fill' => [
                     'fillType' => Fill::FILL_SOLID,
                     'startColor' => [
-                        'argb' => 'FFDC3545', // 🔥 proper red (same as your image)
+                        'argb' => '993442', 
                     ],
                 ],
                 'borders' => [

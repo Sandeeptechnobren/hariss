@@ -32,30 +32,77 @@ class SalesTeamAttendanceExport implements FromQuery, WithMapping, WithHeadings,
     }
 
     
-    public function query()
-    {
-        $query = SalesmanAttendance::with([
-            'salesman',
-            'warehouse',
-            'route'
-        ])
-        ->when($this->salesman_id, function ($q) {
-            $q->where('salesman_id', $this->salesman_id);
-        });
+    // public function query()
+    // {
+    //     $query = SalesmanAttendance::with([
+    //         'salesman',
+    //         'warehouse',
+    //         'route'
+    //     ])
+    //     ->when($this->salesman_id, function ($q) {
+    //         $q->where('salesman_id', $this->salesman_id);
+    //     });
 
-        if ($this->fromDate && $this->toDate) {
-            $query->whereBetween('attendance_date', [
-                $this->fromDate,
-                $this->toDate
-            ]);
-        }
-        else {
-            $query->whereDate('attendance_date', Carbon::today());
-        }
+    //     if ($this->fromDate && $this->toDate) {
+    //         $query->whereBetween('attendance_date', [
+    //             $this->fromDate,
+    //             $this->toDate
+    //         ]);
+    //     }
+    //     else {
+    //         $query->whereDate('attendance_date', Carbon::today());
+    //     }
 
-        return $query;
+    //     return $query;
+    // }
+
+// public function query()
+//     {
+//         $query = SalesmanAttendance::with([
+//             'salesman',
+//             'warehouse',
+//             'route',
+//         ])->when($this->salesman_id, function ($q) {
+//             $q->where('salesman_id', $this->salesman_id);
+//         });
+//         $fromDate = !empty($this->fromDate) ? $this->fromDate : null;
+//         $toDate   = !empty($this->toDate)   ? $this->toDate   : null;
+//         if ($fromDate && $toDate) {
+//             $query->whereBetween('attendance_date', [$fromDate, $toDate]);
+//         } elseif ($fromDate) {
+//             $query->whereDate('attendance_date', '>=', $fromDate);
+//         } elseif ($toDate) {
+//             $query->whereDate('attendance_date', '<=', $toDate);
+//         }
+//         return $query;
+//     }
+public function query()
+{
+    $query = SalesmanAttendance::with([
+        'salesman',
+        'warehouse',
+        'route',
+    ])
+    ->when($this->salesman_id, function ($q) {
+        $q->where('salesman_id', $this->salesman_id);
+    });
+
+    $fromDate = !empty($this->fromDate) ? $this->fromDate : null;
+    $toDate   = !empty($this->toDate)   ? $this->toDate   : null;
+
+    if ($fromDate && $toDate) {
+        $query->whereBetween('attendance_date', [$fromDate, $toDate]);
+    } elseif ($fromDate) {
+        $query->whereDate('attendance_date', '>=', $fromDate);
+    } elseif ($toDate) {
+        $query->whereDate('attendance_date', '<=', $toDate);
+    } else {
+        // No date range provided — default to today
+        $query->whereDate('attendance_date', Carbon::today());
     }
 
+    return $query;
+}
     public function map($row): array
     {
         return [

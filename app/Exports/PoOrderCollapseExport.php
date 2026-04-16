@@ -603,7 +603,7 @@ class PoOrderCollapseExport implements FromCollection, ShouldAutoSize, WithEvent
             'Order Date',
             'Delivery Date',
             'Customer',
-            'Salesman',
+            'Sales Team',
             'Net Amount',
             'VAT',
             'Item Count',

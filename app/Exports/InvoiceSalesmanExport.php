@@ -37,57 +37,19 @@ class InvoiceSalesmanExport implements FromQuery, WithMapping, WithHeadings, Wit
             : $today;
     }
 
-    // public function query()
-    // {
-    //     return InvoiceHeader::with([
-    //             'delivery',
-    //             'warehouse',
-    //             'route',
-    //             'customer',
-    //             'salesman',
-    //         ])
-    //         if($this->salesmanId)
-    //          {
-    //            ->where('salesman_id', $this->salesmanId)
-                
-    //          }
-    //          if($this->fromDate)
-    //          {
-    //                        ->whereDate('invoice_date', '>=', $this->fromDate)
-
-                
-    //          }
-    //          if($this->toDate)
-    //          {
-    //                      ->whereDate('invoice_date', '<=', $this->toDate);
-
-                
-    //          }
-    // }
     public function query()
-{
-    $query = InvoiceHeader::with([
-        'delivery',
-        'warehouse',
-        'route',
-        'customer',
-        'salesman',
-    ]);
-     
-    if (!empty($this->salesmanId)) {
-        $query->where('salesman_id', $this->salesmanId);
+    {
+        return InvoiceHeader::with([
+                'delivery',
+                'warehouse',
+                'route',
+                'customer',
+                'salesman',
+            ])
+            ->where('salesman_id', $this->salesmanId)
+            ->whereDate('invoice_date', '>=', $this->fromDate)
+            ->whereDate('invoice_date', '<=', $this->toDate);
     }
-
-    if (!empty($this->fromDate)) {
-        $query->whereDate('invoice_date', '>=', $this->fromDate);
-    }
-
-    if (!empty($this->toDate)) {
-        $query->whereDate('invoice_date', '<=', $this->toDate);
-    }
-
-    return $query;
-}
 
     public function map($header): array
     {

@@ -7,13 +7,15 @@ use App\Models\IRODetail;
 use App\Models\ChillerRequest;
 use App\Models\AddChiller;
 use App\Models\IROHeader;
-use App\Helpers\DataAccessHelper;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Throwable;
 use Error;
+use App\Helpers\DataAccessHelper;
+use App\Helpers\CommonLocationFilter;
+use Illuminate\Pagination\Paginator;
 
 class IROHeaderService
 {
@@ -504,5 +506,52 @@ class IROHeaderService
 
             $iroHeader->delete(); // soft delete
         });
+    }
+
+    public function globalFilter(int $perPage = 50, array $filters = [])
+    {
+        $user = auth()->user();
+
+        $filter = $filters['filter'] ?? [];
+        if (!empty($filters['current_page'])) {
+            Paginator::currentPageResolver(function () use ($filters) {
+                return (int) $filters['current_page'];
+            });
+        }
+        $query = IROHeader::query();
+        $query = DataAccessHelper::filterAgentTransaction($query, $user);
+
+        if (!empty($filter)) {
+
+            $warehouseIds = CommonLocationFilter::resolveWarehouseIds([
+                'company_id'   => $filter['company_id']   ?? null,
+                'region_id'    => $filter['region_id']    ?? null,
+                'area_id'      => $filter['area_id']      ?? null,
+                'warehouse_id' => $filter['warehouse_id'] ?? null,
+                'route_id'     => $filter['route_id']     ?? null,
+            ]);
+
+            if (!empty($warehouseIds)) {
+                $query->whereHas('details', function ($q) use ($warehouseIds) {
+                    $q->whereIn('warehouse_id', $warehouseIds);
+                });
+            }
+        }
+
+        if (!empty($filter['iro_status'])) {
+            $statuses = is_array($filter['iro_status'])
+                ? $filter['iro_status']
+                : explode(',', $filter['iro_status']);
+            $query->whereIn('status', $statuses);
+        }
+        if (!empty($filter['from_date'])) {
+            $query->whereDate('created_at', '>=', $filter['from_date']);
+        }
+
+        if (!empty($filter['to_date'])) {
+            $query->whereDate('created_at', '<=', $filter['to_date']);
+        }
+
+        return $query->paginate($perPage);
     }
 }

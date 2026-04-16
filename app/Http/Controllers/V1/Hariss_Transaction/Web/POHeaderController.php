@@ -364,86 +364,93 @@ public function exportPoOrderHeader(Request $request)
         ]);
     }
 
-    // public function exportPoOrderCollapse(Request $request)
+    // public function exportItembsPoOrderCollapse(Request $request)
     // {
     //     $format = strtolower($request->input('format', 'xlsx'));
     //     $extension = $format === 'csv' ? 'csv' : 'xlsx';
 
-    //     $filters = $request->input('filter', []);
+    //     $itemId     = $request->input('item_id');
+    //     $customerId = $request->input('customer_id');
 
-    //     $fromDate = $filters['from_date'] ?? Null;
-    //     $toDate   = $filters['to_date'] ?? Null;
+    //     $fromDate = $request->input('from_date')
+    //         ? \Carbon\Carbon::parse($request->from_date)->startOfDay()
+    //         : \Carbon\Carbon::now()->startOfMonth();
 
-    //     $customerId = $filters['customer_id'] ?? null;
+    //     $toDate = $request->input('to_date')
+    //         ? \Carbon\Carbon::parse($request->to_date)->endOfDay()
+    //         : \Carbon\Carbon::now()->endOfMonth();
 
-    //     $salesmanIds = CommonLocationFilter::normalizeIds($filters['salesman_id'] ?? []);
-
-    //     $warehouseIds = CommonLocationFilter::resolveWarehouseIds($filters);
-
-    //     $filename = 'Purchase_Order_Detail_' . now()->format('Ymd_His') . '.' . $extension;
+    //     $filename = 'po_order_export_' . now()->format('Ymd_His') . '.' . $extension;
     //     $path = 'poorderexports/' . $filename;
 
-    //     $export = new PoOrderCollapseExport(
+    //     $export = new ItemPoOrderCollapseExport(
     //         $fromDate,
     //         $toDate,
     //         $customerId,
-    //         $warehouseIds,
-    //         $salesmanIds
+    //         $itemId
     //     );
 
-    //     $writerType = $format === 'csv'
-    //         ? \Maatwebsite\Excel\Excel::CSV
-    //         : \Maatwebsite\Excel\Excel::XLSX;
+    //     if ($format === 'csv') {
+    //         Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
+    //     } else {
+    //         Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
+    //     }
 
-    //     // queued export (non-blocking)
-    //     Excel::queue($export, $path, 'public', $writerType);
+    //     $appUrl = rtrim(config('app.url'), '/');
+    //     $fullUrl = $appUrl . '/storage/app/public/' . $path;
 
     //     return response()->json([
-    //         'status' => 'success',
-    //         'download_url' => rtrim(config('app.url'), '/') . '/storage/app/public/' . $path,
+    //         'status'       => 'success',
+    //         'download_url' => $fullUrl,
     //     ]);
     // }
-
     public function exportItembsPoOrderCollapse(Request $request)
-    {
-        $format = strtolower($request->input('format', 'xlsx'));
-        $extension = $format === 'csv' ? 'csv' : 'xlsx';
+{
+    $request->validate([
+        'item_id'   => 'required|integer',
+        'from_date' => 'nullable|date',
+        'to_date'   => 'nullable|date',
+        'format'    => 'nullable|in:xlsx,csv',
+    ]);
 
-        $itemId     = $request->input('item_id');
-        $customerId = $request->input('customer_id');
+    $format    = strtolower($request->input('format', 'xlsx'));
+    $extension = $format === 'csv' ? 'csv' : 'xlsx';
 
-        $fromDate = $request->input('from_date')
-            ? \Carbon\Carbon::parse($request->from_date)->startOfDay()
-            : \Carbon\Carbon::now()->startOfMonth();
+    $itemId     = $request->input('item_id');        // now required
+    $customerId = $request->input('customer_id');    // still optional
 
-        $toDate = $request->input('to_date')
-            ? \Carbon\Carbon::parse($request->to_date)->endOfDay()
-            : \Carbon\Carbon::now()->endOfMonth();
+    $fromDate = $request->input('from_date')
+        ? \Carbon\Carbon::parse($request->from_date)->startOfDay()
+        : \Carbon\Carbon::now()->startOfDay();       // default: today start
 
-        $filename = 'po_order_export_' . now()->format('Ymd_His') . '.' . $extension;
-        $path = 'poorderexports/' . $filename;
+    $toDate = $request->input('to_date')
+        ? \Carbon\Carbon::parse($request->to_date)->endOfDay()
+        : \Carbon\Carbon::now()->endOfDay();         // default: today end
 
-        $export = new ItemPoOrderCollapseExport(
-            $fromDate,
-            $toDate,
-            $customerId,
-            $itemId
-        );
+    $filename = 'po_order_export_' . now()->format('Ymd_His') . '.' . $extension;
+    $path     = 'poorderexports/' . $filename;
 
-        if ($format === 'csv') {
-            Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
-        } else {
-            Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
-        }
+    $export = new ItemPoOrderCollapseExport(
+        $fromDate,
+        $toDate,
+        $customerId,
+        $itemId
+    );
 
-        $appUrl = rtrim(config('app.url'), '/');
-        $fullUrl = $appUrl . '/storage/app/public/' . $path;
-
-        return response()->json([
-            'status'       => 'success',
-            'download_url' => $fullUrl,
-        ]);
+    if ($format === 'csv') {
+        Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
+    } else {
+        Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
     }
+
+    $appUrl  = rtrim(config('app.url'), '/');
+    $fullUrl = $appUrl . '/storage/app/public/' . $path;
+
+    return response()->json([
+        'status'       => 'success',
+        'download_url' => $fullUrl,
+    ]);
+}
 
     public function exportCustomerBasedPoOrder(Request $request)
     {
@@ -583,20 +590,10 @@ public function exportPoOrderHeader(Request $request)
             'from_date'=> 'nullable|date',
             'to_date'  => 'nullable|date',
         ]);
-
         $limit  = $request->input('limit', 10);
         $itemId = $request->item_id;
-
-        // ✅ Proper date handling
-        $fromDate = $request->input('from_date')
-            ? Carbon::parse($request->from_date)->startOfDay()
-            : Carbon::now()->startOfMonth();
-
-        $toDate = $request->input('to_date')
-            ? Carbon::parse($request->to_date)->endOfDay()
-            : Carbon::now()->endOfMonth();
-
-        // ✅ MAIN FIX: filter on details.created_at
+        $fromDate = $request->input('from_date')? Carbon::parse($request->from_date)->startOfDay(): Carbon::now()->startOfMonth();
+        $toDate = $request->input('to_date')? Carbon::parse($request->to_date)->endOfDay(): Carbon::now()->endOfMonth();
         $headers = PoOrderHeader::whereHas('details', function ($q) use ($itemId, $fromDate, $toDate) {
                 $q->where('item_id', $itemId)
                 ->whereBetween('created_at', [$fromDate, $toDate]);

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\V1\EfrisAPI;
 use App\Http\Controllers\Controller;
 use App\Services\V1\EfrisAPI\DailyStockCountService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class DailyStockCountController extends Controller
 {
@@ -32,5 +33,28 @@ class DailyStockCountController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    public function getWarehouseStockFromCronJobs(Request $request)
+    {
+        $filters = $request->only([
+            'warehouse_id',
+            'filter'
+        ]);
+
+        if (empty($filters['warehouse_id'])) {
+            return response()->json([
+                'status' => false,
+                'message' => 'warehouse_id is required'
+            ], 400);
+        }
+
+        $data = $this->service->getWarehouseStockFromCronJobs($filters);
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Stock data fetched successfully',
+            'data' => $data
+        ]);
     }
 }

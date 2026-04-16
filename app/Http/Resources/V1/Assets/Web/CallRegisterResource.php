@@ -56,13 +56,13 @@ class CallRegisterResource extends JsonResource
             'chiller_code' => $this->asset?->osa_code ?? '',
             'chiller_serial_number' => $this->asset?->serial_number ?? '',
             'assign_asm' => [
-                'id'   => optional(optional($this->asset->warehouse)?->area?->getAsmUser())->id,
-                'name' => optional(optional($this->asset->warehouse)?->area?->getAsmUser())->name,
+                'id'   => $this->asset?->warehouse?->area?->getAsmUser()?->id,
+                'name' => $this->asset?->warehouse?->area?->getAsmUser()?->name,
             ],
 
             'assign_rm' => [
-                'id'   => optional(optional($this->asset->warehouse)?->area?->region?->getRmUser())->id,
-                'name' => optional(optional($this->asset->warehouse)?->area?->region?->getRmUser())->name,
+                'id'   => $this->asset?->warehouse?->area?->region?->getRmUser()?->id,
+                'name' => $this->asset?->warehouse?->area?->region?->getRmUser()?->name,
             ],
 
             'model_number' => $this->model_number,
@@ -80,8 +80,8 @@ class CallRegisterResource extends JsonResource
                 'street'          => $this->assignedCustomer->street,
                 'contact_no_1'  => $this->assignedCustomer->contact_no,
                 'contact_no_2'  => $this->assignedCustomer->contact_no2,
-                'warehouse_code' => optional($this->assignedCustomer->getWarehouse)->warehouse_code,
-                'warehouse_name' => optional($this->assignedCustomer->getWarehouse)->warehouse_name,
+                'warehouse_code' => optional($this->assignedCustomer->getWarehouse)->warehouse_code ?? NULL,
+                'warehouse_name' => optional($this->assignedCustomer->getWarehouse)->warehouse_name ?? NULL,
             ] : null,
 
             'acf_data' => $this->acf_data ? [
@@ -91,8 +91,8 @@ class CallRegisterResource extends JsonResource
                 'warehouse_code' => optional($this->acf_data->warehouse)->warehouse_code,
                 'warehouse_name' => optional($this->acf_data->warehouse)->warehouse_name,
                 'warehouse_asm' => [
-                    'id'   => optional(optional($this->acf_data->warehouse)?->area?->getAsmUser())->id,
-                    'name' => optional(optional($this->acf_data->warehouse)?->area?->getAsmUser())->name,
+                    'id'   => optional(optional($this->acf_data->warehouse)?->area?->getAsmUser())->id ?? NULL,
+                    'name' => optional(optional($this->acf_data->warehouse)?->area?->getAsmUser())->name ?? NULL,
                 ],
             ] : null,
 
@@ -107,9 +107,9 @@ class CallRegisterResource extends JsonResource
             'current_contact_no2'    => $this->current_contact_no2,
             'current_latitude'  => optional($this->currentCustomer)->latitude,
             'current_longitude' => optional($this->currentCustomer)->longitude,
-            'current_warehouse_id'      => $this->warehouse->id ?? '',
-            'current_warehouse_code'      => $this->warehouse->warehouse_code ?? '',
-            'current_warehouse_name'      => $this->warehouse->warehouse_name ?? '',
+            'current_warehouse_id'      => $this->warehouse->id ?? NULL,
+            'current_warehouse_code'      => $this->warehouse->warehouse_code ?? NULL,
+            'current_warehouse_name'      => $this->warehouse->warehouse_name ?? NULL,
 
             'current_asm' => [
                 'id' => $asm?->id,

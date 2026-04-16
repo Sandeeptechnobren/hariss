@@ -34,5 +34,6 @@ return [
     'PetitClaim'=> App\Models\Claim_Management\Web\PetitClaim::class,
     'users' => App\Models\User::class,
     'credit_note' => App\Models\Hariss_Transaction\Web\CreditNoteHeader::class,
+    'stock_audit' => App\Models\Agent_Transaction\StockAuditHeader::class,
 ];
  

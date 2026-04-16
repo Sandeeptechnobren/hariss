@@ -120,7 +120,7 @@ class UnloadHeaderFullExport implements
             'Load Date',
             'Distributors',
             'Route',
-            'Salesman',
+            'Sales Team',
             'Total Item',
         ];
     }

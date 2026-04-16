@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\V1\Agent_Transaction\AgentDeliveryHeaderController;
+use App\Http\Controllers\V1\Agent_Transaction\StockAuditController;
 use App\Http\Controllers\V1\Master\Web\AuthController;
 use App\Http\Controllers\V1\Master\Web\MasterDataController;
 use App\Http\Controllers\V1\Master\Web\AreaController;
@@ -799,6 +800,7 @@ Route::prefix('assets')->group(function () {
             Route::delete('{uuid}', [ChillerRequestController::class, 'destroy']);
         });
         Route::prefix('iro')->group(function () {
+            Route::post('/globalFilter', [IROHeaderController::class, 'globalFilter']);
             Route::get('/count', [IROHeaderController::class, 'getDetailCount']);
             Route::get('/list', [IROHeaderController::class, 'index']);
             Route::post('/add', [IROHeaderController::class, 'store']);
@@ -807,6 +809,7 @@ Route::prefix('assets')->group(function () {
             Route::get('/{id}', [IROHeaderController::class, 'show']);
         });
         Route::prefix('ir')->group(function () {
+            Route::post('/globalFilter', [IRController::class, 'globalFilter']);
             Route::post('/export', [IRController::class, 'exportIR']);
             Route::post('/add', [IRController::class, 'store']);
             Route::get('/list', [IRController::class, 'index']);
@@ -1197,6 +1200,13 @@ Route::prefix('agent_transaction')->group(function () {
             Route::post('/import', [AgentTargetController::class, 'import']);
             Route::post('/final_import', [AgentTargetController::class, 'final_import']);
         });
+        Route::prefix('stock-audit')->group(function () {
+            Route::post('/globalFilter', [StockAuditController::class, 'globalFilter']);
+            Route::get('/get_stock', [StockAuditController::class, 'getStock']);
+            Route::post('/add', [StockAuditController::class, 'store']);
+            Route::get('/list', [StockAuditController::class, 'index']);
+            Route::get('/{uuid}', [StockAuditController::class, 'show']);
+        });
     });
 });
 
@@ -1391,7 +1401,11 @@ Route::prefix('EFRIS')->group(function () {
         Route::post('/upload_stock', [UraStockAdjustmentController::class, 'upload']);
         Route::post('/list_stock', [UraStockAdjustmentController::class, 'listEfrisStock']);
         Route::post('/daily_stock_count', [DailyStockCountController::class, 'dailyStockCount']);
+        Route::get('/get_daily_stock', [DailyStockCountController::class, 'getWarehouseStockFromCronJobs']);
         Route::post('/get_invoice', [UraInvoiceController::class, 'getInvoices']);
+        Route::post('/get_ura_invoice', [UraInvoiceController::class, 'getUraInvoices']);
+        // Route::get('/ura_invoice_pdf/{uuid}', [UraInvoiceController::class, 'exportUraInvoicesPDF']);
+        Route::post('/ura_invoice_export', [UraInvoiceController::class, 'exportUraInvoices']);
         Route::post('/get_return_list', [UraReturnController::class, 'getReturnsList']);
         Route::post('/get_return_detail', [UraReturnController::class, 'getReturnDetails']);
         Route::post('/sync_return', [UraReturnController::class, 'syncReturn']);

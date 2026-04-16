@@ -46,7 +46,7 @@ class HtOrderCollapseExport implements
             'Order Date',
             'Delivery Date',
             'Customer',
-            'Salesman',
+            'Sales Team',
             'VAT',
             'Net Amount',
             'Total Item',

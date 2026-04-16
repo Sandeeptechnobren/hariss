@@ -118,9 +118,9 @@ class LoadHeaderFullExport implements
             'Accept Time',
             'Distributors',
             'Route',
-            'Salesman',
-            'Salesman Type',
-            'Project Type',
+            'Sales Team',
+            'Sales Team Type',
+            'Role Project',
             'Status',
         ];
     }

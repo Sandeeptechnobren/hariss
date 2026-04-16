@@ -25,7 +25,7 @@ class CompiledClaimExport implements FromArray, WithHeadings, WithEvents
     {
         return [
             "Claim Period",
-            "Warehouse",
+            "Distributor",
             "Approved Qty (CSE)",
             "Approved Claim Amount",
             "Rejected Qty (CSE)",

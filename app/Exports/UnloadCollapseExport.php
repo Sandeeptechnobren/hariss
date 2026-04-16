@@ -34,7 +34,7 @@ class UnloadCollapseExport implements FromCollection, WithHeadings, ShouldAutoSi
         'Load Date',
         'Distributors',
         'Route',
-        'Salesman',
+        'Sales Team',
     ];
 
     public function __construct($fromDate = null, $toDate = null, $warehouseIds = [], $routeIds = [], $salesmanIds = [])

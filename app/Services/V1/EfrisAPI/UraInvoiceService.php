@@ -391,4 +391,100 @@ class UraInvoiceService extends BaseEfrisService
             default => 'PP'
         };
     }
+
+
+    public function getUraInvoices($warehouseId, $from_date, $to_date, $page = 1)
+    {
+        $warehouse = Warehouse::find($warehouseId);
+
+        if (!$warehouse) {
+            return [
+                'status' => false,
+                'message' => 'Depot not found'
+            ];
+        }
+
+        $payload = [
+            "invoiceType" => "1",
+            "startDate" => $from_date,
+            "branchName" => $warehouse->branch_name ?? '',
+            "endDate" => $to_date,
+            "pageNo" => (string)$page,
+            "pageSize" => "10"
+        ];
+
+        $resp = $this->makePost("T107", $payload, $warehouse);
+
+        $records = $resp['inner_response']['records'] ?? [];
+        if (!empty($records)) {
+
+            foreach ($records as $value) {
+
+                $invoiceNo = $value['invoiceNo'] ?? null;
+
+                if (!$invoiceNo) continue;
+
+                $invoice = InvoiceHeader::where('ura_invoice_no', $invoiceNo)->first();
+
+                if ($invoice && !empty($invoice->ura_invoice_id)) {
+                    continue;
+                }
+
+                $verifyResp = $this->makePost("T108", [
+                    "invoiceNo" => $invoiceNo
+                ], $warehouse);
+                $verifyData = $verifyResp['inner_response'] ?? [];
+
+                if (empty($verifyData)) continue;
+
+                $totalDiscount = 0;
+
+                foreach ($verifyData['goodsDetails'] ?? [] as $item) {
+                    if (($item['discountFlag'] ?? null) == "1") {
+                        $totalDiscount += abs($item['discountTotal'] ?? 0);
+                    }
+                }
+
+                $referenceNo = $verifyData['sellerDetails']['referenceNo'] ?? null;
+
+                if (!$referenceNo) continue;
+
+                InvoiceHeader::where('invoice_number', $referenceNo)
+                    ->update([
+                        'ura_invoice_id' => $verifyData['basicInformation']['invoiceId'] ?? null,
+                        'ura_invoice_no' => $verifyData['basicInformation']['invoiceNo'] ?? null,
+                        'ura_antifake_code' => $verifyData['basicInformation']['antifakeCode'] ?? null,
+                        'promotion_total' => $totalDiscount,
+                        'ura_qr_code' => $verifyData['summary']['qrCode'] ?? null
+                    ]);
+            }
+        }
+        $invoiceNos = collect($records)
+            ->pluck('invoiceNo')
+            ->filter()
+            ->toArray();
+
+        $dbInvoices = InvoiceHeader::whereIn('ura_invoice_no', $invoiceNos)
+            ->get(['ura_invoice_no', 'ura_antifake_code', 'uuid'])
+            ->keyBy('ura_invoice_no');
+
+        $records = collect($records)->map(function ($item) use ($dbInvoices) {
+
+            $invoiceNo = $item['invoiceNo'] ?? null;
+
+            $db = $invoiceNo ? ($dbInvoices[$invoiceNo] ?? null) : null;
+
+            $item['ura_antifake_code'] = $db->ura_antifake_code ?? null;
+            $item['uuid'] = $db->uuid ?? null;
+
+            return $item;
+        })->toArray();
+
+
+        return [
+            'status' => true,
+            'message' => 'Invoice list fetched successfully',
+            'data' => $records
+        ];
+    }
 }

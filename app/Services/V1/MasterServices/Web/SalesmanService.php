@@ -440,13 +440,20 @@ class SalesmanService
                 throw new \Exception("Salesman not found for given UUID.");
             }
 
+            // $from = $fromDate
+            //     ? now()->parse($fromDate)->startOfDay()
+            //     : now()->startOfMonth();
+
+            // $to = $toDate
+            //     ? now()->parse($toDate)->endOfDay()
+            //     : now()->endOfMonth();
             $from = $fromDate
-                ? now()->parse($fromDate)->startOfDay()
-                : now()->startOfMonth();
+                ? \Carbon\Carbon::parse($fromDate)->startOfDay()
+                : now()->startOfDay();
 
             $to = $toDate
-                ? now()->parse($toDate)->endOfDay()
-                : now()->endOfMonth();
+                ? \Carbon\Carbon::parse($toDate)->endOfDay()
+                : now()->endOfDay();
             $query = InvoiceHeader::with([
                 'warehouse:id,warehouse_code,warehouse_name',
                 'customer:id,osa_code,name',

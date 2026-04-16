@@ -13,7 +13,7 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\CreditNoteHeaderExport;
 use App\Exports\CreditNoteCollapseExport;
 use App\Exports\CreditNotedistributorListExport;
-use App\Models\Hariss_Transaction\Web\HTInvoiceHeader;
+use App\Models\Hariss_Transaction\Web\HtReturnHeader;
 
 class CreditNoteController extends Controller
 {
@@ -269,12 +269,12 @@ public function dropdown()
 {
     try {
 
-        $data = \DB::table('ht_invoice_header as h')
-            ->leftJoin('credit_note_headers as c', 'h.id', '=', 'c.purchase_invoice_id')
-            ->whereNull('c.purchase_invoice_id') 
+        $data = \DB::table('ht_return_header as h')
+            ->leftJoin('credit_note_headers as c', 'h.id', '=', 'c.purchase_return_id')
+            ->whereNull('c.purchase_return_id') 
             ->select(
                 'h.id',
-                'h.invoice_code as code',
+                'h.return_code as code',
                 'h.uuid'
             )
             ->orderBy('h.id', 'desc')
@@ -296,101 +296,15 @@ public function dropdown()
     }
 }
 
-// public function getCreditNoteFullByInvoiceUuid($uuid)
-// {
-//     try {
-
-//         $data = CreditNoteHeader::with([
-//             'customer:id,business_name,osa_code',
-//             'salesman:id,name',
-//             'distributor:id,uuid,warehouse_name,warehouse_code',
-//             'purchaseInvoice:id,invoice_code,uuid',
-//             'details:id,credit_note_id,item_id,qty,price'
-//         ])
-//         ->whereHas('purchaseInvoice', function ($q) use ($uuid) {
-//             $q->where('uuid', $uuid);
-//         })
-//         ->orderBy('id', 'desc')
-//         ->get();
-
-//         if ($data->isEmpty()) {
-//             return response()->json([
-//                 'status' => false,
-//                 'message' => 'No data found'
-//             ], 200);
-//         }
-
-//         $finalData = $data->map(function ($item) {
-//             return [
-//                 'id' => $item->id,
-//                 'uuid' => $item->uuid,
-//                 'credit_note_no' => $item->credit_note_no,
-
-//                 'purchase_invoice' => [
-//                     'id' => $item->purchaseInvoice->id ?? null,
-//                     'invoice_code' => $item->purchaseInvoice->invoice_code ?? null,
-//                     'uuid' => $item->purchaseInvoice->uuid ?? null,
-//                 ],
-
-//                 'supplier_id' => $item->supplier_id,
-//                 'total_amount' => $item->total_amount,
-//                 'reason' => $item->reason,
-//                 'status' => $item->status,
-
-//                 'customer' => $item->customer ? [
-//                     'id' => $item->customer->id,
-//                     'code' => $item->customer->osa_code,
-//                     'name' => $item->customer->business_name
-//                 ] : null,
-
-//                 'salesman' => $item->salesman ? [
-//                     'id' => $item->salesman->id,
-//                     'name' => $item->salesman->name
-//                 ] : null,
-
-//                 'distributor' => $item->distributor ? [
-//                     'id' => $item->distributor->id,
-//                     'uuid' => $item->distributor->uuid,
-//                     'code' => $item->distributor->warehouse_code,
-//                     'name' => $item->distributor->warehouse_name
-//                 ] : null,
-
-//                 'details' => $item->details->map(function ($d) {
-//                     return [
-//                         'id' => $d->id,
-//                         'item_id' => $d->item_id,
-//                         'qty' => $d->qty,
-//                         'price' => $d->price,
-//                         'total' => $d->qty * $d->price
-//                     ];
-//                 }),
-
-//                 'created_at' => $item->created_at,
-//                 'updated_at' => $item->updated_at,
-//             ];
-//         });
-
-//         return response()->json([
-//             'status' => true,
-//             'message' => 'Data fetched successfully',
-//             'data' => $finalData
-//         ]);
-
-//     } catch (\Exception $e) {
-//         return response()->json([
-//             'status' => false,
-//             'message' => $e->getMessage()
-//         ], 500);
-//     }
-// }
 public function getCreditNoteFullByInvoiceUuid($uuid)
 {
     try {
 
-        $data = HtInvoiceHeader::with([
+        $data = HtReturnHeader::with([
             'customer:id,business_name,osa_code',
-            'salesman:id,name',
-            'distributor' // ❗ columns restrict mat kar abhi
+           // 'salesman:id,name',
+            'distributor',
+            'details:id,header_id,item_id,qty,item_value,total'
         ])
         ->where('uuid', $uuid)
         ->first();
@@ -402,14 +316,14 @@ public function getCreditNoteFullByInvoiceUuid($uuid)
             ], 200);
         }
 
-        $warehouse = $data->distributor; // relation data
+        $warehouse = $data->distributor;
 
         $finalData = [
             'id' => $data->id,
             'uuid' => $data->uuid,
-            'invoice_code' => $data->invoice_code,
+            'return_code' => $data->return_code,
 
-            'supplier_id' => $data->sap_id,
+            'sap_id' => $data->sap_id,
             'total_amount' => $data->total,
             'status' => $data->status,
 
@@ -419,13 +333,13 @@ public function getCreditNoteFullByInvoiceUuid($uuid)
                 'name' => $data->customer->business_name
             ] : null,
 
-            'salesman' => $data->salesman ? [
-                'id' => $data->salesman->id,
-                'name' => $data->salesman->name
-            ] : null,
+            // 'salesman' => $data->salesman ? [
+            //     'id' => $data->salesman->id,
+            //     'name' => $data->salesman->name
+            // ] : null,
 
             'distributor' => $warehouse ? [
-                'id' => $data->warehouse_id, // invoice se
+                'id' => $data->warehouse_id,
                 'uuid' => $warehouse->uuid,
                 'code' => $warehouse->warehouse_code,
                 'name' => $warehouse->warehouse_name
@@ -435,6 +349,22 @@ public function getCreditNoteFullByInvoiceUuid($uuid)
                 'code' => null,
                 'name' => null
             ],
+
+            // 🔥 DETAILS ADD
+            'details' => $data->details->map(function ($d) {
+    return [
+        'item' => $d->item ? [
+            'item_id'=>$d->item->id,
+            'erp_code' => $d->item->erp_code,
+            'name' => $d->item->name
+        ] : null,
+          //  'uom_id'     => $d->uom_id,
+            'qty'   => $d->qty,
+            'item_value' => $d->item_value,
+            'total'      => $d->total,
+
+        ];
+        }),
 
             'created_at' => $data->created_at,
             'updated_at' => $data->updated_at,

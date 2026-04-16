@@ -119,7 +119,7 @@ class OrderHeaderFullExport implements
             'Order Date',
             'Distributors',
             'Customer',
-            'Salesman',
+            'Sales Team',
             'Route',
             'Delivery Date',
             'Comment',

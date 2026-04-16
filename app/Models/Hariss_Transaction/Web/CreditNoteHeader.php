@@ -75,4 +75,8 @@ class CreditNoteHeader extends Model
     {
         return $this->hasMany(CreditNoteDetail::class, 'credit_note_id');
     }
+    public function purchaseReturn()
+    {
+        return $this->belongsTo(HtReturnHeader::class,'purchase_return_id');
+    }
 }

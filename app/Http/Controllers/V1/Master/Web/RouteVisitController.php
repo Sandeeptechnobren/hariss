@@ -1009,33 +1009,54 @@ class RouteVisitController extends Controller
         ]);
     }
 
-    public function exportAll(Request $request)
-    {
-        $format = strtolower($request->input('format', 'xlsx'));
-        $extension = $format === 'csv' ? 'csv' : 'xlsx';
+// public function exportAll(Request $request)
+//     {
+//         $format = strtolower($request->input('format', 'xlsx'));
+//         $extension = $format === 'csv' ? 'csv' : 'xlsx';
+//         $uuid = $request->input('uuid');
+//         $filename = 'route_visit_' . ($uuid ?? 'all') . '.' . $extension;
+//         $path = 'routevisitexports/' . $filename;
+//         $export = new RouteVisitCollapseExport($uuid);
+//         Excel::store(
+//             $export,
+//             $path,
+//             'public',
+//             $format === 'csv'
+//                 ? \Maatwebsite\Excel\Excel::CSV
+//                 : \Maatwebsite\Excel\Excel::XLSX
+//         );
+//         $fullUrl = rtrim(config('app.url'), '/') . '/storage/app/public/' . $path;
+//         return response()->json([
+//             'status' => 'success',
+//             'file_url' => $fullUrl,
+//         ]);
+//     }
+public function exportAll(Request $request)
+{
+    $format    = strtolower($request->input('format', 'xlsx'));
+    $extension = $format === 'csv' ? 'csv' : 'xlsx';
+    $uuid      = $request->input('uuid');
+    $search    = $request->input('query');  // ← added
 
-        $uuid = $request->input('uuid'); // optional
+    $filename = 'route_visit_' . ($uuid ?? 'all') . '.' . $extension;
+    $path     = 'routevisitexports/' . $filename;
 
-        $filename = 'route_visit_' . ($uuid ?? 'all') . '.' . $extension;
-        $path = 'routevisitexports/' . $filename;
+    $export = new RouteVisitCollapseExport($uuid, $search);  // ← pass search
 
-        // Only Collapse Export
-        $export = new RouteVisitCollapseExport($uuid);
+    Excel::store(
+        $export,
+        $path,
+        'public',
+        $format === 'csv'
+            ? \Maatwebsite\Excel\Excel::CSV
+            : \Maatwebsite\Excel\Excel::XLSX
+    );
 
-        Excel::store(
-            $export,
-            $path,
-            'public',
-            $format === 'csv'
-                ? \Maatwebsite\Excel\Excel::CSV
-                : \Maatwebsite\Excel\Excel::XLSX
-        );
+    $fullUrl = rtrim(config('app.url'), '/') . '/storage/app/public/' . $path;
 
-        $fullUrl = rtrim(config('app.url'), '/') . '/storage/app/public/' . $path;
-
-        return response()->json([
-            'status' => 'success',
-            'file_url' => $fullUrl,
-        ]);
-    }
+    return response()->json([
+        'status'   => 'success',
+        'file_url' => $fullUrl,
+    ]);
+}
 }

@@ -11,6 +11,7 @@ use Illuminate\Support\Str;
 class WarehouseStock extends Model
 {
     use HasFactory, SoftDeletes, Blames;
+    protected $connection = 'pgsql';
     protected $table = 'tbl_warehouse_stocks';
     protected $fillable = [
         'uuid',

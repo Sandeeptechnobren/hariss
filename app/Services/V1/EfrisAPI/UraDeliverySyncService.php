@@ -32,19 +32,20 @@ class UraDeliverySyncService extends BaseEfrisService
             // ✅ Step 1: Get live_date
             $warehouse = Warehouse::whereIn('id', $warehouseIds)
                 ->where('status', 1)
-                ->select('live_date')
+                ->select('id', 'live_date')
                 ->first();
-
+            // dd($warehouse);
             if (!$warehouse || empty($warehouse->live_date)) {
                 return [];
             }
-
+            // dd($fromDate, $toDate);
             // ✅ Step 2: Pure Eloquent Query (NO TABLE NAME)
             $data = HTDeliveryHeader::with(['customer', 'warehouse'])
 
-                ->whereHas('customer.warehouses', function ($q) use ($warehouseIds) {
-                    $q->whereIn('id', $warehouseIds);
-                })
+                // ->whereHas('customer.warehouses', function ($q) use ($warehouseIds) {
+                //     $q->whereIn('id', $warehouseIds);
+                // })
+                ->whereIn('warehouse_id', $warehouseIds)
 
                 ->whereBetween('delivery_date', [$fromDate, $toDate])
                 ->whereDate('updated_at', '>=', $warehouse->live_date)
@@ -71,7 +72,7 @@ class UraDeliverySyncService extends BaseEfrisService
                         'sync_date'   => $item->updated_at ?? null,
                     ];
                 });
-
+            // dd($data);
             return $data;
         } catch (\Throwable $e) {
 
@@ -200,13 +201,13 @@ class UraDeliverySyncService extends BaseEfrisService
         ];
 
         // 🔥 DEBUG BEFORE API
-        $this->logEfrisDebug('REQUEST_PAYLOAD', $payload);
+        // $this->logEfrisDebug('REQUEST_PAYLOAD', $payload);
 
         $response = $this->makePost("T131", $payload, $warehouse);
 
         // 🔥 DEBUG AFTER API
-        $this->logEfrisDebug('API_RESPONSE', $response);
-        $this->logEfrisDebug('INNER_RESPONSE', $response['inner_response'] ?? []);
+        // $this->logEfrisDebug('API_RESPONSE', $response);
+        // $this->logEfrisDebug('INNER_RESPONSE', $response['inner_response'] ?? []);
 
         if (($response['returnCode'] ?? null) == "00") {
 

@@ -9,9 +9,11 @@ use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use App\Helpers\DataAccessHelper;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Events\AfterSheet;
 use Illuminate\Support\Facades\Auth;
 
-class CompanyCustomerExport implements FromCollection, WithHeadings, WithMapping
+class CompanyCustomerExport implements FromCollection, WithHeadings, WithMapping, WithEvents
 {
     protected ?string $fromDate;
     protected ?string $toDate;
@@ -163,4 +165,29 @@ class CompanyCustomerExport implements FromCollection, WithHeadings, WithMapping
 
         return $all;
     }
+    public function registerEvents(): array
+{
+    return [
+        AfterSheet::class => function ($event) {
+
+            $columnCount = count($this->headings());
+            $lastColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($columnCount);
+
+            $headerRange = "A1:{$lastColumn}1";
+
+            $event->sheet->getStyle($headerRange)->applyFromArray([
+                'font' => [
+                    'bold' => true,
+                    'color' => ['rgb' => 'FFFFFF'],
+                ],
+                'fill' => [
+                    'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                    'startColor' => [
+                        'rgb' => '993442', // ✅ maroon
+                    ],
+                ],
+            ]);
+        },
+    ];
+}
 }

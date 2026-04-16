@@ -77,7 +77,7 @@ class Item extends Model
     }
     public function itemUoms()
     {
-        return $this->hasMany(ItemUOM::class, 'item_id')->with('uom:id,name');
+        return $this->hasMany(ItemUOM::class, 'item_id')->with('uom:id,name,sap_name');
     }
 
     public function warehouse_stocks()
@@ -107,5 +107,12 @@ class Item extends Model
     public function uoms()
     {
         return $this->hasMany(ItemUOM::class, 'item_id');
+    }
+
+    public function primaryUom()
+    {
+        return $this->hasOne(ItemUOM::class, 'item_id')
+            ->where('uom_type', 'primary')   // ✅ filter
+            ->with('uom:id,name');           // optional if you need uom table
     }
 }

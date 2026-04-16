@@ -1052,8 +1052,8 @@ class InvoiceController extends Controller
             'status' => 'success',
             'warehouse_id' => $warehouseId,
             'download_url' => $downloadUrl,
-            'start_date' => $startDate,
-            'end_date' => $endDate,
+          //  'start_date' => $startDate,
+          //  'end_date' => $endDate,
         ]);
     }
 

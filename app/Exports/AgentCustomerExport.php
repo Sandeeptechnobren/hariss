@@ -4,19 +4,21 @@ namespace App\Exports;
 
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Events\AfterSheet;
 
-class AgentCustomerExport implements FromCollection, WithHeadings
+class AgentCustomerExport implements FromCollection, WithHeadings, WithEvents
 {
     protected $data;
     protected $columns;
 
     protected array $availableColumns = [
-        'osa_code'       => 'OSA Code',
+        'osa_code'       => 'Code',
         'name'           => 'Name',
         'owner_name'     => 'Owner Name',
         'customer_type'  => 'Customer Type',
         'route_name'     => 'Route Name',
-        'warehouse_name' => 'Distributor Name',
+        'warehouse_name' => 'Distributor',
         'outlet_channel' => 'Outlet Channel',
         'category'       => 'Category',
         'subcategory'    => 'Subcategory',
@@ -146,4 +148,30 @@ class AgentCustomerExport implements FromCollection, WithHeadings
             $this->columns
         );
     }
+
+    public function registerEvents(): array
+{
+    return [
+        AfterSheet::class => function ($event) {
+
+            $columnCount = count($this->columns);
+            $lastColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($columnCount);
+
+            $headerRange = "A1:{$lastColumn}1";
+
+            $event->sheet->getStyle($headerRange)->applyFromArray([
+                'font' => [
+                    'bold' => true,
+                    'color' => ['rgb' => 'FFFFFF'],
+                ],
+                'fill' => [
+                    'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                    'startColor' => [
+                        'rgb' => '993442', // ✅ maroon
+                    ],
+                ],
+            ]);
+        },
+    ];
+}
 }

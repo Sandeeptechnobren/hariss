@@ -1,5 +1,148 @@
 <?php
 
+// namespace App\Exports;
+
+// use App\Models\StockTransferHeader;
+// use Maatwebsite\Excel\Concerns\FromQuery;
+// use Maatwebsite\Excel\Concerns\WithMapping;
+// use Maatwebsite\Excel\Concerns\WithHeadings;
+// use Maatwebsite\Excel\Concerns\WithEvents;
+// use Maatwebsite\Excel\Events\AfterSheet;
+// use Maatwebsite\Excel\Concerns\Exportable;
+// use PhpOffice\PhpSpreadsheet\Style\Fill;
+// use PhpOffice\PhpSpreadsheet\Style\Alignment;
+// use PhpOffice\PhpSpreadsheet\Style\Border;
+// use App\Helpers\DataAccessHelper;
+// use Illuminate\Support\Facades\Auth;
+
+// class StockTransferExport implements FromQuery, WithMapping, WithHeadings, WithEvents
+// {
+//     use Exportable;
+
+//     protected $fromDate;
+//     protected $toDate;
+//     protected $warehouseIds;
+
+//     public function __construct($fromDate, $toDate, $warehouseIds = [])
+//     {
+//         $today = now()->toDateString();
+//         $this->fromDate = $fromDate ?: $today;
+//         $this->toDate   = $toDate ?: $today;
+//         $this->warehouseIds = $warehouseIds;
+//     }
+
+//     public function query()
+//     {
+//         $query = StockTransferHeader::with([
+//             'sourceWarehouse',
+//             'destinyWarehouse',
+//             'details'
+//         ])
+//             ->when(
+//                 $this->fromDate,
+//                 fn($q) =>
+//                 $q->whereDate('transfer_date', '>=', $this->fromDate)
+//             )
+//             ->when(
+//                 $this->toDate,
+//                 fn($q) =>
+//                 $q->whereDate('transfer_date', '<=', $this->toDate)
+//             )
+//             ->whereIn('source_warehouse', $this->warehouseIds)
+//             ->whereNull('deleted_at');
+//         // dd($query->count());
+//         $query = DataAccessHelper::filterAgentTransaction($query, Auth::user());
+
+//         return $query;
+//     }
+
+//     public function map($header): array
+//     {
+//         return [
+//             $header->osa_code,
+
+//             $header->transfer_date
+//                 ? \Carbon\Carbon::parse($header->transfer_date)->format('d M Y')
+//                 : '',
+
+//             $header->transfer_date
+//                 ? \Carbon\Carbon::parse($header->transfer_date)->format('h:i A')
+//                 : '',
+
+//             trim(
+//                 ($header->sourceWarehouse->warehouse_code ?? '') . ' - ' .
+//                     ($header->sourceWarehouse->warehouse_name ?? '')
+//             ),
+
+//             trim(
+//                 ($header->destinyWarehouse->warehouse_code ?? '') . ' - ' .
+//                     ($header->destinyWarehouse->warehouse_name ?? '')
+//             ),
+
+//             // 👉 Total Items Count
+//             $header->details->count(),
+
+//             // 👉 Total Quantity
+//             number_format(
+//                 $header->details->sum('transfer_qty'),
+//                 2,
+//                 '.',
+//                 ''
+//             ),
+
+//             // $header->status,
+//         ];
+//     }
+
+//     public function headings(): array
+//     {
+//         return [
+//             'Transfer Code',
+//             'Date',
+//             'Time',
+//             'Source Warehouse',
+//             'Destination Warehouse',
+//             'Total Items',
+//             'Total Quantity',
+//             // 'Status',
+//         ];
+//     }
+
+//     public function registerEvents(): array
+//     {
+//         return [
+//             AfterSheet::class => function ($event) {
+
+//                 $sheet = $event->sheet->getDelegate();
+//                 $lastColumn = $sheet->getHighestColumn();
+
+//                 $sheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
+//                     'font' => [
+//                         'bold'  => true,
+//                         'color' => ['rgb' => 'F5F5F5'],
+//                     ],
+//                     'alignment' => [
+//                         'horizontal' => Alignment::HORIZONTAL_CENTER,
+//                         'vertical'   => Alignment::VERTICAL_CENTER,
+//                     ],
+//                     'fill' => [
+//                         'fillType'   => Fill::FILL_SOLID,
+//                         'startColor' => ['rgb' => '993442'],
+//                     ],
+//                     'borders' => [
+//                         'allBorders' => [
+//                             'borderStyle' => Border::BORDER_THIN,
+//                             'color'       => ['rgb' => '000000'],
+//                         ],
+//                     ],
+//                 ]);
+
+//                 $sheet->getRowDimension(1)->setRowHeight(25);
+//             },
+//         ];
+//     }
+
+
 namespace App\Exports;
 
 use App\Models\StockTransferHeader;
@@ -14,6 +157,7 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use App\Helpers\DataAccessHelper;
 use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 
 class StockTransferExport implements FromQuery, WithMapping, WithHeadings, WithEvents
 {
@@ -25,9 +169,8 @@ class StockTransferExport implements FromQuery, WithMapping, WithHeadings, WithE
 
     public function __construct($fromDate, $toDate, $warehouseIds = [])
     {
-        $today = now()->toDateString();
-        $this->fromDate = $fromDate ?: $today;
-        $this->toDate   = $toDate ?: $today;
+        $this->fromDate = $fromDate;
+        $this->toDate   = $toDate;
         $this->warehouseIds = $warehouseIds;
     }
 
@@ -38,19 +181,19 @@ class StockTransferExport implements FromQuery, WithMapping, WithHeadings, WithE
             'destinyWarehouse',
             'details'
         ])
-            ->when(
-                $this->fromDate,
-                fn($q) =>
-                $q->whereDate('transfer_date', '>=', $this->fromDate)
-            )
-            ->when(
-                $this->toDate,
-                fn($q) =>
-                $q->whereDate('transfer_date', '<=', $this->toDate)
-            )
-            ->whereIn('source_warehouse', $this->warehouseIds)
-            ->whereNull('deleted_at');
-        // dd($query->count());
+        ->when($this->fromDate, function ($q) {
+            $q->whereDate('transfer_date', '>=', $this->fromDate);
+        })
+        ->when($this->toDate, function ($q) {
+            $q->whereDate('transfer_date', '<=', $this->toDate);
+        })
+        // ✅ FIX: apply only if not empty
+        ->when(!empty($this->warehouseIds), function ($q) {
+            $q->whereIn('source_warehouse', $this->warehouseIds);
+        })
+        ->whereNull('deleted_at');
+
+        // ✅ keep if needed (else comment for debug)
         $query = DataAccessHelper::filterAgentTransaction($query, Auth::user());
 
         return $query;
@@ -62,35 +205,33 @@ class StockTransferExport implements FromQuery, WithMapping, WithHeadings, WithE
             $header->osa_code,
 
             $header->transfer_date
-                ? \Carbon\Carbon::parse($header->transfer_date)->format('d M Y')
+                ? Carbon::parse($header->transfer_date)->format('d M Y')
                 : '',
 
             $header->transfer_date
-                ? \Carbon\Carbon::parse($header->transfer_date)->format('h:i A')
+                ? Carbon::parse($header->transfer_date)->format('h:i A')
                 : '',
 
             trim(
                 ($header->sourceWarehouse->warehouse_code ?? '') . ' - ' .
-                    ($header->sourceWarehouse->warehouse_name ?? '')
+                ($header->sourceWarehouse->warehouse_name ?? '')
             ),
 
             trim(
                 ($header->destinyWarehouse->warehouse_code ?? '') . ' - ' .
-                    ($header->destinyWarehouse->warehouse_name ?? '')
+                ($header->destinyWarehouse->warehouse_name ?? '')
             ),
 
-            // 👉 Total Items Count
-            $header->details->count(),
+            // total items
+            $header->details ? $header->details->count() : 0,
 
-            // 👉 Total Quantity
+            // total qty
             number_format(
-                $header->details->sum('transfer_qty'),
+                $header->details ? $header->details->sum('transfer_qty') : 0,
                 2,
                 '.',
                 ''
             ),
-
-            // $header->status,
         ];
     }
 
@@ -100,11 +241,10 @@ class StockTransferExport implements FromQuery, WithMapping, WithHeadings, WithE
             'Transfer Code',
             'Date',
             'Time',
-            'Source Warehouse',
-            'Destination Warehouse',
+            'Source Distributro',
+            'Destination Distributor',
             'Total Items',
             'Total Quantity',
-            // 'Status',
         ];
     }
 
@@ -115,11 +255,13 @@ class StockTransferExport implements FromQuery, WithMapping, WithHeadings, WithE
 
                 $sheet = $event->sheet->getDelegate();
                 $lastColumn = $sheet->getHighestColumn();
+                $lastRow    = $sheet->getHighestRow();
 
+                // header style
                 $sheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
                     'font' => [
                         'bold'  => true,
-                        'color' => ['rgb' => 'F5F5F5'],
+                        'color' => ['rgb' => 'FFFFFF'],
                     ],
                     'alignment' => [
                         'horizontal' => Alignment::HORIZONTAL_CENTER,
@@ -137,8 +279,16 @@ class StockTransferExport implements FromQuery, WithMapping, WithHeadings, WithE
                     ],
                 ]);
 
+                // thin borders full table
+                $sheet->getStyle("A1:{$lastColumn}{$lastRow}")
+                    ->getBorders()
+                    ->getAllBorders()
+                    ->setBorderStyle(Border::BORDER_NONE);
+
                 $sheet->getRowDimension(1)->setRowHeight(25);
             },
         ];
     }
+
+
 }

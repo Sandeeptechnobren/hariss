@@ -106,12 +106,10 @@
     <table width="100%" cellpadding="2" cellspacing="0"
         style="border-collapse:collapse;">
         <tr>
-            <th style="text-align:center;" colspan="10">Purchase Details</th>
+            <th style="text-align:center;" colspan="8">Purchase Details</th>
         </tr>
         <tr>
-            <th style="border:1px solid #000;">S/N</th>
-            <th style="border:1px solid #000;">Item Code</th>
-            <th style="border:1px solid #000;">Description</th>
+            <th style="border:1px solid #000;">Item</th>
             <th style="border:1px solid #000;">UOM</th>
             <th style="border:1px solid #000;">Qty</th>
             <th style="border:1px solid #000;">Price</th>
@@ -123,9 +121,7 @@
 
         @foreach($orderDetails as $i => $item)
         <tr>
-            <td style="border:1px solid #000; text-align:center;">{{ $i + 1 }}</td>
-            <td style="border:1px solid #000;">{{ $item->item->code ?? '' }}</td>
-            <td style="border:1px solid #000;">{{ $item->item->name ?? '' }}</td>
+            <td style="border:1px solid #000;">{{ ($item->item->code ?? '') . ' - ' . ($item->item->name ?? '') }}</td>
             <td style="border:1px solid #000; text-align:center;">{{ $item->uom->name ?? '' }}</td>
             <td style="border:1px solid #000; text-align:center;">
                 {{ number_format($item->quantity, 0) }}
@@ -149,37 +145,61 @@
         @endforeach
     </table>
 
-    <!-- Totals -->
-    <table width="100%" cellspacing="0"
-        style="border-collapse:collapse; border-bottom:2px solid #000; margin-top:5px;">
+   
+
+     <!-- TOTALS (SAME FOOTER STRUCTURE) -->
+    <table width="100%" cellspacing="0" style="border-collapse:collapse; border-bottom:2px solid #000; margin-top:5px;">
         <tr>
             <td style="width:70%;"></td>
             <td style="width:30%;">
-                <table width="100%" cellpadding="4" cellspacing="0"
-                    style="border-collapse:collapse;">
+                <table width="100%" cellpadding="4" cellspacing="0" style="border-collapse:collapse;">
                     <tr>
-                        <td>Net Total</td>
+                        <td>
+                            <!-- Sub Total ({{ $order->currency }}) -->
+                        </td>
                         <td style="text-align:right;">
-                            {{ $order->currency }} {{ number_format($order->net, 2) }}
+                            <!-- {{ number_format($order->net_amount, 2) }} -->
                         </td>
                     </tr>
+                </table>
+            </td>
+        </tr>
+
+        <tr>
+            <td></td>
+            <td>
+                <table width="100%" cellpadding="4" cellspacing="0" style="border-collapse:collapse;">
                     <tr>
-                        <td>VAT</td>
-                        <td style="text-align:right;">
-                            {{ $order->currency }} {{ number_format($order->vat, 2) }}
+                        <!-- <td>Discount</td> -->
+                        <!-- <td style="text-align:right;">0.00</td> -->
+                    </tr>
+                </table>
+            </td>
+        </tr>
+
+        <tr>
+            <td style="vertical-align:middle; padding:6px;">
+                <table width="100%" cellpadding="4" cellspacing="0" style="border-collapse:collapse;">
+                    <tr>
+                        <td style="width:50%; font-weight:bold;">
+                            VAT: {{ number_format($order->vat, 2) }}
+                        </td>
+                        <td style="width:50%; font-weight:bold;">
+                            NET: {{ number_format($order->net, 2) }}
+                        </td>
+                        <td style="width:50%; font-weight:bold;">
+                            Excise: {{ number_format($order->excise, 2) }}
                         </td>
                     </tr>
+                </table>
+            </td>
+            <td>
+                <table width="100%" cellpadding="4" cellspacing="0" style="border-collapse:collapse;">
                     <tr>
-                        <td>Excise</td>
-                        <td style="text-align:right;">
-                            {{ $order->currency }} {{ number_format($order->excise, 2) }}
-                        </td>
-                    </tr>
-                    <tr>
-                        <td style="font-weight:bold;">Total</td>
-                        <td style="text-align:right; font-weight:bold;">
-                            {{ $order->currency }} {{ number_format($order->total, 2) }}
-                        </td>
+                        <td style="font-weight:bold;">Total ({{ $order->currency }}) : {{ number_format($order->total, 2) }}</td>
+                        <!-- <td style="text-align:right; font-weight:bold;">
+                            {{ number_format($order->total, 2) }}
+                        </td> -->
                     </tr>
                 </table>
             </td>

@@ -7,6 +7,11 @@ use App\Services\V1\EfrisAPI\BaseEfrisService;
 use App\Services\V1\EfrisAPI\UraStockAdjustmentService;
 use Illuminate\Http\Request;
 use App\Models\Warehouse;
+use App\Models\Item;
+use App\Models\WarehouseStock;
+use App\Models\ItemUOM;
+use App\Models\Uom;
+
 
 class UraStockAdjustmentController extends Controller
 {
@@ -143,43 +148,38 @@ class UraStockAdjustmentController extends Controller
                 'data' => []
             ]);
         }
-        $items = \DB::table('items')
-            ->pluck('id', 'sap_id');
 
-        $stocks = \DB::table('tbl_warehouse_stocks')
-            ->where('warehouse_id', $request->warehouse_id)
+        $items = Item::pluck('id', 'sap_id');
+
+        $stocks = WarehouseStock::where('warehouse_id', $request->warehouse_id)
             ->pluck('qty', 'item_id');
 
-        $uoms = \DB::table('item_uoms')
-            ->where('status', 1)
+        $uoms = ItemUOM::where('status', 1)
             ->where('uom_type', 'secondary')
             ->pluck('upc', 'item_id');
 
-        $final = [];
-
+        $uomMaster = Uom::pluck('name', 'uom_efriscode');
         foreach ($records as $value) {
 
             $itemId = $items[$value['goodsCode']] ?? null;
+            if (!$itemId) continue;
 
-            $buomQty = ($itemId && isset($stocks[$itemId]))
-                ? $stocks[$itemId]
-                : 0;
+            $buomQty = isset($stocks[$itemId]) ? $stocks[$itemId] : 0;
 
-            $upc = ($itemId && isset($uoms[$itemId]))
-                ? $uoms[$itemId]
-                : 1;
+            $upc = isset($uoms[$itemId]) ? $uoms[$itemId] : 1;
 
             $qty = ($upc > 0) ? $buomQty / $upc : $buomQty;
 
-            $altuom = ($value['measureUnit'] == 110)
-                ? 'BOX'
-                : $value['measureUnit'];
+            $baseUomCode = $value['pieceMeasureUnit'] ?? null;
+            $measureUnitCode = $value['measureUnit'] ?? null;
 
+            $baseUom = $uomMaster[$baseUomCode] ?? $baseUomCode;
+            $altuom = $uomMaster[$measureUnitCode] ?? $measureUnitCode;
             $final[] = [
                 'sync_date' => $value['updateDateStr'] ?? null,
                 'goodsCode' => $value['goodsCode'] ?? null,
                 'goodsName' => $value['goodsName'] ?? null,
-                'base_uom' => $value['pieceMeasureUnit'] ?? null,
+                'base_uom' => $baseUom,
                 'piece_unit_price' => isset($value['pieceUnitPrice']) ? (float)$value['pieceUnitPrice'] : 0,
                 'upc' => $value['pieceScaledValue'] ?? null,
                 'alt_uom' => $altuom,
@@ -189,7 +189,6 @@ class UraStockAdjustmentController extends Controller
                 'qty' => round($qty, 3)
             ];
         }
-
         return response()->json([
             'status' => true,
             'total' => count($final),

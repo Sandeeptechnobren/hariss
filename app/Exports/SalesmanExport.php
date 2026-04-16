@@ -10,9 +10,11 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Illuminate\Support\Collection;
 use App\Helpers\DataAccessHelper;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Events\AfterSheet;
 use Illuminate\Support\Facades\Auth;
 
-class SalesmanExport implements FromCollection, WithHeadings, WithMapping
+class SalesmanExport implements FromCollection, WithHeadings, WithMapping, WithEvents
 {
     protected ?string $fromDate;
     protected ?string $toDate;
@@ -75,10 +77,10 @@ class SalesmanExport implements FromCollection, WithHeadings, WithMapping
     private function columnMap($salesman): array
     {
         return [
-            'OSA Code' => $salesman->osa_code,
+            'Code' => $salesman->osa_code,
             'Name' => $salesman->name,
-            'Salesman Type Name' => optional($salesman->salesmanType)->salesman_type_name,
-            'Project' => optional($salesman->subtype)->name,
+            'Sales Team Type ' => optional($salesman->salesmanType)->salesman_type_name,
+            'Role Project' => optional($salesman->subtype)->name,
             'Designation' => $salesman->designation,
             'Security Code' => $salesman->security_code,
             'Device No' => $salesman->device_no,
@@ -86,9 +88,10 @@ class SalesmanExport implements FromCollection, WithHeadings, WithMapping
             'Block Date To' => $salesman->block_date_to,
             'Block Date From' => $salesman->block_date_from,
             'Contact No' => $salesman->contact_no,
-            'Distributor Code' => optional($salesman->warehouse)->warehouse_code,
-            'Distributor Name' => optional($salesman->warehouse)->warehouse_name,
-            'Distributor Owner Name' => optional($salesman->warehouse)->owner_name,
+            // 'Distributor Code' => optional($salesman->warehouse)->warehouse_code,
+            // 'Distributor Name' => optional($salesman->warehouse)->warehouse_name,
+            'Distributor' => optional($salesman->warehouse)->warehouse_code . ' - ' . optional($salesman->warehouse)->warehouse_name,
+            'Distributor Owner' => optional($salesman->warehouse)->owner_name,
             'SAP ID' => $salesman->sap_id,
             'Is Login' => $salesman->is_login ? 'Yes' : 'No',
             'Email' => $salesman->email,
@@ -124,4 +127,30 @@ class SalesmanExport implements FromCollection, WithHeadings, WithMapping
 
         return $all;
     }
+
+    public function registerEvents(): array
+{
+    return [
+        AfterSheet::class => function ($event) {
+
+            $columnCount = count($this->headings());
+            $lastColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($columnCount);
+
+            $headerRange = "A1:{$lastColumn}1";
+
+            $event->sheet->getStyle($headerRange)->applyFromArray([
+                'font' => [
+                    'bold' => true,
+                    'color' => ['rgb' => 'FFFFFF'],
+                ],
+                'fill' => [
+                    'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                    'startColor' => [
+                        'rgb' => '993442', // maroon
+                    ],
+                ],
+            ]);
+        },
+    ];
+}
 }

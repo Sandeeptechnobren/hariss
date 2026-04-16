@@ -81,5 +81,6 @@ return [
     'PM'                    => 'PM',
     'users'                 => 'USR',
     'credit_note'           => 'CNT',
+    'stock_audit'           => 'STA',
 ];
  

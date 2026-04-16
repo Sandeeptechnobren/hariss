@@ -169,7 +169,7 @@ class VehiclesExport implements FromQuery, WithHeadings, WithMapping, WithEvents
             'Vehicle Code',
             'Number Plate',
             'Chassis No',
-            'Distributor Name',
+            'Distributor',
             'Description',
             'Capacity',
             'Type',
@@ -204,7 +204,7 @@ class VehiclesExport implements FromQuery, WithHeadings, WithMapping, WithEvents
                 'fill' => [
                     'fillType' => Fill::FILL_SOLID,
                     'startColor' => [
-                        'argb' => 'FFDC3545', // 🔥 proper red (same as your image)
+                        'argb' => '993442',
                     ],
                 ],
                 'borders' => [

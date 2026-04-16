@@ -38,132 +38,255 @@ class ItemPoOrderCollapseExport implements
         $this->itemId     = $itemId;
     }
 
-    public function collection()
-    {
-        $rows = [];
+    // public function collection()
+    // {
+    //     $rows = [];
         
-        $rows[] = [
-            'Order Code',
-            'Order Date',
-            'Delivery Date',
-            'Customer',
-            'Salesman',
-            'Net Amount',
-            'VAT',
-            'Item Count',
-            'Total'
-        ];
+    //     $rows[] = [
+    //         'Order Code',
+    //         'Order Date',
+    //         'Delivery Date',
+    //         'Customer',
+    //         'Salesman',
+    //         'Net Amount',
+    //         'VAT',
+    //         'Item Count',
+    //         'Total'
+    //     ];
 
-        $this->rowIndex = 2;
+    //     $this->rowIndex = 2;
 
-        $fromDate = $this->fromDate
-            ? Carbon::parse($this->fromDate)->startOfDay()
-            : Carbon::now()->startOfMonth();
+    //     $fromDate = $this->fromDate
+    //         ? Carbon::parse($this->fromDate)->startOfDay()
+    //         : Carbon::now()->startOfMonth();
 
-        $toDate = $this->toDate
-            ? Carbon::parse($this->toDate)->endOfDay()
-            : Carbon::now()->endOfMonth();
+    //     $toDate = $this->toDate
+    //         ? Carbon::parse($this->toDate)->endOfDay()
+    //         : Carbon::now()->endOfMonth();
 
-        $query = PoOrderHeader::with([
-            'customer:id,osa_code,business_name',
-            'salesman:id,osa_code,name'
-        ]);
+    //     $query = PoOrderHeader::with([
+    //         'customer:id,osa_code,business_name',
+    //         'salesman:id,osa_code,name'
+    //     ]);
 
-        if (!empty($this->itemId)) {
-            $query->whereHas('details', function ($q) use ($fromDate, $toDate) {
-                $q->where('item_id', $this->itemId)
-                  ->whereBetween('created_at', [$fromDate, $toDate]);
-            });
-        } else {
-            $query->whereHas('details', function ($q) use ($fromDate, $toDate) {
-                $q->whereBetween('created_at', [$fromDate, $toDate]);
-            });
-        }
+    //     if (!empty($this->itemId)) {
+    //         $query->whereHas('details', function ($q) use ($fromDate, $toDate) {
+    //             $q->where('item_id', $this->itemId)
+    //               ->whereBetween('created_at', [$fromDate, $toDate]);
+    //         });
+    //     } else {
+    //         $query->whereHas('details', function ($q) use ($fromDate, $toDate) {
+    //             $q->whereBetween('created_at', [$fromDate, $toDate]);
+    //         });
+    //     }
 
-        if (!empty($this->customerId)) {
-            $query->where('customer_id', $this->customerId);
-        }
+    //     if (!empty($this->customerId)) {
+    //         $query->where('customer_id', $this->customerId);
+    //     }
 
-        $headers = $query->get();
+    //     $headers = $query->get();
 
-        if ($headers->isEmpty()) {
-            return collect([]);
-        }
+    //     if ($headers->isEmpty()) {
+    //         return collect([]);
+    //     }
 
-        $details = PoOrderDetail::with(['item', 'uom'])
-            ->whereIn('header_id', $headers->pluck('id'))
-            ->whereBetween('created_at', [$fromDate, $toDate])
-            ->when(!empty($this->itemId), function ($q) {
-                $q->where('item_id', $this->itemId);
-            })
-            ->get()
-            ->groupBy('header_id');
+    //     $details = PoOrderDetail::with(['item', 'uom'])
+    //         ->whereIn('header_id', $headers->pluck('id'))
+    //         ->whereBetween('created_at', [$fromDate, $toDate])
+    //         ->when(!empty($this->itemId), function ($q) {
+    //             $q->where('item_id', $this->itemId);
+    //         })
+    //         ->get()
+    //         ->groupBy('header_id');
 
-        foreach ($headers as $header) {
+    //     foreach ($headers as $header) {
 
-            $detailList = $details[$header->id] ?? [];
-            $count = count($detailList);
+    //         $detailList = $details[$header->id] ?? [];
+    //         $count = count($detailList);
 
-            $rows[] = [
-                $header->order_code,
-                optional($header->order_date)->format('d M Y'),
-                optional($header->delivery_date)->format('d M Y'),
-                trim(($header->customer->osa_code ?? '') . ' - ' . ($header->customer->business_name ?? '')),
-                trim(($header->salesman->osa_code ?? '') . ' - ' . ($header->salesman->name ?? '')),
-                number_format((float)$header->net, 2),
-                number_format((float)$header->vat, 2),
-                $count,
-                number_format((float)$header->total, 2),
-            ];
+    //         $rows[] = [
+    //             $header->order_code,
+    //             optional($header->order_date)->format('d M Y'),
+    //             optional($header->delivery_date)->format('d M Y'),
+    //             trim(($header->customer->osa_code ?? '') . ' - ' . ($header->customer->business_name ?? '')),
+    //             trim(($header->salesman->osa_code ?? '') . ' - ' . ($header->salesman->name ?? '')),
+    //             number_format((float)$header->net, 2),
+    //             number_format((float)$header->vat, 2),
+    //             $count,
+    //             number_format((float)$header->total, 2),
+    //         ];
 
-            $this->rowIndex++;
+    //         $this->rowIndex++;
 
-            $start = $this->rowIndex;
+    //         $start = $this->rowIndex;
 
-            $rows[] = [
-                '',
-                'Item',
-                'UOM',
-                'Price',
-                'Qty',
-                'VAT',
-                'Excise',
-                'Net',
-                'Total'
-            ];
+    //         $rows[] = [
+    //             '',
+    //             'Item',
+    //             'UOM',
+    //             'Price',
+    //             'Qty',
+    //             'VAT',
+    //             'Excise',
+    //             'Net',
+    //             'Total'
+    //         ];
 
-            $this->rowIndex++;
+    //         $this->rowIndex++;
 
-            foreach ($detailList as $d) {
-                $rows[] = [
-                    '',
-                    trim(($d->item->erp_code ?? '') . ' - ' . ($d->item->name ?? '')),
-                    $d->uom->name ?? '',
-                    number_format((float)$d->item_price, 2),
-                    $d->quantity,
-                    number_format((float)$d->vat, 2),
-                    number_format((float)$d->excise, 2),
-                    number_format((float)$d->net, 2),
-                    number_format((float)$d->total, 2),
-                ];
-                $this->rowIndex++;
-            }
+    //         foreach ($detailList as $d) {
+    //             $rows[] = [
+    //                 '',
+    //                 trim(($d->item->erp_code ?? '') . ' - ' . ($d->item->name ?? '')),
+    //                 $d->uom->name ?? '',
+    //                 number_format((float)$d->item_price, 2),
+    //                 $d->quantity,
+    //                 number_format((float)$d->vat, 2),
+    //                 number_format((float)$d->excise, 2),
+    //                 number_format((float)$d->net, 2),
+    //                 number_format((float)$d->total, 2),
+    //             ];
+    //             $this->rowIndex++;
+    //         }
 
-            if ($count > 0) {
-                $this->groups[] = [
-                    'start' => $start,
-                    'end'   => $this->rowIndex - 1
-                ];
-            }
+    //         if ($count > 0) {
+    //             $this->groups[] = [
+    //                 'start' => $start,
+    //                 'end'   => $this->rowIndex - 1
+    //             ];
+    //         }
 
-            // Spacer
-            $rows[] = [''];
-            $this->rowIndex++;
-        }
+    //         // Spacer
+    //         $rows[] = [''];
+    //         $this->rowIndex++;
+    //     }
 
-        return collect($rows);
+    //     return collect($rows);
+    // }
+
+    public function collection()
+{
+    $rows = [];
+
+    $rows[] = [
+        'Order Code',
+        'Order Date',
+        'Delivery Date',
+        'Customer',
+        'Salesman',
+        'Net Amount',
+        'VAT',
+        'Item Count',
+        'Total'
+    ];
+
+    $this->rowIndex = 2;
+
+    // Use Carbon instances directly (already parsed in controller)
+    $fromDate = $this->fromDate instanceof \Carbon\Carbon
+        ? $this->fromDate
+        : \Carbon\Carbon::parse($this->fromDate)->startOfDay();
+
+    $toDate = $this->toDate instanceof \Carbon\Carbon
+        ? $this->toDate
+        : \Carbon\Carbon::parse($this->toDate)->endOfDay();
+
+    $query = PoOrderHeader::with([
+        'customer:id,osa_code,business_name',
+        'salesman:id,osa_code,name'
+    ]);
+
+    // Mirror exact logic from getByItem()
+    if (!empty($this->itemId)) {
+        $query->whereHas('details', function ($q) use ($fromDate, $toDate) {
+            $q->where('item_id', $this->itemId)
+              ->whereBetween('created_at', [$fromDate, $toDate]);
+        });
+    } else {
+        $query->whereHas('details', function ($q) use ($fromDate, $toDate) {
+            $q->whereBetween('created_at', [$fromDate, $toDate]);
+        });
     }
 
+    if (!empty($this->customerId)) {
+        $query->where('customer_id', $this->customerId);
+    }
+
+    $headers = $query->get();
+
+    // if ($headers->isEmpty()) {
+    //     return collect([]);
+    // }
+    if ($headers->isEmpty()) {
+        return collect($rows); // ← return rows which already has the header title
+    }
+
+    // Mirror exact detail filter from getByItem()
+    $details = PoOrderDetail::with(['item', 'uom'])
+        ->whereIn('header_id', $headers->pluck('id'))
+        ->when(!empty($this->itemId), function ($q) use ($fromDate, $toDate) {
+            // Both conditions together — same as getByItem's eager load
+            $q->where('item_id', $this->itemId)
+              ->whereBetween('created_at', [$fromDate, $toDate]);
+        })
+        ->when(empty($this->itemId), function ($q) use ($fromDate, $toDate) {
+            $q->whereBetween('created_at', [$fromDate, $toDate]);
+        })
+        ->get()
+        ->groupBy('header_id');
+
+    foreach ($headers as $header) {
+
+        $detailList = $details[$header->id] ?? collect([]);
+        $count      = count($detailList);
+
+        $rows[] = [
+            $header->order_code,
+            optional($header->order_date)->format('d M Y'),
+            optional($header->delivery_date)->format('d M Y'),
+            trim(($header->customer->osa_code ?? '') . ' - ' . ($header->customer->business_name ?? '')),
+            trim(($header->salesman->osa_code ?? '') . ' - ' . ($header->salesman->name ?? '')),
+            number_format((float)$header->net, 2),
+            number_format((float)$header->vat, 2),
+            $count,
+            number_format((float)$header->total, 2),
+        ];
+
+        $this->rowIndex++;
+
+        $start = $this->rowIndex;
+
+        $rows[] = ['', 'Item', 'UOM', 'Price', 'Qty', 'VAT', 'Excise', 'Net', 'Total'];
+        $this->rowIndex++;
+
+        foreach ($detailList as $d) {
+            $rows[] = [
+                '',
+                trim(($d->item->erp_code ?? '') . ' - ' . ($d->item->name ?? '')),
+                $d->uom->name ?? '',
+                number_format((float)$d->item_price, 2),
+                $d->quantity,
+                number_format((float)$d->vat, 2),
+                number_format((float)$d->excise, 2),
+                number_format((float)$d->net, 2),
+                number_format((float)$d->total, 2),
+            ];
+            $this->rowIndex++;
+        }
+
+        if ($count > 0) {
+            $this->groups[] = [
+                'start' => $start,
+                'end'   => $this->rowIndex - 1,
+            ];
+        }
+
+        $rows[] = [''];
+        $this->rowIndex++;
+    }
+
+    return collect($rows);
+}
     public function styles(Worksheet $sheet)
     {
         $sheet->getStyle('A1:I1')->getFont()->setBold(true);

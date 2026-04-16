@@ -2,6 +2,8 @@
 
 namespace App\Models\EfrisAPI;
 
+use App\Models\Warehouse;
+
 use Illuminate\Database\Eloquent\Model;
 
 class DailyStockCountHeader extends Model
@@ -20,5 +22,9 @@ class DailyStockCountHeader extends Model
     public function details()
     {
         return $this->hasMany(DailyStockCountDetail::class, 'header_id');
+    }
+    public function warehouse()
+    {
+        return $this->belongsTo(Warehouse::class, 'warehouse_id');
     }
 }

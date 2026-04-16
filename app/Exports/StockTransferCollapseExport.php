@@ -151,8 +151,8 @@ class StockTransferCollapseExport implements FromCollection, WithHeadings, Shoul
         return [
             'Transfer No',
             'Date',
-            'Parent Warehouse',
-            'Child Warehouse',
+            'Parent Distributor',
+            'Child Distributor',
             'Item Count',
             'Total Qty',
             '',

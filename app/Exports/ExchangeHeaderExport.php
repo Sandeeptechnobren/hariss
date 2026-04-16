@@ -117,7 +117,7 @@ class ExchangeHeaderExport implements FromCollection, WithHeadings, ShouldAutoSi
             'Distributors',
             'Route',
             'Customer',
-            'Salesman',
+            'Sales Team',
             // 'Gross Total',
             // 'VAT',
             // 'Net Amount',

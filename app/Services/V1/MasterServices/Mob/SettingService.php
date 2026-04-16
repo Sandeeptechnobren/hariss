@@ -53,7 +53,7 @@ class SettingService
         $outletChannel = OutletChannel::select('id', 'outlet_channel_code', 'outlet_channel', 'status')->get();
         file_put_contents($outletChannelFile, json_encode($outletChannel));
 
-        $pricingHeaders = PricingResource::collection(PricingHeader::with('details')->get());
+        $pricingHeaders = PricingResource::collection(PricingHeader::with('details')->where('status', 1)->get());
         file_put_contents($pricingHeadersFile, json_encode($pricingHeaders));
 
         $Uoms = Uom::select('id', 'name', 'osa_code', 'sap_name')->get();

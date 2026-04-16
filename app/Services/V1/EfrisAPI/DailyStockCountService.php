@@ -182,4 +182,99 @@ class DailyStockCountService
             return "Stock count created successfully.";
         });
     }
+
+    public function getWarehouseStockFromCronJobs(array $filters)
+    {
+        $query = DailyStockCountHeader::with([
+            'warehouse:id,warehouse_code,warehouse_name',
+            'details' => function ($q) {
+                $q->select('id', 'header_id', 'item_id', 'qty')
+                    ->with([
+                        'item:id,erp_code,name'
+                    ]);
+            }
+        ]);
+
+        // ✅ Warehouse filter
+        if (!empty($filters['warehouse_id'])) {
+            $query->where('warehouse_id', (int)$filters['warehouse_id']);
+        }
+
+        $filter = strtolower(trim($filters['filter'] ?? 'today'));
+
+        $allowedFilters = ['today', 'yesterday', '3_days', '7_days', 'last_month'];
+
+        if (!in_array($filter, $allowedFilters, true)) {
+            $filter = 'today';
+        }
+
+        switch ($filter) {
+
+            case 'today':
+                $query->whereDate('date', now()->toDateString());
+                break;
+
+            case 'yesterday':
+                $query->whereDate('date', now()->subDay()->toDateString());
+                break;
+
+            case '3_days':
+                $query->whereBetween('date', [
+                    now()->subDays(2)->toDateString(),
+                    now()->toDateString()
+                ]);
+                break;
+
+            case '7_days':
+                $query->whereBetween('date', [
+                    now()->subDays(6)->toDateString(),
+                    now()->toDateString()
+                ]);
+                break;
+
+            case 'last_month':
+                $query->whereBetween('date', [
+                    now()->subMonth()->startOfMonth()->toDateString(),
+                    now()->subMonth()->endOfMonth()->toDateString()
+                ]);
+                break;
+        }
+
+        // ✅ Get data
+        $data = $query->orderBy('date', 'desc')->get();
+        // dd($data->first()->details->count());
+        // ✅ Warehouse stock (SAFE)
+        $warehouseStocks = [];
+
+        if (!empty($filters['warehouse_id'])) {
+            $warehouseStocks = WarehouseStock::where('warehouse_id', (int)$filters['warehouse_id'])
+                ->pluck('qty', 'item_id')
+                ->toArray();
+        }
+
+        // ✅ Transform
+        return $data->map(function ($header) use ($warehouseStocks) {
+            return [
+                'id' => $header->id,
+                'date' => $header->date,
+
+                'warehouse' => [
+                    'id' => $header->warehouse?->id,
+                    'code' => $header->warehouse?->warehouse_code,
+                    'name' => $header->warehouse?->warehouse_name,
+                ],
+
+                'items' => $header->details->map(function ($detail) use ($warehouseStocks) {
+                    return [
+                        'item_id' => $detail->item_id,
+                        'erp_code' => $detail->item?->erp_code,
+                        'item_name' => $detail->item?->name,
+                        'counted_qty' => $detail->qty,
+
+                        'current_stock' => $warehouseStocks[$detail->item_id] ?? 0,
+                    ];
+                })
+            ];
+        });
+    }
 }

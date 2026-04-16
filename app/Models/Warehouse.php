@@ -10,8 +10,8 @@ class Warehouse extends Model
 {
     use HasFactory, SoftDeletes;
 
+    protected $connection = 'pgsql';
     protected $table = 'tbl_warehouse';
-
     const CREATED_AT = 'created_date';
     const UPDATED_AT = 'updated_date';
 

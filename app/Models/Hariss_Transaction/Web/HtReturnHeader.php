@@ -75,4 +75,8 @@ class HtReturnHeader extends Model
     {
         return $this->belongsTo(Driver::class, 'driver_id');
     }
+    public function distributor()
+    {
+        return $this->belongsTo(Warehouse::class,'warehouse_id');
+    }
 }

@@ -91,7 +91,7 @@ class RoleService
                 'rolePermissions.menu',
                 'rolePermissions.submenu'
             ])->findOrFail($user->role);
-            
+
             return $role;
         } catch (Throwable $e) {
             // dd($e);
@@ -217,18 +217,78 @@ class RoleService
     //     }
     // }
 
+    // public function assignPermissionsWithMenu(int $roleId, array $data): array
+    // {
+    //     DB::beginTransaction();
+    //     try {
+    //         RoleHasPermission::where('role_id', $roleId)->delete();
+    //         $permissions = collect($data['permissions'] ?? []);
+    //         $records = $permissions->flatMap(function ($permission) use ($roleId) {
+    //             $permissionId = $permission['permission_id'] ?? null;
+    //             $menus = collect($permission['menus'] ?? []);
+    //             if (empty($permissionId)) {
+    //                 return [];
+    //             }
+    //             if ($menus->isEmpty()) {
+    //                 return [[
+    //                     'role_id'       => $roleId,
+    //                     'permission_id' => $permissionId,
+    //                     'menu_id'       => null,
+    //                     'submenu_id'    => null
+    //                 ]];
+    //             }
+
+    //             return $menus->map(function ($menu) use ($roleId, $permissionId) {
+    //                 return [
+    //                     'role_id'       => $roleId,
+    //                     'permission_id' => $permissionId,
+    //                     'menu_id'       => $menu['menu_id'] ?? null,
+    //                     'submenu_id'    => $menu['submenu_id'] ?? null
+    //                 ];
+    //             });
+    //         });
+
+    //         // Bulk insert all records
+    //         if ($records->isNotEmpty()) {
+    //             RoleHasPermission::insert($records->toArray());
+    //         }
+
+    //         DB::commit();
+
+    //         return [
+    //             'status'  => true,
+    //             'message' => 'Permissions assigned successfully with menus and submenus.',
+    //         ];
+    //     } catch (\Throwable $e) {
+    //         DB::rollBack();
+
+    //         Log::error('Failed to assign permissions', [
+    //             'role_id' => $roleId,
+    //             'error'   => $e->getMessage(),
+    //         ]);
+
+    //         return [
+    //             'status'  => false,
+    //             'message' => 'Failed to assign permissions. Please try again later.',
+    //         ];
+    //     }
+    // }
+
     public function assignPermissionsWithMenu(int $roleId, array $data): array
     {
         DB::beginTransaction();
+
         try {
-            RoleHasPermission::where('role_id', $roleId)->delete();
             $permissions = collect($data['permissions'] ?? []);
+
             $records = $permissions->flatMap(function ($permission) use ($roleId) {
                 $permissionId = $permission['permission_id'] ?? null;
                 $menus = collect($permission['menus'] ?? []);
+
                 if (empty($permissionId)) {
                     return [];
                 }
+
                 if ($menus->isEmpty()) {
                     return [[
                         'role_id'       => $roleId,
@@ -248,16 +308,16 @@ class RoleService
                 });
             });
 
-            // Bulk insert all records
-            if ($records->isNotEmpty()) {
-                RoleHasPermission::insert($records->toArray());
+            // ✅ Insert only new (no delete)
+            foreach ($records as $record) {
+                RoleHasPermission::firstOrCreate($record);
             }
 
             DB::commit();
 
             return [
                 'status'  => true,
-                'message' => 'Permissions assigned successfully with menus and submenus.',
+                'message' => 'Permissions added successfully (old data safe).',
             ];
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -269,23 +329,82 @@ class RoleService
 
             return [
                 'status'  => false,
-                'message' => 'Failed to assign permissions. Please try again later.',
+                'message' => 'Failed to assign permissions.',
             ];
         }
     }
 
+    // public function updatePermissionsForRole(int $roleId, array $data): array
+    // {
+    //     DB::beginTransaction();
+
+    //     try {
+    //         // Delete existing permissions for the role
+    //         RoleHasPermission::where('role_id', $roleId)->delete();
+
+    //         $permissions = collect($data['permissions'] ?? []);
+
+    //         // Prepare all records to insert
+    //         $records = $permissions->flatMap(function ($permission) use ($roleId) {
+    //             $permissionId = $permission['permission_id'] ?? null;
+    //             $menus = collect($permission['menus'] ?? []);
+
+    //             if (empty($permissionId)) {
+    //                 return [];
+    //             }
+
+    //             if ($menus->isEmpty()) {
+    //                 return [[
+    //                     'role_id'       => $roleId,
+    //                     'permission_id' => $permissionId,
+    //                     'menu_id'       => null,
+    //                     'submenu_id'    => null
+    //                 ]];
+    //             }
+
+    //             return $menus->map(function ($menu) use ($roleId, $permissionId) {
+    //                 return [
+    //                     'role_id'       => $roleId,
+    //                     'permission_id' => $permissionId,
+    //                     'menu_id'       => $menu['menu_id'] ?? null,
+    //                     'submenu_id'    => $menu['submenu_id'] ?? null
+    //                 ];
+    //             });
+    //         });
+
+    //         // Bulk insert all records
+    //         if ($records->isNotEmpty()) {
+    //             RoleHasPermission::insert($records->toArray());
+    //         }
+
+    //         DB::commit();
+
+    //         return [
+    //             'status'  => true,
+    //             'message' => 'Role permissions updated successfully.',
+    //         ];
+    //     } catch (\Throwable $e) {
+    //         DB::rollBack();
+
+    //         Log::error('Failed to update role permissions', [
+    //             'role_id' => $roleId,
+    //             'error'   => $e->getMessage(),
+    //         ]);
+
+    //         return [
+    //             'status'  => false,
+    //             'message' => 'Failed to update role permissions. Please try again later.',
+    //         ];
+    //     }
+    // }
 
     public function updatePermissionsForRole(int $roleId, array $data): array
     {
         DB::beginTransaction();
 
         try {
-            // Delete existing permissions for the role
-            RoleHasPermission::where('role_id', $roleId)->delete();
-
             $permissions = collect($data['permissions'] ?? []);
 
-            // Prepare all records to insert
             $records = $permissions->flatMap(function ($permission) use ($roleId) {
                 $permissionId = $permission['permission_id'] ?? null;
                 $menus = collect($permission['menus'] ?? []);
@@ -313,16 +432,16 @@ class RoleService
                 });
             });
 
-            // Bulk insert all records
-            if ($records->isNotEmpty()) {
-                RoleHasPermission::insert($records->toArray());
+            // ✅ Only insert new, don't delete old
+            foreach ($records as $record) {
+                RoleHasPermission::firstOrCreate($record);
             }
 
             DB::commit();
 
             return [
                 'status'  => true,
-                'message' => 'Role permissions updated successfully.',
+                'message' => 'Permissions updated safely (merged).',
             ];
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -334,7 +453,7 @@ class RoleService
 
             return [
                 'status'  => false,
-                'message' => 'Failed to update role permissions. Please try again later.',
+                'message' => 'Failed to update role permissions.',
             ];
         }
     }
@@ -378,7 +497,7 @@ class RoleService
                 'status' => $data['status'],
             ]);
             if (!empty($validPermissions)) {
-                $role->syncPermissions($validPermissions);
+                $role->givePermissionTo($validPermissions);
             }
             DB::commit();
 
@@ -433,7 +552,7 @@ class RoleService
                     ->pluck('id')
                     ->toArray();
 
-                $role->syncPermissions($validPermissions);
+                $role->givePermissionTo($validPermissions);
             }
 
             if (isset($data['labels'])) {
@@ -484,7 +603,7 @@ class RoleService
     //                 ->pluck('id')
     //                 ->toArray();
 
-    //             $role->syncPermissions($validPermissions);
+    //             $role->givePermissionTo($validPermissions);
     //         }
 
     //         DB::commit();

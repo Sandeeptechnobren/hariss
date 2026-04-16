@@ -37,8 +37,8 @@ class PricingResource extends JsonResource
                     'id'        => $d->id,
                     'name'      => $d->name,
                     'item_id'  => $d->item_id,
-                    'buom_ctn_price'=> $d->buom_ctn_price,
-                    'auom_pc_price'=> $d->auom_pc_price,
+                    'buom_pc_price'=> $d->buom_pc_price,
+                    'auom_ctn_price'=> $d->auom_ctn_price,
                     'status'    => $d->status,
                 ];
             }),

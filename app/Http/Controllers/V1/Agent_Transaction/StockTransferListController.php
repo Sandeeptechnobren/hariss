@@ -119,60 +119,113 @@ class StockTransferListController extends Controller
         return response()->json($result);
     }
 
+    // public function exportHeader(Request $request)
+    // {
+    //     $format    = strtolower($request->input('format', 'xlsx'));
+    //     $extension = $format === 'csv' ? 'csv' : 'xlsx';
+
+    //     $date = now()->format('dmY');
+    //     $baseName = 'Stock_Transfer_' . $date;
+
+    //     $directory = 'stockexports/';
+
+    //     // ✅ existing files fetch
+    //     $files = Storage::disk('public')->files($directory);
+
+    //     $existingNumbers = [];
+
+    //     foreach ($files as $file) {
+    //         if (preg_match('/' . $date . '_(\d+)/', $file, $matches)) {
+    //             $existingNumbers[] = (int) $matches[1];
+    //         }
+    //     }
+
+    //     // ✅ next count
+    //     $next = empty($existingNumbers) ? 1 : max($existingNumbers) + 1;
+
+    //     // ✅ format 01, 02
+    //     $counter = str_pad($next, 2, '0', STR_PAD_LEFT);
+
+    //     $filename = $baseName . '_' . $counter . '.' . $extension;
+    //     $path     = $directory . $filename;
+
+    //     $filters = $request->input('filter', []);
+
+    //     $fromDate = $filters['from_date'] ?? null;
+    //     $toDate   = $filters['to_date'] ?? null;
+
+    //     $warehouseIds = !empty($filters['warehouse_id'])
+    //         ? explode(',', $filters['warehouse_id'])
+    //         : [];
+    //     // dd($filters);
+    //     $export = new StockTransferExport($fromDate, $toDate, $warehouseIds);
+
+    //     if ($format === 'csv') {
+    //         Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
+    //     } else {
+    //         Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
+    //     }
+
+    //     $fullUrl = rtrim(config('app.url'), '/') . '/storage/app/public/' . $path;
+
+    //     return response()->json([
+    //         'status' => 'success',
+    //         'download_url' => $fullUrl,
+    //     ]);
+    // }
+
     public function exportHeader(Request $request)
-    {
-        $format    = strtolower($request->input('format', 'xlsx'));
-        $extension = $format === 'csv' ? 'csv' : 'xlsx';
+{
+    $format    = strtolower($request->input('format', 'xlsx'));
+    $extension = $format === 'csv' ? 'csv' : 'xlsx';
 
-        $date = now()->format('dmY');
-        $baseName = 'Stock_Transfer_' . $date;
+    $date = now()->format('dmY');
+    $baseName = 'Stock_Transfer_' . $date;
 
-        $directory = 'stockexports/';
+    $directory = 'stockexports/';
 
-        // ✅ existing files fetch
-        $files = Storage::disk('public')->files($directory);
+    // existing files
+    $files = Storage::disk('public')->files($directory);
 
-        $existingNumbers = [];
+    $existingNumbers = [];
 
-        foreach ($files as $file) {
-            if (preg_match('/' . $date . '_(\d+)/', $file, $matches)) {
-                $existingNumbers[] = (int) $matches[1];
-            }
+    foreach ($files as $file) {
+        if (preg_match('/' . $date . '_(\d+)/', $file, $matches)) {
+            $existingNumbers[] = (int) $matches[1];
         }
-
-        // ✅ next count
-        $next = empty($existingNumbers) ? 1 : max($existingNumbers) + 1;
-
-        // ✅ format 01, 02
-        $counter = str_pad($next, 2, '0', STR_PAD_LEFT);
-
-        $filename = $baseName . '_' . $counter . '.' . $extension;
-        $path     = $directory . $filename;
-
-        $filters = $request->input('filter', []);
-
-        $fromDate = $filters['from_date'] ?? null;
-        $toDate   = $filters['to_date'] ?? null;
-
-        $warehouseIds = !empty($filters['warehouse_id'])
-            ? explode(',', $filters['warehouse_id'])
-            : [];
-        // dd($filters);
-        $export = new StockTransferExport($fromDate, $toDate, $warehouseIds);
-
-        if ($format === 'csv') {
-            Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
-        } else {
-            Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
-        }
-
-        $fullUrl = rtrim(config('app.url'), '/') . '/storage/app/public/' . $path;
-
-        return response()->json([
-            'status' => 'success',
-            'download_url' => $fullUrl,
-        ]);
     }
+
+    $next = empty($existingNumbers) ? 1 : max($existingNumbers) + 1;
+    $counter = str_pad($next, 2, '0', STR_PAD_LEFT);
+
+    $filename = $baseName . '_' . $counter . '.' . $extension;
+    $path     = $directory . $filename;
+
+    $filters = $request->input('filter', []);
+
+    $fromDate = $filters['from_date'] ?? null;
+    $toDate   = $filters['to_date'] ?? null;
+
+    $warehouseIds = !empty($filters['warehouse_id'])
+        ? explode(',', $filters['warehouse_id'])
+        : [];
+
+    $export = new StockTransferExport($fromDate, $toDate, $warehouseIds);
+
+    if ($format === 'csv') {
+        Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
+    } else {
+        Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
+    }
+
+    // ✅ correct public URL
+    $fullUrl = asset('storage/' . $path);
+
+    return response()->json([
+        'status' => 'success',
+        'download_url' => $fullUrl,
+    ]);
+}
     public function exportCollaps(Request $request)
     {
         $format    = strtolower($request->input('format', 'xlsx'));

@@ -80,7 +80,7 @@ class PetitClaimExport implements
         return [
             "OSA Code",
             "Claim Type",
-            "Warehouse", // ✅ merged heading
+            "Distributor", // ✅ merged heading
             "Petit Name",
             "Fuel Amount",
             "Rent Amount",

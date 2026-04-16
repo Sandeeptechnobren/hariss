@@ -372,4 +372,36 @@ class IROHeaderController extends Controller
             ], 500);
         }
     }
+
+    public function globalFilter(Request $request): JsonResponse
+    {
+        try {
+            $perPage = $request->get('limit', 50);
+            $filters = $request->except(['limit']);
+
+            $records = $this->service->globalFilter($perPage, $filters);
+
+            $pagination = [
+                'current_page' => $records->currentPage(),
+                'last_page'    => $records->lastPage(),
+                'per_page'     => $records->perPage(),
+                'total'        => $records->total(),
+            ];
+
+            return response()->json([
+                'status'     => 'success',
+                'code'       => 200,
+                'message'    => 'Records fetched successfully',
+                'data'       => IROHeaderResource::collection($records),
+                'pagination' => $pagination,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status'  => 'error',
+                'code'    => 500,
+                'message' => 'Failed to retrieve invoices',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

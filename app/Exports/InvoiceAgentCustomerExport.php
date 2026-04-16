@@ -86,7 +86,7 @@ class InvoiceAgentCustomerExport implements
             'Distributor',
             'Route',
             'Customer',
-            'Salesman',
+            'Sales Team',
             'Item Count',
         ];
     }

@@ -11,6 +11,7 @@ use App\Helpers\ApprovalHelper;
 use Throwable;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Storage;
+use Carbon\Carbon;
 
 class ServiceVisitService
 {
@@ -48,6 +49,21 @@ class ServiceVisitService
                 }
             }
 
+            if (empty($filters['from_date']) && empty($filters['to_date'])) {
+                $query->whereBetween('created_at', [
+                    Carbon::now()->startOfMonth(),
+                    Carbon::now()->endOfMonth(),
+                ]);
+            }
+
+            // ✅ If user sends date filter
+            if (!empty($filters['from_date'])) {
+                $query->whereDate('created_at', '>=', $filters['from_date']);
+            }
+
+            if (!empty($filters['to_date'])) {
+                $query->whereDate('created_at', '<=', $filters['to_date']);
+            }
             $result = $query
                 ->orderBy('created_at', 'desc')
                 ->paginate($perPage);

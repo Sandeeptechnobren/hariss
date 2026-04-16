@@ -218,7 +218,7 @@ class InvoiceCollapseExport implements
             'Distributors',
             'Route',
             'Customer',
-            'Salesman',
+            'Sales Team',
             'VAT',
             'Net Total',
             'Total Amount',

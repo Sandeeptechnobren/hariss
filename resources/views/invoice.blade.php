@@ -63,18 +63,26 @@
             <td style="border:1px solid #000;">Address:</td>
             <td style="border:1px solid #000;">{{ $header->customer->street ?? '' }}{{ $header->customer->town ?? '' }}{{ $header->customer->landmark ?? '' }}{{ $header->customer->district ?? '' }}</td>
         </tr>
-        <!-- <tr>
-        <td style="border:1px solid #000;">TIN No:</td>
-        <td style="border:1px solid #000;">{{ $header->customer->tin_no ?? '' }}</td>
-    </tr> -->
+        <tr>
+            <td style="border:1px solid #000;">TIN No:</td>
+            <td style="border:1px solid #000;">{{ $header->customer->tin_no ?? '' }}</td>
+        </tr>
         <tr>
             <td style="border:1px solid #000;">Contact No:</td>
             <td style="border:1px solid #000;">{{ $header->customer->contact_no ?? '' }}</td>
         </tr>
-        <!-- <tr>
-        <td style="border:1px solid #000;">Invoice No:</td>
-        <td style="border:1px solid #000;">{{ $header->invoice_code }}</td>
-    </tr> -->
+        <tr>
+            <td style="border:1px solid #000;">Invoice No:</td>
+            <td style="border:1px solid #000;">{{ $header->ura_invoice_id }}</td>
+        </tr>
+        <tr>
+            <td style="border:1px solid #000;">Invoice FDN:</td>
+            <td style="border:1px solid #000;">{{ $header->ura_invoice_no }}</td>
+        </tr>
+        <tr>
+            <td style="border:1px solid #000;">Verification Code:</td>
+            <td style="border:1px solid #000;">{{ $header->ura_antifake_code }}</td>
+        </tr>
     </table>
     <table width="100%" cellpadding="2" cellspacing="0" style="border-collapse:collapse;">
         <tr>

@@ -14,6 +14,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Throwable;
+use App\Helpers\DataAccessHelper;
+use Illuminate\Pagination\Paginator;
+use App\Helpers\CommonLocationFilter;
 
 class IRService
 {
@@ -46,33 +49,32 @@ class IRService
                         continue;
                     }
                     // if (in_array($field, ['osa_code', 'iro_id', 'status'])) {
-                          
+
                     //     $query->whereRaw("LOWER({$field}) LIKE ?", ['%' . strtolower($value) . '%']);
                     // } else {
                     //     $query->where($field, $value);
                     // }
                     if (in_array($field, ['osa_code', 'iro_id'])) {
-                            $query->whereRaw("LOWER({$field}) LIKE ?", ['%' . strtolower($value) . '%']);
-                         
-                        } elseif ($field === 'status') {
-                            // dd($value);
-                             $statusValues = is_array($value) ? $value : explode(',', $value);
+                        $query->whereRaw("LOWER({$field}) LIKE ?", ['%' . strtolower($value) . '%']);
+                    } elseif ($field === 'status') {
+                        // dd($value);
+                        $statusValues = is_array($value) ? $value : explode(',', $value);
 
-                            // clean + integer convert
-                            $statusValues = array_filter(array_map('intval', $statusValues));
+                        // clean + integer convert
+                        $statusValues = array_filter(array_map('intval', $statusValues));
 
-                            $query->whereIn($field, $statusValues);
-                            // $query->where($field, (int)$value);
+                        $query->whereIn($field, $statusValues);
+                        // $query->where($field, (int)$value);
 
-                        } else {
-                            $query->where($field, $value);
-                        }
+                    } else {
+                        $query->where($field, $value);
+                    }
                 }
             }
 
             return $query->paginate($perPage);
         } catch (Throwable $e) {
-           
+
             throw new \Exception("Unable to fetch IR Headers at this time.");
         }
     }
@@ -511,5 +513,55 @@ class IRService
 
             return true;
         });
+    }
+
+    public function globalFilter(int $perPage = 50, array $filters = [])
+    {
+        $user = auth()->user();
+
+        $filter = $filters['filter'] ?? [];
+        if (!empty($filters['current_page'])) {
+            Paginator::currentPageResolver(function () use ($filters) {
+                return (int) $filters['current_page'];
+            });
+        }
+        $query = IRHeader::query();
+        $query = DataAccessHelper::filterAgentTransaction($query, $user);
+
+        if (!empty($filter)) {
+
+            $warehouseIds = CommonLocationFilter::resolveWarehouseIds([
+                'company_id'   => $filter['company_id']   ?? null,
+                'region_id'    => $filter['region_id']    ?? null,
+                'area_id'      => $filter['area_id']      ?? null,
+                'warehouse_id' => $filter['warehouse_id'] ?? null,
+                'route_id'     => $filter['route_id']     ?? null,
+            ]);
+
+            if (!empty($warehouseIds)) {
+                $query->whereIn('warehouse_id', $warehouseIds);
+            }
+        }
+        if (!empty($filter['ir_status'])) {
+            $statuses = is_array($filter['ir_status'])
+                ? $filter['ir_status']
+                : explode(',', $filter['ir_status']);
+            $query->whereIn('status', $statuses);
+        }
+        if (!empty($filter['salesman_id'])) {
+            $salesmanId = is_array($filter['salesman_id'])
+                ? $filter['salesman_id']
+                : explode(',', $filter['salesman_id']);
+            $query->whereIn('salesman_id', $salesmanId);
+        }
+        if (!empty($filter['from_date'])) {
+            $query->whereDate('created_at', '>=', $filter['from_date']);
+        }
+
+        if (!empty($filter['to_date'])) {
+            $query->whereDate('created_at', '<=', $filter['to_date']);
+        }
+
+        return $query->paginate($perPage);
     }
 }

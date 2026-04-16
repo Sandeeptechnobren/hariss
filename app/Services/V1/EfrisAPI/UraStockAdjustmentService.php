@@ -138,6 +138,7 @@ namespace App\Services\V1\EfrisAPI;
 
 use App\Models\Warehouse;
 use App\Models\Item;
+use App\Models\Uom;
 use App\Models\EfrisAPI\DailyStockCountDetail;
 
 class UraStockAdjustmentService extends BaseEfrisService
@@ -195,13 +196,15 @@ class UraStockAdjustmentService extends BaseEfrisService
 
             $qty = $value->qty;
             $stock = $record['stock'];
+            $uomCode = $record['measureUnit'] ?? null;
 
-            // 🔥 FILTER LOGIC SAME (no change)
+            $uomName = Uom::where('uom_efriscode', $uomCode)
+                ->value('name') ?? $uomCode;
             if ($operationType == 101 && ($stock - $qty) <= -0.5) {
                 $resp[] = [
                     'code' => $record['goodsCode'],
                     'name' => $record['goodsName'],
-                    'uom' => $record['measureUnit'],
+                    'uom' => $uomName,
                     'unitprice' => $record['unitPrice'],
                     'w_stock' => $qty,
                     'efris_stock' => $stock,
@@ -213,7 +216,7 @@ class UraStockAdjustmentService extends BaseEfrisService
                 $resp[] = [
                     'code' => $record['goodsCode'],
                     'name' => $record['goodsName'],
-                    'uom' => $record['measureUnit'],
+                    'uom' => $uomName,
                     'unitprice' => $record['unitPrice'],
                     'w_stock' => $qty,
                     'efris_stock' => $stock,

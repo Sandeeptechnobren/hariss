@@ -152,7 +152,7 @@ class OrderCollapseExport implements FromCollection, WithHeadings, ShouldAutoSiz
             'Order Date',
             'Distributors',
             'Customer',
-            'Salesman',
+            'Sales Team',
             'Route',
             'Delivery Date',
             'Comment',

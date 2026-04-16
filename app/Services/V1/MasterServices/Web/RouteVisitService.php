@@ -939,28 +939,16 @@ class RouteVisitService
     //     return $query->paginate($perPage);
     // }
 
-
-    public function globalSearch(?string $query, int $perPage = 10)
+public function globalSearch(?string $query, int $perPage = 10)
     {
         $builder = RouteVisitHeader::query()
-            ->whereNull('deleted_at')
-            ->with([
+            ->whereNull('deleted_at')->with([
                 'routeVisits' => function ($q) {
                     $q->whereNull('deleted_at');
-                }
-            ])
-            ->orderBy('id', 'desc');
-
-        /**
-         * 🔍 Global search (single query param)
-         */
+                }])->orderBy('id', 'desc');
         if (!empty($query)) {
             $builder->where(function ($h) use ($query) {
-
-                // Header level search
                 $h->where('osa_code', 'ILIKE', "%{$query}%");
-
-                // Route visit level search
                 $h->orWhereHas('routeVisits', function ($rv) use ($query) {
                     $rv->whereNull('deleted_at')
                         ->where(function ($q) use ($query) {
@@ -970,13 +958,11 @@ class RouteVisitService
                                 ->orWhere('route', 'ILIKE', "%{$query}%")
                                 ->orWhereRaw("from_date::text ILIKE ?", ["%{$query}%"])
                                 ->orWhereRaw("to_date::text ILIKE ?", ["%{$query}%"]);
-
                             $customerTypeMap = [
                                 'Field Customer' => '1',
                                 'Merchandiser'   => '2',
                             ];
                             $normalizedQuery = strtolower(trim($query));
-
                             if (isset($customerTypeMap[$normalizedQuery])) {
                                 $q->orWhere('customer_type', $customerTypeMap[$normalizedQuery]);
                             }
@@ -984,7 +970,6 @@ class RouteVisitService
                 });
             });
         }
-
         return $builder->paginate($perPage);
     }
 

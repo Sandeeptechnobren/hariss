@@ -21,9 +21,21 @@ class UraDeliverySyncController extends Controller
             'delivery_id' => 'required'
         ]);
 
-        $result = $this->service->syncDelivery($request->delivery_id);
+        $input = $request->delivery_id;
 
-        return response()->json($result);
+        $ids = is_string($input)
+            ? array_map('intval', array_map('trim', explode(',', $input)))
+            : [(int) $input];
+
+        $ids = array_values(array_filter(array_unique($ids)));
+
+        $results = [];
+
+        foreach ($ids as $id) {
+            $results[] = $this->service->syncDelivery($id);
+        }
+
+        return response()->json($results);
     }
 
 

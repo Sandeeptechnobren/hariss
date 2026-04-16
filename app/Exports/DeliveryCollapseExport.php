@@ -194,7 +194,7 @@ class DeliveryCollapseExport implements
             'Delivery Date',
             'Distributors',
             'Route',
-            'Salesman',
+            'Sales Team',
             'Customer',
             'VAT',
             'Discount',

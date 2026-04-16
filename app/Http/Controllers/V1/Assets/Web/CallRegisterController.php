@@ -292,17 +292,7 @@ class CallRegisterController extends Controller
         $perPage = $request->get('limit', 20);
 
         // If payload comes inside "filter" object, extract it
-        $filters = $request->has('filter')
-            ? $request->input('filter')
-            : $request->only([
-                'status',
-                'outlet_name',
-                'ticket_type',
-                'owner_name',
-                'from_date',
-                'to_date',
-                'technician_id'
-            ]);
+        $filters = $request->except(['limit']);
 
         $records = $this->service->globalFilter($perPage, $filters);
 

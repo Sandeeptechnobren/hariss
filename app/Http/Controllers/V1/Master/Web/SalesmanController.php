@@ -1132,41 +1132,69 @@ class SalesmanController extends Controller
         ]);
     }
 
-    public function exportAttendance(Request $request)
-    {
-        $format    = strtolower($request->input('format', 'xlsx'));
-        $extension = $format === 'csv' ? 'csv' : 'xlsx';
+// public function exportAttendance(Request $request)
+//     {
+//         $format    = strtolower($request->input('format', 'xlsx'));
+//         $extension = $format === 'csv' ? 'csv' : 'xlsx';
 
-        $filename = 'SalesTeam_Attendance.' . $extension;
-        $path     = 'salesteamAttendance/' . $filename;
+//         $filename = 'SalesTeam_Attendance.' . $extension;
+//         $path     = 'salesteamAttendance/' . $filename;
 
-        $filters = $request->input('filter', []);
-        $fromDate = $filters['from_date'] ?? null;
+//         $filters = $request->input('filter', []);
+//         $fromDate = $filters['from_date'] ?? null;
 
-        $toDate   = $filters['to_date'] ?? null;
-        $salesman_id = $request->input('salesman_id') 
-            ?? ($filters['salesman_id'] ?? null);
+//         $toDate   = $filters['to_date'] ?? null;
+//         $salesman_id = $request->input('salesman_id') 
+//             ?? ($filters['salesman_id'] ?? null);
 
-        $export = new SalesTeamAttendanceExport(
-            $fromDate,
-            $toDate,
-            $salesman_id
-        );
+//         $export = new SalesTeamAttendanceExport(
+//             $fromDate,
+//             $toDate,
+//             $salesman_id
+//         );
 
-        if ($format === 'csv') {
-            Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
-        } else {
-            Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
-        }
+//         if ($format === 'csv') {
+//             Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
+//         } else {
+//             Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
+//         }
 
-        $fullUrl = rtrim(config('app.url'), '/') . '/storage/app/public/' . $path;
+//         $fullUrl = rtrim(config('app.url'), '/') . '/storage/app/public/' . $path;
 
-        return response()->json([
-            'status' => 'success',
-            'download_url' => $fullUrl,
-        ]);
+//         return response()->json([
+//             'status' => 'success',
+//             'download_url' => $fullUrl,
+//         ]);
+//     }
+
+public function exportAttendance(Request $request)
+{
+    $format    = strtolower($request->input('format', 'xlsx'));
+    $extension = $format === 'csv' ? 'csv' : 'xlsx';
+
+    $filename = 'SalesTeam_Attendance.' . $extension;
+    $path     = 'salesteamAttendance/' . $filename;
+
+    $filters     = $request->input('filter', []);
+    $fromDate    = !empty($filters['from_date']) ? $filters['from_date'] : null;  // ← empty string → null
+    $toDate      = !empty($filters['to_date'])   ? $filters['to_date']   : null;  // ← empty string → null
+    $salesman_id = !empty($filters['salesman_id']) ? $filters['salesman_id'] : null;
+
+    $export = new SalesTeamAttendanceExport($fromDate, $toDate, $salesman_id);
+
+    if ($format === 'csv') {
+        Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
+    } else {
+        Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
     }
 
+    $fullUrl = rtrim(config('app.url'), '/') . '/storage/app/public/' . $path;
+
+    return response()->json([
+        'status'       => 'success',
+        'download_url' => $fullUrl,
+    ]);
+}
     public function exportInvoiceSalesman(Request $request)
     {
         $format    = strtolower($request->input('format', 'xlsx'));

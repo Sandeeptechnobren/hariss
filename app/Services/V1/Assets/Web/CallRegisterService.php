@@ -15,6 +15,8 @@ use App\Exports\CallRegisterExport;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Helpers\DataAccessHelper;
+use App\Helpers\CommonLocationFilter;
 
 class CallRegisterService
 {
@@ -560,13 +562,29 @@ class CallRegisterService
     public function globalFilter(int $perPage = 50, array $filters = [])
     {
         try {
+            $user = auth()->user();
 
-            $filter = isset($filters['filter']) && is_array($filters['filter'])
-                ? $filters['filter']
-                : $filters;
-
+            $filter = $filters['filter'] ?? [];
             $query = CallRegister::query();
+            $query = DataAccessHelper::filterAgentTransaction($query, $user);
 
+
+            if (!empty($filter)) {
+
+                $warehouseIds = CommonLocationFilter::resolveWarehouseIds([
+                    'company_id'   => $filter['company_id']   ?? null,
+                    'region_id'    => $filter['region_id']    ?? null,
+                    'area_id'      => $filter['area_id']      ?? null,
+                    'warehouse_id' => $filter['warehouse_id'] ?? null,
+                    'route_id'     => $filter['route_id']     ?? null,
+                ]);
+
+                if (!empty($warehouseIds)) {
+                    $query->whereHas('assignedCustomer', function ($q) use ($warehouseIds) {
+                        $q->whereIn('warehouse', $warehouseIds);
+                    });
+                }
+            }
             if (!empty($filter['from_date']) && !empty($filter['to_date'])) {
                 $query->whereBetween('ticket_date', [
                     $filter['from_date'],
