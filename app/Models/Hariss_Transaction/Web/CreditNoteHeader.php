@@ -16,12 +16,14 @@ class CreditNoteHeader extends Model
     protected $fillable = [
         'uuid',
         'credit_note_no',
-        'purchase_invoice_id',
+        'purchase_return_id',
         'supplier_id',
         'customer_id',
         'salesman_id',
         'distributor_id',
         'total_amount',
+        'total_net',
+        'total_vat',
         'reason',
         'status',
     ];
@@ -77,6 +79,6 @@ class CreditNoteHeader extends Model
     }
     public function purchaseReturn()
     {
-        return $this->belongsTo(HtReturnHeader::class,'purchase_return_id');
+        return $this->belongsTo(HtReturnHeader::class,'purchase_return_id', 'id');
     }
 }

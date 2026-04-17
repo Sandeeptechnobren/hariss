@@ -13,8 +13,8 @@ class CreditNoteDetailResource extends JsonResource
             'price' => $this->price,
             'total' => $this->total,
             'batch_no'=>$this->batch_no,
-            'net'=>$this->net,
-            'vat'=>$this->vat,
+            'net'     =>$this->net,
+            'vat'     =>$this->vat,
         ];
     }
 }

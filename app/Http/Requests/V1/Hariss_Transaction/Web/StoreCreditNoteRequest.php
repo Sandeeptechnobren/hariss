@@ -14,6 +14,8 @@ class StoreCreditNoteRequest extends FormRequest
             'customer_id' => 'nullable|exists:ht_return_header,customer_id',
             //'salesman_id' => 'nullable|exists:ht_return_header,salesman_id',
             'distributor_id' => 'nullable|exists:ht_return_header,warehouse_id',
+            'total_net' => 'nullable|exists:ht_return_header,net',
+            'total_vat' => 'nullable|exists:ht_return_header,vat',
             'reason' => 'nullable|string',
 
             'details' => 'required|array|min:1',
@@ -21,6 +23,8 @@ class StoreCreditNoteRequest extends FormRequest
             'details.*.qty' => 'required|numeric|min:0.01',
             'details.*.price' => 'required|numeric|min:0',
             'details.*.batch_no' => 'required|exists:ht_return_details',
+            'details.*.net' => 'required|exists:ht_return_details',
+            'details.*.vat' => 'required|exists:ht_return_details',
         ];
     }
 }

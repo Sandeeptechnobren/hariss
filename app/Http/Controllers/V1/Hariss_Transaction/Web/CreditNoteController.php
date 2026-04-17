@@ -304,7 +304,7 @@ public function getCreditNoteFullByInvoiceUuid($uuid)
             'customer:id,business_name,osa_code',
            // 'salesman:id,name',
             'distributor',
-            'details:id,header_id,item_id,qty,item_value,total'
+            'details:id,header_id,item_id,qty,item_value,total,net,vat'
         ])
         ->where('uuid', $uuid)
         ->first();
@@ -326,6 +326,8 @@ public function getCreditNoteFullByInvoiceUuid($uuid)
             'sap_id' => $data->sap_id,
             'total_amount' => $data->total,
             'status' => $data->status,
+            'total_net' => $data->net,
+            'total_vat' => $data->vat,
 
             'customer' => $data->customer ? [
                 'id' => $data->customer->id,
@@ -349,7 +351,7 @@ public function getCreditNoteFullByInvoiceUuid($uuid)
                 'code' => null,
                 'name' => null
             ],
-
+           
             // 🔥 DETAILS ADD
             'details' => $data->details->map(function ($d) {
     return [
@@ -362,6 +364,8 @@ public function getCreditNoteFullByInvoiceUuid($uuid)
             'qty'   => $d->qty,
             'item_value' => $d->item_value,
             'total'      => $d->total,
+            'net'        => $d->net,
+            'vat'        =>$d->vat,
 
         ];
         }),

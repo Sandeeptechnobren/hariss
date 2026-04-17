@@ -98,6 +98,8 @@ class CreditNoteService
             'salesman_id'        => $data['salesman_id'] ?? null,
             'distributor_id'     => $data['distributor_id'] ?? null,
             'reason'             => $data['reason'] ?? null,
+            'total_net'          => $data['total_net'] ?? null,
+            'total_vat'          => $data['total_vat'] ?? null,
             'status'             => 1,
             'total_amount'       => 0
         ]);
@@ -108,6 +110,8 @@ class CreditNoteService
             $qty     = $item['qty'];
             $price   = $item['price'];
             $batchNo = $item['batch_no'];
+            $net     = $item['net'];
+            $vat     = $item['vat'];
 
             // ✅ Purchase return qty (batch wise)
             $purchaseQty = HtReturnDetail::where('header_id', $invoice->id)
@@ -144,6 +148,9 @@ class CreditNoteService
                 'price'          => $price,
                 'total'          => $lineTotal,
                 'batch_no'       => $batchNo, // ✅ FINAL
+                'net'            => $net,
+                'vat'            => $vat,
+
             ]);
         }
 
@@ -151,8 +158,6 @@ class CreditNoteService
         $creditNote->update([
             'total_amount' => $totalAmount
         ]);
-
-        // JournalEntryHelper::createCreditNoteJournal($creditNote);
 
         return $creditNote->load([
             'details',
@@ -168,7 +173,7 @@ class CreditNoteService
             'customer:id,business_name,osa_code',
             'salesman:id,name',
             'distributor:id,warehouse_name,warehouse_code',
-            'purchaseInvoice:id,invoice_code',
+            'purchasereturn:id,return_code',
             'creditNoteDetails:id,credit_note_id,item_id,qty,price,total'
         ])
         ->orderBy('id', 'asc')
@@ -180,9 +185,9 @@ class CreditNoteService
                     'uuid' => $item->uuid,
                     'credit_note_no' => $item->credit_note_no,
 
-                    'purchase_invoice' => $item->purchaseInvoice ? [
-                        'id' => $item->purchaseInvoice->id,
-                        'invoice_code' => $item->purchaseInvoice->invoice_code
+                    'purchase_return' => $item->purchasereturn ? [
+                        'id' => $item->purchasereturn->id,
+                        'return_code' => $item->purchasereturn->return_code
                     ] : null,
                     'supplier_id' => $item->supplier_id,
                     'total_amount' => $item->total_amount,
@@ -210,6 +215,8 @@ class CreditNoteService
                             'qty' => $detail->qty,
                             'price' => $detail->price,
                             'total' => $detail->total,
+                            'net'   =>$detail->net,
+                            'vat' => $detail->vat,
                         ];
                     }),
                     'created_at' => $item->created_at,

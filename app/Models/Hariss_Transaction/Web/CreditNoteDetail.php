@@ -8,7 +8,7 @@ class CreditNoteDetail extends Model
 {
     protected $table = 'credit_note_details';
 
-    public $timestamps = false; // kyuki updated_at nahi hai
+    public $timestamps = false; 
 
     protected $fillable = [
         'credit_note_id',
@@ -17,6 +17,8 @@ class CreditNoteDetail extends Model
         'price',
         'total',
         'batch_no',
+        'net',
+        'vat',
     ];
 
     // 🔥 Relations
