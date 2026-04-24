@@ -56,7 +56,7 @@ class DeliveryCollapseExport implements
                 'salesman_id',
                 'customer_id',
                 'vat',
-                'discount',
+                //'discount',
                 'net_amount',
                 'total'
             ])
@@ -65,7 +65,7 @@ class DeliveryCollapseExport implements
                 'route:id,route_code,route_name',
                 'salesman:id,osa_code,name',
                 'customer:id,osa_code,name',
-                'details:id,header_id,item_id,uom_id,item_price,quantity,vat,discount,net_total,total',
+                'details:id,header_id,item_id,uom_id,item_price,quantity,vat,net_total,total',
                 'details.item:id,erp_code,name',
                 'details.Uom:id,name',
             ])
@@ -112,7 +112,7 @@ class DeliveryCollapseExport implements
                             trim(($header->customer->osa_code ?? '') . ' - ' . ($header->customer->name ?? ''))
                         ),
                         (float) ($header->vat ?? 0),
-                        (float) ($header->discount ?? 0),
+                     //   (float) ($header->discount ?? 0),
                         (float) ($header->net_amount ?? 0),
                         (float) ($header->total ?? 0),
                         $itemCount,
@@ -134,7 +134,7 @@ class DeliveryCollapseExport implements
                         'Quantity',
                         'Item Price',
                         'VAT',
-                        'Discount',
+                       // 'Discount',
                         'Net Amount',
                         'Total',
                         '',
@@ -158,7 +158,7 @@ class DeliveryCollapseExport implements
                             (float) ($detail->quantity ?? 0),
                             (float) ($detail->item_price ?? 0),
                             (float) ($detail->vat ?? 0),
-                            (float) ($detail->discount ?? 0),
+                         //   (float) ($detail->discount ?? 0),
                             (float) ($detail->net_total ?? 0),
                             (float) ($detail->total ?? 0),
                             '',
@@ -197,7 +197,7 @@ class DeliveryCollapseExport implements
             'Sales Team',
             'Customer',
             'VAT',
-            'Discount',
+          //  'Discount',
             'Net Amount',
             'Total',
             'Item Count',

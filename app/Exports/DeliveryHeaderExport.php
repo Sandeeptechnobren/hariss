@@ -96,7 +96,7 @@ class DeliveryHeaderExport implements
                 ),
 
                 'VAT'        => (float) ($header->vat ?? 0),
-                'Discount'   => (float) ($header->discount ?? 0),
+                //'Discount'   => (float) ($header->discount ?? 0),
                 'Net Amount' => (float) ($header->net_amount ?? 0),
                 'Total'      => (float) ($header->total ?? 0),
             ];
@@ -115,7 +115,7 @@ class DeliveryHeaderExport implements
             'Sales Team',
             'Customer',
             'VAT',
-            'Discount',
+            //'Discount',
             'Net Amount',
             'Total',
         ];

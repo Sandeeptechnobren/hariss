@@ -292,7 +292,7 @@ class StockTransferListController extends Controller
             ];
 
             $paginator = $this->service->globalFilter($perPage, $filters);
-
+           
             return response()->json([
                 'status' => 'success',
                 'data'   => StockTransferHeaderResource::collection($paginator->items()),

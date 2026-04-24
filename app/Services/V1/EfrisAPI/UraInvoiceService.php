@@ -21,7 +21,7 @@ class UraInvoiceService extends BaseEfrisService
         try {
             $user = auth()->user();
             $filter = $filters['filter'] ?? [];
-
+            // dd($filter);
             $query = InvoiceHeader::with([
                 'warehouse:id,warehouse_code,warehouse_name',
                 'customer:id,name,osa_code',
@@ -32,7 +32,7 @@ class UraInvoiceService extends BaseEfrisService
                 ->where('status', 1)
                 ->latest();
 
-            $query = DataAccessHelper::filterAgentTransaction($query, $user);
+            // $query = DataAccessHelper::filterAgentTransaction($query, $user);
 
             if (!empty($filter)) {
                 $warehouseIds = CommonLocationFilter::resolveWarehouseIds([
@@ -64,7 +64,7 @@ class UraInvoiceService extends BaseEfrisService
             }
 
             $invoices = $query->get();
-
+            // dd($invoices);
             $formatted = $invoices->map(function ($invoice) {
                 return [
                     'invoice_id'   => $invoice->id,
@@ -107,6 +107,7 @@ class UraInvoiceService extends BaseEfrisService
     public function syncInvoice($id)
     {
         try {
+            // dd($id);
             $data = $this->fetchInvoiceData($id);
             // dd($data['warehouse']);
 
@@ -146,11 +147,15 @@ class UraInvoiceService extends BaseEfrisService
         $header = InvoiceHeader::with(['customer', 'warehouse'])->find($id);
         if (!$header) return ['success' => false, 'message' => 'Invoice not found'];
 
-        $salesman = Salesman::find($header->salesman_id);
-        if (!$salesman) return ['success' => false, 'message' => 'Salesman not found'];
+        $salesmanId = $header->salesman_id ?: auth()->id();
 
+        $salesman = Salesman::find($salesmanId);
+
+        if (!$salesman) {
+            return ['success' => false, 'message' => 'Salesman not found'];
+        }
         $customer = AgentCustomer::find($header->customer_id);
-        if (!$salesman) return ['success' => false, 'message' => 'Agent not found'];
+        if (!$customer) return ['success' => false, 'message' => 'Agent not found'];
 
         $route = Route::find($header->route_id);
         if (!$route) return ['success' => false, 'message' => 'Route not found'];
@@ -161,9 +166,10 @@ class UraInvoiceService extends BaseEfrisService
 
         if (!$warehouse) return ['success' => false, 'message' => 'EFRIS warehouse not found'];
 
-        $items = InvoiceDetail::with(['item.uoms'])
+        $items = InvoiceDetail::with('item')
             ->where('header_id', $id)
             ->get();
+
         // dd($header);
         return [
             'success' => true,
@@ -189,32 +195,42 @@ class UraInvoiceService extends BaseEfrisService
 
         foreach ($items as $key => $value) {
 
-            $item = $value->item;
-            if (!$item) continue;
+            if (!$value->item) continue;
 
-            $altuom = $this->getUom($value->uom);
+            // 🔥 normalize item (single ya collection dono handle)
+            $itemsList = $value->item instanceof \Illuminate\Support\Collection
+                ? $value->item
+                : collect([$value->item]);
 
-            $total = $value->itemvalue * $value->quantity;
-            $vat = $total - ($total / 1.18);
 
-            $all_total += $total;
-            $all_vat += $vat;
+            foreach ($itemsList as $item) {
 
-            $itemdetails[] = [
-                "item" => $item->name,
-                "itemCode" => $item->sap_id,
-                "qty" => $value->quantity,
-                "unitOfMeasure" => $altuom,
-                "unitPrice" => $value->itemvalue,
-                "total" => number_format($total, 2, '.', ''),
-                "taxRate" => "0.18",
-                "tax" => number_format($vat, 2, '.', ''),
-                "orderNumber" => $key,
-                "discountFlag" => "2",
-                "deemedFlag" => "2",
-                "exciseFlag" => "2",
-                "goodsCategoryId" => $item->commodity_goods_code
-            ];
+                if (!$item) continue;
+
+                $altuom = $this->getUom($value->uom);
+
+                $total = $value->itemvalue * $value->quantity;
+                $vat = $total - ($total / 1.18);
+
+                $all_total += $total;
+                $all_vat += $vat;
+
+                $itemdetails[] = [
+                    "item" => $item->name ?? '',
+                    "itemCode" => $item->sap_id ?? '',
+                    "qty" => $value->quantity,
+                    "unitOfMeasure" => $altuom,
+                    "unitPrice" => $value->itemvalue,
+                    "total" => number_format($total, 2, '.', ''),
+                    "taxRate" => "0.18",
+                    "tax" => number_format($vat, 2, '.', ''),
+                    "orderNumber" => $key,
+                    "discountFlag" => "2",
+                    "deemedFlag" => "2",
+                    "exciseFlag" => "2",
+                    "goodsCategoryId" => $item->commodity_goods_code ?? ''
+                ];
+            }
         }
 
         $tonet = $all_total - $all_vat;
@@ -259,6 +275,7 @@ class UraInvoiceService extends BaseEfrisService
                 "buyerCitizenship" => "Ugandan",
                 "buyerSector" => "1",
             ],
+
             "buyerExtend" => [
                 "district" => $customer->city,
             ],
@@ -288,18 +305,14 @@ class UraInvoiceService extends BaseEfrisService
                 "paymentAmount" => number_format($all_total, 2, '.', ''),
                 "orderNumber" => "a"
             ]],
-            // "importServicesSeller" => array("importInvoiceDate" => $getagentheader->created_date),
-            // "airlineGoodsDetails" => array(0 => array("item" => $getitemdetails[0]->item_name, "itemCode" => "", "qty" => "2", "unitOfMeasure" => "$altuom", "unitPrice" => "150.00", "total" => "1", "orderNumber" => "1")),
-            // "edcDetails" => array("tankNo" => "1111", "pumpNo" => "2222", "nozzleNo" => "3333")
         ];
     }
-
     private function handleResponse($header, $warehouse, $payload, $response)
     {
         try {
 
+            // dd($response);
             $inner = $response['inner_response'] ?? null;
-
             $isSuccess = ($response['returnCode'] ?? '') === "00";
 
             if ($isSuccess && isset($inner['basicInformation'])) {

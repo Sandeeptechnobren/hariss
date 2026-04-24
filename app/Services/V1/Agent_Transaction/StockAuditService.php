@@ -102,13 +102,14 @@ class StockAuditService
     public function getAll(int $perPage = 10, array $filters = [])
     {
         try {
+            $user = auth()->user();
             $query = StockAuditHeader::query()
                 ->with([
                     'details:id,header_id,item_id,warehouse_stock,physical_stock,variance',
                     'details.item:id,name,erp_code',
                     'details.item.primaryUom:id,item_id,uom_id,name'
                 ]);
-
+            $query = DataAccessHelper::filterAgentTransaction($query, $user);
             // ✅ Warehouse filter
             if (!empty($filters['warehouse_id'])) {
                 $query->where('warehouse_id', $filters['warehouse_id']);

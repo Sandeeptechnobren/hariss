@@ -118,7 +118,7 @@ class UraStockAdjustmentController extends Controller
     {
         $request->validate([
             'warehouse_id' => 'required',
-            'page_no' => 'nullable'
+            'page_no' => 'required'
         ]);
 
         $warehouse = Warehouse::find($request->warehouse_id);
@@ -136,7 +136,7 @@ class UraStockAdjustmentController extends Controller
             "pageSize" => "10",
             "branchId" => $branchIds
         ];
-        // dd($payload);
+
         $efris = app(BaseEfrisService::class);
         $result = $efris->callApi("T127", $payload, $warehouse);
 
@@ -159,13 +159,15 @@ class UraStockAdjustmentController extends Controller
             ->pluck('upc', 'item_id');
 
         $uomMaster = Uom::pluck('name', 'uom_efriscode');
+        $final = [];
         foreach ($records as $value) {
+
 
             $itemId = $items[$value['goodsCode']] ?? null;
             if (!$itemId) continue;
 
             $buomQty = isset($stocks[$itemId]) ? $stocks[$itemId] : 0;
-
+            // dd($buomQty);
             $upc = isset($uoms[$itemId]) ? $uoms[$itemId] : 1;
 
             $qty = ($upc > 0) ? $buomQty / $upc : $buomQty;
@@ -191,8 +193,8 @@ class UraStockAdjustmentController extends Controller
         }
         return response()->json([
             'status' => true,
-            'total' => count($final),
-            'data' => $final
+            'total' => count($final ?? []),
+            'data' => $final ?? []
         ]);
     }
 }

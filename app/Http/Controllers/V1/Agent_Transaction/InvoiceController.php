@@ -7,6 +7,7 @@ use App\Http\Requests\V1\Agent_Transaction\StoreInvoiceRequest;
 use App\Http\Requests\V1\Agent_Transaction\UpdateInvoiceRequest;
 use App\Http\Resources\V1\Agent_Transaction\InvoiceHeaderResource;
 use App\Services\V1\Agent_Transaction\InvoiceService;
+use App\Services\V1\EfrisAPI\UraInvoiceService;
 use Illuminate\Http\JsonResponse;
 use Exception;
 use App\Models\Agent_Transaction\InvoiceHeader;
@@ -33,10 +34,12 @@ class InvoiceController extends Controller
 {
     use ApiResponse;
     protected InvoiceService $service;
+    protected UraInvoiceService $serviceEfris;
 
-    public function __construct(InvoiceService $service)
+    public function __construct(InvoiceService $service, UraInvoiceService $serviceEfris)
     {
         $this->service = $service;
+        $this->serviceEfris = $serviceEfris;
     }
 
     /**
@@ -101,6 +104,29 @@ class InvoiceController extends Controller
             $invoice->getAttributes(),
             auth()->id()
         );
+        try {
+            $invoiceId = $invoice->id;
+
+            // small delay (optional but powerful)
+            usleep(200000); // 0.2 sec
+
+            $response = $this->serviceEfris->syncInvoice($invoiceId);
+
+            $isSuccess =
+                ($response['returnCode'] ?? null) === "00" &&
+                strtoupper($response['message'] ?? '') === "SUCCESS";
+        } catch (\Throwable $e) {
+
+            \Log::error('Auto Sync Failed', [
+                'invoice_id' => $invoice->id,
+                'error' => $e->getMessage()
+            ]);
+
+            $isSuccess = false;
+            $response = [
+                'message' => $e->getMessage()
+            ];
+        }
         return response()->json([
             'status' => 'success',
             'code'   => 201,
@@ -1052,8 +1078,8 @@ class InvoiceController extends Controller
             'status' => 'success',
             'warehouse_id' => $warehouseId,
             'download_url' => $downloadUrl,
-          //  'start_date' => $startDate,
-          //  'end_date' => $endDate,
+            //  'start_date' => $startDate,
+            //  'end_date' => $endDate,
         ]);
     }
 

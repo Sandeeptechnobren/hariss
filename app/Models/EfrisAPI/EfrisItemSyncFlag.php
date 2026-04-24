@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class EfrisItemSyncFlag extends Model
 {
+    protected $connection = 'pgsql';
+
     protected $table = 'tbl_efris_item_sync_flags';
 
     protected $fillable = [

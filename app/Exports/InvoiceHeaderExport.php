@@ -104,16 +104,16 @@ class InvoiceHeaderExport implements FromQuery, WithMapping, WithHeadings, WithE
                 ($header->warehouse->warehouse_code ?? '') . ' - ' .
                     ($header->warehouse->warehouse_name ?? '')
             ),
+            trim(
+                ($header->customer->osa_code ?? '') . ' - ' .
+                    ($header->customer->name ?? '')
+            ),
 
             trim(
                 ($header->route->route_code ?? '') . ' - ' .
                     ($header->route->route_name ?? '')
             ),
 
-            trim(
-                ($header->customer->osa_code ?? '') . ' - ' .
-                    ($header->customer->name ?? '')
-            ),
 
             trim(
                 ($header->salesman->osa_code ?? '') . ' - ' .
@@ -142,8 +142,8 @@ class InvoiceHeaderExport implements FromQuery, WithMapping, WithHeadings, WithE
             // 'Order Code',
             'Delivery Code',
             'Distributor',
-            'Route',
             'Customer',
+            'Route',
             'Sales Team',
             'VAT',
             'Net Total',

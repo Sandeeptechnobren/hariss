@@ -17,144 +17,6 @@ use Throwable;
 
 class ItemService
 {
-    // public function getAll(int $perPage = 50, array $filters = [], bool $dropdown = false, bool $allData = false)
-    // {
-    //     try {
-    //         $query = Item::query();
-    //         if (!empty($filters['category_id'])) {
-    //             if (is_array($filters['category_id'])) {
-    //                 $query->whereIn('category_id', $filters['category_id']);
-    //             } else {
-    //                 $query->where('category_id', $filters['category_id']);
-    //             }
-    //         }
-    //         if (isset($filters['status'])) {
-    //             if ($filters['status'] === '0' || $filters['status'] === 0) {
-    //                 $query->where('status', 0);
-    //             } elseif ($filters['status'] === '1' || $filters['status'] === 1) {
-    //                 $query->where('status', 1);
-    //             }
-    //         }
-    //         if ($dropdown) {
-    //             return $query->select(['id', 'code', 'name'])
-    //                 ->orderBy('name')
-    //                 ->get();
-    //         }
-    //         if ($allData) {
-    //             return $query->select([
-    //                 'id',
-    //                 'uuid',
-    //                 'code',
-    //                 'erp_code',
-    //                 'name',
-    //                 'status',
-    //             ])
-    //                 ->with([
-    //                     'itemUoms:id,item_id,uom_type,name,price,is_stock_keeping,upc,enable_for,uom_id',
-    //                     'warehouse_stocks:id,item_id,warehouse_id,qty'
-    //                 ])
-    //                 ->latest()
-    //                 ->get();
-    //         }
-    //         $query->select([
-    //             'id',
-    //             'uuid',
-    //             'code',
-    //             'erp_code',
-    //             'name',
-    //             'description',
-    //             'item_weight',
-    //             'shelf_life',
-    //             'brand',
-    //             'category_id',
-    //             'sub_category_id',
-    //             'image',
-    //             'status',
-    //             'excise_duty_code',
-    //             'commodity_goods_code',
-    //             'volume',
-    //             'is_taxable',
-    //             'has_excies'
-    //         ])
-    //             ->with([
-    //                 'itemCategory:id,category_name',
-    //                 'itemSubCategory:id,sub_category_name',
-    //             ])
-    //             ->latest();
-    //         return $query->paginate($perPage);
-    //     } catch (\Throwable $e) {
-    //         throw new \Exception("Failed to fetch items: " . $e->getMessage());
-    //     }
-    // }
-    // public function getAll(int $perPage = 50, array $filters = [], bool $dropdown = false, bool $allData = false)
-    // {
-    //     try {
-    //         $query = Item::query();
-    //         if (!empty($filters['category_id'])) {
-    //             is_array($filters['category_id'])
-    //                 ? $query->whereIn('category_id', $filters['category_id'])
-    //                 : $query->where('category_id', $filters['category_id']);
-    //         }
-    //         if (isset($filters['status'])) {
-    //             $query->where('status', (int) $filters['status']);
-    //         }
-    //         if (!empty($filters['warehouse_id'])) {
-    //             $warehouseId = $filters['warehouse_id'];
-    //             $query->whereHas('warehouse_stocks', function ($q) use ($warehouseId) {
-    //                 $q->where('warehouse_id', $warehouseId);
-    //             });
-    //             $query->with(['warehouse_stocks' => function ($q) use ($warehouseId) {
-    //                 $q->select(['id', 'item_id', 'warehouse_id', 'qty'])
-    //                   ->where('warehouse_id', $warehouseId);
-    //             }]);
-    //         }
-    //         if ($dropdown) {
-    //             return $query->select(['id', 'code', 'name'])
-    //                 ->orderBy('name')
-    //                 ->get();
-    //         }
-    //         if ($allData) {
-    //             return $query->select([
-    //                 'id',
-    //                 'uuid',
-    //                 'code',
-    //                 'erp_code',
-    //                 'name',
-    //                 'status',
-    //             ])
-    //             ->with([
-    //                 'itemUoms:id,item_id,uom_type,name,price,is_stock_keeping,upc,enable_for,uom_id'
-    //             ])->latest()->get();
-    //         }
-    //         $query->select([
-    //             'id',
-    //             'uuid',
-    //             'code',
-    //             'erp_code',
-    //             'name',
-    //             'description',
-    //             'item_weight',
-    //             'shelf_life',
-    //             'brand',
-    //             'category_id',
-    //             'sub_category_id',
-    //             'image',
-    //             'status',
-    //             'excise_duty_code',
-    //             'commodity_goods_code',
-    //             'volume',
-    //             'is_taxable',
-    //             'has_excies'
-    //         ])
-    //         ->with([
-    //             'itemCategory:id,category_name',
-    //             'itemSubCategory:id,sub_category_name',
-    //         ])->latest();
-    //         return $query->paginate($perPage);
-    //     } catch (\Throwable $e) {
-    //         throw new \Exception("Failed to fetch items: " . $e->getMessage());
-    //     }
-    // }
     public function getAll(int $perPage = 50, array $filters = [], bool $dropdown = false, bool $allData = false)
     {
         try {
@@ -196,12 +58,14 @@ class ItemService
                         },
                         'itemUoms:id,item_id,uom_type,name,price,is_stock_keeping,upc,enable_for,uom_id',
                         'pricing_details:item_id,buom_pc_price,auom_ctn_price',
+                        'syncs:id,item_id,is_synced'
                     ]);
                 } else {
                     $query->with([
                         'warehouse_stocks:id,item_id,warehouse_id,qty',
                         'itemUoms:id,item_id,uom_type,name,price,is_stock_keeping,upc,enable_for,uom_id',
                         'pricing_details:item_id,buom_pc_price,auom_ctn_price',
+                        'syncs:id,item_id,is_synced'
                     ]);
                 }
                 return $query->latest()->get();
@@ -212,6 +76,7 @@ class ItemService
                 'code',
                 'erp_code',
                 'name',
+                'sap_id',
                 'description',
                 'item_weight',
                 'shelf_life',
@@ -231,7 +96,9 @@ class ItemService
                     'itemCategory:id,category_name',
                     'itemSubCategory:id,sub_category_name',
                     'pricing_details:item_id,buom_pc_price,auom_ctn_price',
+                    'syncs:id,item_id,is_synced'
                 ]);
+            // dd($query);
             if (!empty($filters['warehouse_id'])) {
                 $warehouseId = $filters['warehouse_id'];
 
@@ -251,8 +118,26 @@ class ItemService
                 $query->orderBy('status', 'desc')
                     ->orderBy('id', 'desc');
             }
-            /* ======================= */
-            return $query->paginate($perPage);
+
+            $paginated = $query->paginate($perPage);
+
+            // 🔥 Apply in-memory sorting on current page only
+            if (array_key_exists('is_efris_sync', $filters)) {
+
+                $isEfris = filter_var($filters['is_efris_sync'], FILTER_VALIDATE_BOOLEAN);
+
+                $sortedCollection = $paginated->getCollection()->sortBy(function ($item) {
+                    return optional($item->syncs->first())->is_synced ?? false; // ✅ FIX
+                });
+
+                if ($isEfris === true) {
+                    $sortedCollection = $sortedCollection->reverse(); // true first
+                }
+
+                $paginated->setCollection($sortedCollection->values());
+            }
+
+            return $paginated;
         } catch (\Throwable $e) {
             throw new \Exception("Failed to fetch items: " . $e->getMessage());
         }
@@ -494,7 +379,8 @@ class ItemService
                 'itemSubCategory:id,sub_category_name,sub_category_code',
                 'createdUser:id,name',
                 'updatedUser:id,name',
-                'itemUoms:id,item_id,price,uom_type,name,uom_id'
+                'itemUoms:id,item_id,price,uom_type,name,uom_id',
+                'syncs:id,item_id,is_synced'
             ]);
             $query->where('status', 1);
 
@@ -556,12 +442,14 @@ class ItemService
                     'erp_code'           => $item->erp_code,
                     'code'               => $item->code,
                     'name'               => $item->name,
+                    'sap_id'               => $item->sap_id,
                     'description'        => $item->description,
                     'image'              => $item->image,
                     'category_id'        => $item->category_id,
                     'sub_category_id'    => $item->sub_category_id,
                     'shelf_life'         => $item->shelf_life,
                     'status'             => $item->status,
+                    'is_efris_sync' => optional($item->syncs->first())->is_synced ?? false,
                     'created_user'       => $item->createdUser ? [
                         'id'   => $item->createdUser->id,
                         'name' => $item->createdUser->name,
@@ -849,8 +737,8 @@ class ItemService
     public function getItemInvoices(int $itemId, int $perPage = 50)
     {
         try {
-            $fromDate = request()->get('from_date'); 
-            $toDate   = request()->get('to_date');  
+            $fromDate = request()->get('from_date');
+            $toDate   = request()->get('to_date');
 
             return InvoiceHeader::whereHas('details', function ($q) use ($itemId) {
                 $q->where('item_id', $itemId);

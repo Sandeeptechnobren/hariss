@@ -77,7 +77,7 @@ class ItemController extends Controller
             $dropdown = filter_var($request->get('dropdown', false), FILTER_VALIDATE_BOOLEAN);
             $allData = filter_var($request->get('allData', false), FILTER_VALIDATE_BOOLEAN);
 
-            $filters = $request->only(['category_id', 'status', 'warehouse_id']);
+            $filters = $request->only(['category_id', 'status', 'warehouse_id', 'is_efris_sync']);
 
             if (!empty($filters['category_id'])) {
 
@@ -85,7 +85,7 @@ class ItemController extends Controller
                     $filters['category_id'] = explode(',', $filters['category_id']);
                 }
 
-                $filters['category_id'] = (array) $filters['category_id']; 
+                $filters['category_id'] = (array) $filters['category_id'];
             }
             $items = $this->service->getAll($perPage, $filters, $dropdown, $allData);
 
@@ -631,12 +631,12 @@ class ItemController extends Controller
                 // 'price'                => optional($uom)->price,
                 // 'is_stock_keeping'     => optional($uom)->is_stock_keeping,
                 // 'enable_for'           => optional($uom)->enable_for,
-                 'uom_name' => $uom->pluck('uom.name')->filter()->implode(', '),
-                 'upc'      => $uom->pluck('upc')->filter()->implode(', '),
-                 'price'    => $uom->pluck('price')->filter()->implode(', '),
-                 'is_stock_keeping' => $uom->pluck('is_stock_keeping')
-                                        ->map(fn($v) => $v ? 'Yes' : 'No')
-                                        ->implode(', '),
+                'uom_name' => $uom->pluck('uom.name')->filter()->implode(', '),
+                'upc'      => $uom->pluck('upc')->filter()->implode(', '),
+                'price'    => $uom->pluck('price')->filter()->implode(', '),
+                'is_stock_keeping' => $uom->pluck('is_stock_keeping')
+                    ->map(fn($v) => $v ? 'Yes' : 'No')
+                    ->implode(', '),
 
                 'enable_for' => $uom->pluck('enable_for')->filter()->implode(', '),
             ];

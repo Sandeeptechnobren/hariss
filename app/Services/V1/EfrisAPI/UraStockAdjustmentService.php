@@ -192,14 +192,16 @@ class UraStockAdjustmentService extends BaseEfrisService
             ], $warehouse);
 
             $record = $api['inner_response']['records'][0] ?? null;
+            // dd($record);
             if (!$record) continue;
 
             $qty = $value->qty;
             $stock = $record['stock'];
             $uomCode = $record['measureUnit'] ?? null;
 
+
             $uomName = Uom::where('uom_efriscode', $uomCode)
-                ->value('name') ?? $uomCode;
+                ->value('sap_name') ?? $uomCode;
             if ($operationType == 101 && ($stock - $qty) <= -0.5) {
                 $resp[] = [
                     'code' => $record['goodsCode'],

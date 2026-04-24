@@ -35,14 +35,51 @@ class SalesTeamTrackingController extends Controller
     //     ]);
     // }
 
-    public function show(Request $request): JsonResponse
+    // public function show(Request $request): JsonResponse
+    // {
+    //     $data = $this->service->getStaticRouteResponse($request);
+
+    //     return response()->json([
+    //         'status' => 'success',
+    //         'data'   => $data
+    //     ]);
+    // }
+
+
+    public function getSalesman(Request $request)
     {
-        // dd($request);
-        $data = $this->service->getStaticRouteResponse();
-// dd($data);
+        $request->validate([
+            'warehouse_id' => 'required',
+        ]);
+
+        $data = $this->service->getSalesmen($request->warehouse_id);
+
         return response()->json([
-            'status' => 'success',
-            'data'   => $data
+            'status' => true,
+            'message' => 'Salesmen fetched successfully',
+            'data' => $data
+        ]);
+    }
+
+
+    public function track(Request $request)
+    {
+        $request->validate([
+            'salesman_id' => 'required',
+            'warehouse_id' => 'required',
+            'date' => 'required|date',
+        ]);
+
+        $data = $this->service->getSalesmanLocationsWithCustomers(
+            $request->salesman_id,
+            $request->warehouse_id,
+            $request->date
+        );
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Salesman locations fetched successfully',
+            'data' => $data
         ]);
     }
 }

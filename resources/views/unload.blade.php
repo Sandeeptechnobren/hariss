@@ -262,7 +262,7 @@
             <th style="border:1px solid #000;">S/N</th>
             <th style="border:1px solid #000;">Item</th>
             <th style="border:1px solid #000;">UOM</th>
-            <th style="border:1px solid #000;">UnLoad Qty</th>
+            <th style="border:1px solid #000;">Unload Qty</th>
         </tr>
 
         @foreach($orderDetails as $i => $item)

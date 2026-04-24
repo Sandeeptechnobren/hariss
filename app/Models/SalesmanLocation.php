@@ -21,8 +21,18 @@ class SalesmanLocation extends Model
         'salesman_id',
         'warehouse_id',
         'route_id',
-        'latitude',
-        'longitude',
+        'location',
+    ];
+    protected $casts = [
+        'location' => 'array', // ✅ auto json encode/decode
     ];
 
+    public function salesman()
+    {
+        return $this->belongsTo(Salesman::class, 'salesman_id');
+    }
+    public function warehouse()
+    {
+        return $this->belongsTo(Warehouse::class, 'warehouse_id');
+    }
 }

@@ -146,8 +146,9 @@ use App\Http\Controllers\V1\EfrisAPI\UraCustomerValidateController;
 use App\Http\Controllers\V1\EfrisAPI\UraStockAdjustmentController;
 use App\Http\Controllers\V1\EfrisAPI\DailyStockCountController;
 use App\Http\Controllers\LogController;
+use App\Http\Controllers\SummaryReportController;
 
-
+Route::post('/summary-export', [SummaryReportController::class, 'export']);
 // Route::get('/list', [OrderController::class, 'index']);
 // Route::get('/{uuid}', [OrderController::class, 'show']);
 Route::post('importdata', [ImportController::class, 'import']);
@@ -691,6 +692,7 @@ Route::prefix('settings')->group(function () {
             Route::get('/{warehouseId}/stock-helth', [WarehouseStockController::class, 'warehouseStockHealth']);
             Route::get('/itemsbasedwarehouse/{id}', [WarehouseStockController::class, 'getItemUomsByWarehouse']);
             Route::get('/warehouse-summary/overall', [WarehouseStockController::class, 'overallWarehouseSummary']);
+            Route::post('/variance', [WarehouseStockController::class, 'getVariance']);
         });
         Route::prefix('labels')->group(function () {
             Route::get('list/', [LabelController::class, 'index']);
@@ -784,6 +786,7 @@ Route::prefix('assets')->group(function () {
             Route::delete('delete/{uuid}', [SpareController::class, 'destroy']);
         });
         Route::prefix('chiller-request')->group(function () {
+            Route::post('/export-request', [ChillerRequestController::class, 'exportAssetRequest']);
             Route::get('importimagespdf/{uuid}', [ChillerRequestController::class, 'exportPdf']);
             Route::get('/filter', [ChillerRequestController::class, 'filterChillerRequests']);
             Route::get('/approved', [ChillerRequestController::class, 'approvedChillerRequests']);
@@ -1114,7 +1117,7 @@ Route::prefix('agent_transaction')->group(function () {
             Route::post('/updatestatus', [ExchangeController::class, 'updateMultipleOrderStatus']);
             Route::post('export', [ExchangeController::class, 'exportHeader']);
             Route::get('exportall', [ExchangeController::class, 'exportAll']);
-            Route::get('exportallcollapse', [ExchangeController::class, 'exportAllCollapse']);
+            Route::post('exportallcollapse', [ExchangeController::class, 'exportAllCollapse']);
             Route::get('/export-pdf', [ExchangeController::class, 'exportExchangePdf']);
         });
 
@@ -1186,7 +1189,9 @@ Route::prefix('agent_transaction')->group(function () {
             Route::get('/{uuid}', [SalesmanReconsileController::class, 'show']);
         });
         Route::prefix('salesteam-tracking')->group(function () {
-            Route::get('/track', [SalesTeamTrackingController::class, 'show']);
+            // Route::post('/track', [SalesTeamTrackingController::class, 'show']);
+            Route::get('/get-salesman', [SalesTeamTrackingController::class, 'getSalesman']);
+            Route::post('/salesman-track', [SalesTeamTrackingController::class, 'track']);
         });
 
         Route::prefix('agent-target')->group(function () {
@@ -1227,7 +1232,7 @@ Route::prefix('hariss_transaction')->group(function () {
         Route::prefix('po_orders')->group(function () {
             Route::post('customerbsdorderpo', [POHeaderController::class, 'exportCustomerBasedPoOrder']);
             Route::post('/globalFilter', [POHeaderController::class, 'globalFilter']);
-            Route::get('exportclitembsdpoorders', [POHeaderController::class, 'exportItembsPoOrderCollapse']);
+            Route::post('exportclitembsdpoorders', [POHeaderController::class, 'exportItembsPoOrderCollapse']);
             Route::get('itembsdpoorders', [POHeaderController::class, 'getByItem']);
             Route::get('cusbsdpuchorder', [POHeaderController::class, 'listByCustomer']);
             Route::get('export', [POHeaderController::class, 'exportPoOrders']);
@@ -1294,8 +1299,8 @@ Route::prefix('hariss_transaction')->group(function () {
             Route::get('/header_list', [CreditNoteController::class, 'list']);
             Route::post('export', [CreditNoteController::class, 'exportHeader']);
             Route::post('exportcollapse', [CreditNoteController::class, 'exportCollapse']);
-            Route::get('invoicedropdown', [CreditNoteController::class, 'dropdown']);
-            Route::get('creditnote/{uuid}', [CreditNoteController::class, 'getCreditNoteFullByInvoiceUuid']);
+            Route::get('returndropdown', [CreditNoteController::class, 'dropdown']);
+            Route::get('creditnote/{uuid}', [CreditNoteController::class, 'getCreditNoteFullByreturnUuid']);
             Route::post('globalfilter', [CreditNoteController::class, 'globalFilter']);
             Route::post('distributorListExportlist', [CreditNoteController::class, 'exportList']);
             Route::post('distributorglobalFilter', [CreditNoteController::class, 'distributorglobalFilter']);
@@ -1388,7 +1393,7 @@ Route::prefix('SAP')->group(function () {
 
 Route::prefix('EFRIS')->group(function () {
     Route::middleware('auth:api')->group(function () {
-        Route::post('/sync_ura', [UraSyncController::class, 'sync']);
+        Route::post('/sync_items', [UraSyncController::class, 'sync']);
         Route::post('/stock_sync_test', [EfrisStockSyncTestController::class, 'syncItems_test']);
         Route::post('/sync_invoice_ura', [UraInvoiceController::class, 'sync']);
         Route::post('/update_ura_invoice', [UraInvoiceController::class, 'updateUraInvoice']);

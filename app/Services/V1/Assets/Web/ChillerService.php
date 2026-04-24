@@ -483,7 +483,6 @@ class ChillerService
                 'region_id'    => $filter['region_id']    ?? null,
                 'area_id'      => $filter['area_id']      ?? null,
                 'warehouse_id' => $filter['warehouse_id'] ?? null,
-                'route_id'     => $filter['route_id']     ?? null,
             ]);
             if (!empty($warehouseIds)) {
                 $query->whereIn('warehouse_id', $warehouseIds);
@@ -504,6 +503,7 @@ class ChillerService
                 array_filter(array_map('intval', $modelIds))
             );
         }
+        // dd($query->count());
         return $query->paginate($perPage);
     }
 

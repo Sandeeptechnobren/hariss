@@ -681,6 +681,7 @@ class WarehouseService
     public function globalSearch($perPage = 10, $keyword = null)
     {
         try {
+            $user = auth()->user();
             $query = Warehouse::with([
                 'region:id,region_name',
                 'area:id,area_code,area_name,region_id',
@@ -691,7 +692,7 @@ class WarehouseService
                 'locationRelation:id,code,name',
 
             ]);
-
+            $query = DataAccessHelper::filterWarehouses($query, $user);
             if (!empty($keyword)) {
                 $query->where(function ($q) use ($keyword) {
                     $searchableFields = [

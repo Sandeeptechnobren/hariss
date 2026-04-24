@@ -40,7 +40,7 @@ class CreditNoteCollapseExport implements FromCollection, WithHeadings, WithEven
         $query = CreditNoteHeader::with([
             'customer',
             'distributor',
-            'purchaseInvoice',
+            'purchasereturn',
             'salesman',
             'creditNoteDetails.item'
         ]);
@@ -79,7 +79,7 @@ class CreditNoteCollapseExport implements FromCollection, WithHeadings, WithEven
                 optional($header->created_at)->format('d M Y'),
                 $header->credit_note_no,
                 $header->supplier_id,
-                optional($header->purchaseInvoice)->invoice_code,
+                optional($header->purchasereturn)->return_code,
                 trim(
                     (optional($header->distributor)->warehouse_code ?? '') . ' - ' .
                     (optional($header->distributor)->warehouse_name ?? ''),
@@ -90,21 +90,23 @@ class CreditNoteCollapseExport implements FromCollection, WithHeadings, WithEven
                     (optional($header->customer)->business_name ?? ''),
                     ' -'
                 ),
-                optional($header->salesman)->name ?? '-',
-                $header->total_amount,
+               // optional($header->salesman)->name ?? '-',
+                $header->batch_no,
+                $header->total_net,
+                $header->total_vat,
                 $header->reason,
+                $header->total_amount,
+
             ];
 
             $headerRow = $row;
             $row++;
 
-            // DETAIL HEADER
             $start = $row;
 
-            $data[] = ['', 'Item', 'Qty', 'Price', 'Total'];
+            $data[] = ['', 'Item', 'Qty', 'Price', 'Batch_no', 'Net', 'Vat', 'Total'];
             $row++;
 
-            // DETAIL ROWS
             if ($header->creditNoteDetails->count()) {
                 foreach ($header->creditNoteDetails as $detail) {
 
@@ -122,13 +124,15 @@ class CreditNoteCollapseExport implements FromCollection, WithHeadings, WithEven
                         $itemText,
                         $detail->qty,
                         $detail->price,
+                        $detail->net,
+                        $detail->vat,
                         $detail->total,
                     ];
 
                     $row++;
                 }
             } else {
-                $data[] = ['', '-', '-', '-', '-'];
+                $data[] = ['', '-', '-', '-', '-','-','-'];
                 $row++;
             }
 
@@ -141,7 +145,7 @@ class CreditNoteCollapseExport implements FromCollection, WithHeadings, WithEven
             ];
 
             // spacing
-            $data[] = ['', '', '', '', ''];
+            $data[] = ['', '', '', '', '', '', ''];
             $row++;
         }
 
@@ -154,12 +158,14 @@ class CreditNoteCollapseExport implements FromCollection, WithHeadings, WithEven
             'Date',
             'Code',
             'SAP ID',
-            'Purchase Invoice Code',
+            'Purchase return Code',
             'Distributor',
             'Customer',
-            'Sale Team',
-            'Total Amount',
+           // 'Sale Team',
+            'Total_net',
+            'Total_vat',
             'Reason',
+            'Total Amount',
         ];
     }
 
@@ -201,7 +207,7 @@ class CreditNoteCollapseExport implements FromCollection, WithHeadings, WithEven
                             ->setCollapsed(true);
                     }
 
-                    $sheet->getStyle("B{$group['start']}:E{$group['start']}")
+                    $sheet->getStyle("B{$group['start']}:H{$group['start']}")
                         ->getFont()
                         ->setBold(true);
                 }
@@ -216,14 +222,14 @@ class CreditNoteCollapseExport implements FromCollection, WithHeadings, WithEven
                 // THIN BORDER
                 for ($row = 1; $row <= $lastRow; $row++) {
                     $sheet->getStyle("A{$row}:{$lastColumn}{$row}")
-                        ->applyFromArray([
-                            'borders' => [
-                                'bottom' => [
-                                    'borderStyle' => Border::BORDER_THIN,
-                                    'color' => ['rgb' => 'D3D3D3'],
-                                ],
+                    ->applyFromArray([
+                        'borders' => [
+                            'bottom' => [
+                                'borderStyle' => Border::BORDER_THIN,
+                                'color' => ['rgb' => 'D3D3D3'],
                             ],
-                        ]);
+                        ],
+                    ]);
                 }
             },
         ];

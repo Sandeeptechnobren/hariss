@@ -18,18 +18,18 @@ class StoreAdvancePaymentRequest extends FormRequest
             'payment_type' => ['required', 'integer', Rule::in([1, 2, 3])],
             'osa_code' => 'nullable|string|unique:advance_payments,osa_code|max:50',
             'companybank_id' => 'required|integer|exists:tbl_banks,id',
-            'agent_id' => 'nullable|integer|exists:tbl_company_customer,id',
+            'agent_id' => 'nullable|integer',
             'recipt_image' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
             'cheque_no' => 'nullable|string|max:50',
             'cheque_date' => 'nullable|date',
             'amount' => 'required|numeric|min:0',
             'recipt_no' => 'required|string|max:50',
             'recipt_date' => 'required|date',
-            'status'=> 'required|in:0,1'
+            'status' => 'required|in:0,1'
         ];
 
         switch ($this->input('payment_type')) {
-            case 1: 
+            case 1:
                 $rules['companybank_id'] = 'required|integer|exists:tbl_banks,id';
                 $rules['amount'] = 'required';
                 $rules['recipt_no'] = 'required';
@@ -37,7 +37,7 @@ class StoreAdvancePaymentRequest extends FormRequest
                 $rules['recipt_image'] = 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048';
                 break;
 
-            case 2: 
+            case 2:
                 $rules['companybank_id'] = 'required|integer|exists:tbl_banks,id';
                 $rules['cheque_no'] = 'required|string|max:50';
                 $rules['cheque_date'] = 'required|date';

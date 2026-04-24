@@ -65,7 +65,7 @@ class SalesmanService
                     'forceful_login'
                 ]
         );
-
+        // dd($query->first()->getAttributes());
         // Apply OTHER filters only
         foreach ($filters as $field => $value) {
 
@@ -117,10 +117,18 @@ class SalesmanService
 
         // Secondary sort
         $query->orderBy('id', 'DESC');
-
-        return $dropdown
-            ? $query->get()
-            : $query->paginate($perPage);
+        if ($dropdown) {
+            return $query->get()
+                ->makeHidden(['salesman_type']) // 🔥 remove appended attribute
+                ->map(function ($item) {
+                    return [
+                        'id'       => $item->id,
+                        'name'     => $item->name,
+                        'osa_code' => $item->osa_code,
+                    ];
+                });
+        }
+        return $query->paginate($perPage);
     }
     // public function all(int $perPage = 50, array $filters = [], bool $dropdown = false)
     // {

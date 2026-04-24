@@ -629,7 +629,7 @@ class PoOrderCollapseExport implements FromCollection, ShouldAutoSize, WithEvent
         $query = DataAccessHelper::filterAgentTransaction($query, Auth::user());
         $headers = $query->get();
         if ($headers->isEmpty()) {
-            return new Collection([]);
+            return new Collection($rows);
         }
         $details = PoOrderDetail::with(['item', 'uom'])
             ->whereIn('header_id', $headers->pluck('id'))

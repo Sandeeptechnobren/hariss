@@ -82,10 +82,10 @@ class ExchangeHeaderExport implements FromCollection, WithHeadings, ShouldAutoSi
                         ($header->warehouse->warehouse_name ?? '')
                 ),
 
-                'Route' => trim(
-                    ($header->route->route_code ?? '') . ' - ' .
-                        ($header->route->route_name ?? '')
-                ),
+                // 'Route' => trim(
+                //     ($header->route->route_code ?? '') . ' - ' .
+                //         ($header->route->route_name ?? '')
+                // ),
 
                 'Customer' => trim(
                     ($header->customer->osa_code ?? '') . ' - ' .
@@ -115,7 +115,7 @@ class ExchangeHeaderExport implements FromCollection, WithHeadings, ShouldAutoSi
             'Exchange No',
             'Date',
             'Distributors',
-            'Route',
+           // 'Route',
             'Customer',
             'Sales Team',
             // 'Gross Total',

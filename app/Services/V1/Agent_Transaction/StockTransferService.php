@@ -172,7 +172,7 @@ class StockTransferService
     {
         try {
             $header = StockTransferHeader::query()
-               ->with([
+                ->with([
                     'details.item:id,name,erp_code',
                     'details.Uom:id,name',
                 ])
@@ -194,36 +194,36 @@ class StockTransferService
 
             $items = $header->details->map(function ($detail) use ($header) {
 
-            $fromStock = WarehouseStock::where('warehouse_id', $header->source_warehouse)
-                ->where('item_id', $detail->item_id)
-                ->whereNull('deleted_at')
-                ->first();
+                $fromStock = WarehouseStock::where('warehouse_id', $header->source_warehouse)
+                    ->where('item_id', $detail->item_id)
+                    ->whereNull('deleted_at')
+                    ->first();
 
-            $toStock = WarehouseStock::where('warehouse_id', $header->destiny_warehouse)
-                ->where('item_id', $detail->item_id)
-                ->whereNull('deleted_at')
-                ->first();
+                $toStock = WarehouseStock::where('warehouse_id', $header->destiny_warehouse)
+                    ->where('item_id', $detail->item_id)
+                    ->whereNull('deleted_at')
+                    ->first();
 
-            $upc = ItemUOM::where('item_id', $detail->item_id)
-                ->where('uom_id', $detail->uom_id)
-                ->value('upc');
+                $upc = ItemUOM::where('item_id', $detail->item_id)
+                    ->where('uom_id', $detail->uom_id)
+                    ->value('upc');
 
-            return [
-                'item_id'   => $detail->item_id,
-                'item_name' => $detail->item?->name ?? null,
-                'erp_code'  => $detail->item?->erp_code ?? null,
+                return [
+                    'item_id'   => $detail->item_id,
+                    'item_name' => $detail->item?->name ?? null,
+                    'erp_code'  => $detail->item?->erp_code ?? null,
 
-                'transfer_qty' => $detail->transfer_qty,
+                    'transfer_qty' => $detail->transfer_qty,
 
-                'source_warehouse_stock'   => $fromStock?->qty ?? 0,
-                'destiny_warehouse_stock'  => $toStock?->qty ?? 0,
-                'uoms' => [
-                    'uom_id' => $detail->uom_id,
-                    'name'   => $detail->Uom?->name ?? null,     
-                    'upc'    => $upc,  
-                ],
-            ];
-        });
+                    'source_warehouse_stock'   => $fromStock?->qty ?? 0,
+                    'destiny_warehouse_stock'  => $toStock?->qty ?? 0,
+                    'uoms' => [
+                        'uom_id' => $detail->uom_id,
+                        'name'   => $detail->Uom?->name ?? null,
+                        'upc'    => $upc,
+                    ],
+                ];
+            });
 
             return [
                 'id'    => $header->id,
@@ -308,16 +308,12 @@ class StockTransferService
         $query = StockTransferHeader::query()
             ->whereNull('deleted_at')
             ->latest('id');
-
         // ✅ Agent access (keep if required)
-        $query = DataAccessHelper::filterAgentTransaction($query, $user);
-
+        $query = DataAccessHelper::filterWarehouses($query, $user);
         // ✅ ONLY Source Warehouse filter
         if (!empty($filter['warehouse_id'])) {
 
-            $warehouseIds = is_array($filter['warehouse_id'])
-                ? $filter['warehouse_id']
-                : explode(',', $filter['warehouse_id']);
+            $warehouseIds = is_array($filter['warehouse_id']) ? $filter['warehouse_id'] : explode(',', $filter['warehouse_id']);
 
             $query->whereIn('source_warehouse', $warehouseIds);
         }

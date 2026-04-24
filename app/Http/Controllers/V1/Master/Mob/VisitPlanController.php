@@ -7,6 +7,7 @@ use App\Services\V1\MasterServices\Mob\VisitPlanService;
 use App\Http\Resources\V1\Master\Mob\VisitPlanResource;
 use App\Http\Requests\V1\MasterRequests\Mob\VisitPlanRequest;
 use App\Http\Requests\V1\MasterRequests\Mob\VisitPlanUpdateRequest;
+use App\Http\Requests\V1\MasterRequests\Mob\SalesmanLocationRequest;
 use Illuminate\Http\Request;
 use Exception;
 
@@ -206,4 +207,81 @@ public function destroy($id)
             'message' => 'Visit plan deleted successfully'
         ]);
     }
+/**
+ * @OA\Post(
+ *     path="/mob/master_mob/visit_plan/location",
+ *     summary="Store salesman locations (bulk JSON)",
+ *     tags={"Visit Plan"},
+ *     @OA\RequestBody(
+ *         required=true,
+ *         @OA\JsonContent(
+ *             type="object",
+ *             required={"salesman_id","locations"},
+ *             
+ *             @OA\Property(property="salesman_id", type="integer", example=1),
+ *             @OA\Property(property="warehouse_id", type="integer", example=2),
+ *             @OA\Property(property="route_id", type="integer", example=5),
+ *             
+ *             @OA\Property(
+ *                 property="locations",
+ *                 type="array",
+ *                 @OA\Items(
+ *                     type="object",
+ *                     required={"lat","lng","time"},
+ *                     
+ *                     @OA\Property(property="lat", type="number", format="float", example=28.61),
+ *                     @OA\Property(property="lng", type="number", format="float", example=77.20),
+ *                     @OA\Property(property="time", type="string", format="date-time", example="2026-04-21 10:00:00")
+ *                 )
+ *             )
+ *         )
+ *     ),
+ *     @OA\Response(
+ *         response=201,
+ *         description="Locations stored successfully",
+ *         @OA\JsonContent(
+ *             type="object",
+ *             @OA\Property(property="status", type="boolean", example=true),
+ *             @OA\Property(property="message", type="string", example="Locations stored successfully"),
+ *             @OA\Property(
+ *                 property="data",
+ *                 type="object",
+ *                 
+ *                 @OA\Property(property="id", type="integer"),
+ *                 @OA\Property(property="salesman_id", type="integer"),
+ *                 @OA\Property(property="warehouse_id", type="integer"),
+ *                 @OA\Property(property="route_id", type="integer"),
+ *                 
+ *                 @OA\Property(
+ *                     property="locations",
+ *                     type="array",
+ *                     @OA\Items(
+ *                         type="object",
+ *                         @OA\Property(property="lat", type="number"),
+ *                         @OA\Property(property="lng", type="number"),
+ *                         @OA\Property(property="time", type="string")
+ *                     )
+ *                 )
+ *             )
+ *         )
+ *     )
+ * )
+ */
+public function storeLocation(SalesmanLocationRequest $request)
+{
+    try {
+        $data = $this->service->storeLocations($request->validated());
+        return response()->json([
+            'status'  => true,
+            'message' => 'Locations stored successfully',
+            'data'    => $data
+        ], 201);
+    } catch (\Throwable $e) {
+        return response()->json([
+            'status'  => false,
+            'message' => 'Failed to store locations',
+            'error'   => $e->getMessage()
+        ], 500);
+    }
+}
 }

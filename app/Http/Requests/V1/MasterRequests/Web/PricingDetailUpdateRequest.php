@@ -63,8 +63,8 @@ class PricingDetailUpdateRequest extends FormRequest
             'details' => 'sometimes|array|min:1',
             'details.*.name' => 'sometimes|string|max:150',
             'details.*.item_id' => 'sometimes|integer|exists:items,id',
-            'details.*.buom_ctn_price' => 'sometimes|numeric|min:0',
-            'details.*.auom_pc_price' => 'sometimes|numeric|min:0',
+            'details.*.buom_pc_price' => 'sometimes|numeric|min:0',
+            'details.*.auom_ctn_price' => 'sometimes|numeric|min:0',
             'details.*.status' => 'sometimes|integer|in:0,1',
         ];
     }

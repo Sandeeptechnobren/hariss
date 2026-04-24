@@ -800,4 +800,49 @@ class WarehouseStockController extends Controller
             'sales_days_filter' => $days ?? 'all',
         ]);
     }
+
+    public function getVariance(Request $request)
+    {
+        $request->validate([
+            'warehouse_ids' => 'required',
+            'from_date' => 'required|date',
+            'to_date' => 'required|date|after_or_equal:from_date',
+        ]);
+
+        // Normalize warehouse_ids
+        $warehouseIds = is_array($request->warehouse_ids)
+            ? $request->warehouse_ids
+            : explode(',', $request->warehouse_ids);
+
+        $warehouseIds = array_filter($warehouseIds);
+
+        if (empty($warehouseIds)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Invalid warehouse_ids'
+            ], 422);
+        }
+
+        try {
+            $data = $this->service->calculateVarianceRange(
+                $warehouseIds,
+                $request->from_date,
+                $request->to_date
+            );
+
+            return response()->json([
+                'status' => 'success',
+                'from_date' => $request->from_date,
+                'to_date' => $request->to_date,
+                'total_warehouses' => count($warehouseIds),
+                'data' => $data
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Something went wrong',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

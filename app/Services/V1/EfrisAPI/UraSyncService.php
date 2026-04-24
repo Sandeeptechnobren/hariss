@@ -13,26 +13,34 @@ class UraSyncService
     public function syncItems($itemId)
     {
         $user = auth()->user();
-        $items = $itemId === 'all'
-            ? Item::with(['uoms' => function ($q) {
-                $q->whereNotNull('price')
-                    ->where('price', '!=', 0)
-                    ->where('price', '!=', '');
-            }])
+
+        $itemId = is_array($itemId) ? $itemId : [$itemId];
+        // dd($itemId);
+        $items = Item::with(['uoms' => function ($q) {
+            $q->whereNotNull('price')
+                ->where('price', '>', 0);
+        }])
+            ->whereIn('id', $itemId)
             ->where('status', 1)
             ->whereHas('uoms', function ($q) {
                 $q->whereNotNull('price')
-                    ->where('price', '!=', 0)
-                    ->where('price', '!=', '');
+                    ->where('price', '>', 0);
             })
-            ->get()
-            : Item::with('uoms')->where('id', $itemId)->get();
+            ->get();
+
+        if ($items->isEmpty()) {
+            return [
+                'status' => false,
+                'message' => 'No valid items found'
+            ];
+        }
 
         $warehouses = Warehouse::where([
             'is_efris' => 1,
             'status' => 1
         ])->get();
         $warehouses = DataAccessHelper::filterWarehouses($warehouses, $user);
+        // dd($warehouses->count());
 
         foreach ($warehouses as $warehouse) {
             foreach ($items as $item) {
@@ -54,7 +62,19 @@ class UraSyncService
             }
         }
 
-        return $results ?? [];
+        $results = $results ?? [];
+
+        $successCount = collect($results)->where('status', true)->count();
+        $failedCount = collect($results)->where('status', false)->count();
+
+        return [
+            'status' => true,
+            'message' => 'Item Synced',
+            'total' => count($results),
+            'success_count' => $successCount,
+            'failed_count' => $failedCount,
+            'data' => $results
+        ];
     }
 
     // 🔽 SAME METHODS (UNCHANGED)
@@ -148,7 +168,7 @@ class UraSyncService
         if ($inner) {
             $code = $inner['returnCode'];
 
-            if (in_array($code, ["00", "602"])) {
+            if (in_array($code, ["00"])) {
                 $isSuccess = true;
             }
         }

@@ -802,7 +802,8 @@ class NewCustomerService
     }
 
     public function globalFilter(int $perPage = 50, array $filters = [])
-    {
+    { 
+        $user = auth()->user();
         $filter = $filters['filter'] ?? [];
 
         if (!empty($filters['current_page'])) {
@@ -812,7 +813,7 @@ class NewCustomerService
         }
 
         $query = NewCustomer::latest('id');
-
+        $query = DataAccessHelper::filterWarehouses($query, $user);
         if (!empty($filter)) {
 
             $warehouseIds = CommonLocationFilter::resolveWarehouseIds([

@@ -4,6 +4,8 @@ namespace App\Http\Controllers\V1\Assets\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\ChillerRequest;
+use App\Helpers\CommonLocationFilter;
+use App\Exports\AssetRequestExport;
 use App\Http\Requests\V1\Assets\Web\ChillerRequestRequest;
 use App\Http\Requests\V1\Assets\Web\UpdateChillerRequestRequest;
 use App\Http\Resources\V1\Assets\Web\ChillerRequestResource;
@@ -585,7 +587,7 @@ class ChillerRequestController extends Controller
             $filters = $request->all();
 
             $requests = $this->service->globalFilter($perPage, $filters);
-            
+
             return $this->success(
                 ChillerRequestResource::collection($requests->items()),
                 'Asset Request fetched successfully',
@@ -622,6 +624,68 @@ class ChillerRequestController extends Controller
         return response()->json([
             'message' => 'PDF generated successfully',
             'url' => $fullUrl
+        ]);
+    }
+
+
+
+    public function exportAssetRequest(Request $request)
+    {
+        $format    = strtolower($request->input('format', 'xlsx'));
+        $extension = $format === 'csv' ? 'csv' : 'xlsx';
+
+        $date = now()->format('Ymd_His');
+        $random = rand(1000, 9999);
+
+        $filename = "CRF_{$date}_{$random}.{$extension}";
+        $path = 'crfexports/' . $filename;
+
+        $filters = $request->input('filter', []);
+        $fromDate = $filters['from_date'] ?? null;
+        $toDate   = $filters['to_date'] ?? null;
+        $status = $filters['status'] ?? null;
+
+        $salesmanIds = !empty($filters['salesman_id'])
+            ? array_map('intval', explode(',', $filters['salesman_id']))
+            : [];
+
+        $modelIds = !empty($filters['model_id'])
+            ? array_map('intval', explode(',', $filters['model_id']))
+            : [];
+
+        /** ✅ Common Location Filter */
+        $resolvedWarehouseIds = CommonLocationFilter::resolveWarehouseIds($filters);
+
+        $inputWarehouseIds = !empty($filters['warehouse_id'])
+            ? array_map('intval', explode(',', $filters['warehouse_id']))
+            : [];
+
+        if (!empty($inputWarehouseIds)) {
+            $warehouseIds = array_values(array_intersect($resolvedWarehouseIds, $inputWarehouseIds));
+        } else {
+            $warehouseIds = $resolvedWarehouseIds;
+        }
+
+        $export = new AssetRequestExport(
+            $fromDate,
+            $toDate,
+            $status,
+            $warehouseIds,
+            $salesmanIds,
+            $modelIds
+        );
+
+        if ($format === 'csv') {
+            \Maatwebsite\Excel\Facades\Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
+        } else {
+            \Maatwebsite\Excel\Facades\Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
+        }
+
+        $fullUrl = rtrim(config('app.url'), '/') . '/storage/app/public/' . $path;
+
+        return response()->json([
+            'status' => 'success',
+            'download_url' => $fullUrl,
         ]);
     }
 }

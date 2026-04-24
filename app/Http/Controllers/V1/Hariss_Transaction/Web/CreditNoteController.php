@@ -74,18 +74,14 @@ public function list(Request $request)
         'customer:id,business_name,osa_code',
         'salesman:id,name',
         'distributor:id,uuid,warehouse_name,warehouse_code',
-        'purchaseInvoice:id,invoice_code'
+        'purchasereturn:id,return_code'
     ]);
-    // ✅ Filter by distributor UUID
     if ($request->filled('distributor_uuid')) {
         $uuid = trim($request->distributor_uuid);
-        // Step 1: distributor find karo
         $distributor = \App\Models\Warehouse::where('uuid', $uuid)->first();
-        // Step 2: agar mila to filter lagao
         if ($distributor) {
             $query->where('distributor_id', $distributor->id);
         } else {
-            // agar UUID galat hai to empty data return karo
             return response()->json([
                 'status' => true,
                 'code' => 200,
@@ -108,13 +104,15 @@ public function list(Request $request)
                 'id' => $item->id,
                 'uuid' => $item->uuid,
                 'credit_note_no' => $item->credit_note_no,
-                'purchase_invoice' => $item->purchaseInvoice ? [
-                    'id' => $item->purchaseInvoice->id,
-                    'invoice_code' => $item->purchaseInvoice->invoice_code
+                'purchase_return' => $item->purchasereturn ? [
+                    'id' => $item->purchasereturn->id,
+                    'return_code' => $item->purchasereturn->return_code
                 ] : null,
                 'supplier_id' => $item->supplier_id,
                 'total_amount' => $item->total_amount,
                 'reason' => $item->reason,
+                'total_net'=>$item->total_net,
+                'total_vat'=>$item->total_vat,
                 'status' => $item->status,
                 'customer' => $item->customer ? [
                     'id' => $item->customer->id,
@@ -161,23 +159,20 @@ public function distributorglobalFilter(Request $request)
         'customer:id,business_name,osa_code',
         'salesman:id,name',
         'distributor:id,uuid,warehouse_name,warehouse_code',
-        'purchaseInvoice:id,invoice_code'
+        'purchasereturn:id,return_code'
     ]);
 
-    // 🔥 FILTER ARRAY
     $filter = $request->input('filter', []);
 
     $fromDate = $filter['from_date'] ?? null;
     $toDate   = $filter['to_date'] ?? null;
     $uuid     = $filter['distributor_uuid'] ?? null;
 
-    // ✅ DATE FILTER
     if ($fromDate && $toDate) {
         $query->whereDate('created_at', '>=', $fromDate)
               ->whereDate('created_at', '<=', $toDate);
     }
 
-    // ✅ DISTRIBUTOR UUID FILTER (BEST WAY)
     if (!empty($uuid)) {
         $uuid = trim($uuid);
 
@@ -197,14 +192,16 @@ public function distributorglobalFilter(Request $request)
                 'uuid' => $item->uuid,
                 'credit_note_no' => $item->credit_note_no,
 
-                'purchase_invoice' => $item->purchaseInvoice ? [
-                    'id' => $item->purchaseInvoice->id,
-                    'invoice_code' => $item->purchaseInvoice->invoice_code
+                'purchase_return' => $item->purchasereturn ? [
+                    'id' => $item->purchasereturn->id,
+                    'invoice_code' => $item->purchasereturn->return_code
                 ] : null,
 
                 'supplier_id' => $item->supplier_id,
                 'total_amount' => $item->total_amount,
                 'reason' => $item->reason,
+                'total_net'=>$item->total_net,
+                'total_vat'=>$item->total_vat,
                 'status' => $item->status,
 
                 'customer' => $item->customer ? [
@@ -296,7 +293,7 @@ public function dropdown()
     }
 }
 
-public function getCreditNoteFullByInvoiceUuid($uuid)
+public function getCreditNoteFullByreturnUuid($uuid)
 {
     try {
 
@@ -304,7 +301,7 @@ public function getCreditNoteFullByInvoiceUuid($uuid)
             'customer:id,business_name,osa_code',
            // 'salesman:id,name',
             'distributor',
-            'details:id,header_id,item_id,qty,item_value,total,net,vat'
+            'details:id,header_id,item_id,uom,qty,item_value,total,batch_no,net,vat'
         ])
         ->where('uuid', $uuid)
         ->first();
@@ -360,10 +357,11 @@ public function getCreditNoteFullByInvoiceUuid($uuid)
             'erp_code' => $d->item->erp_code,
             'name' => $d->item->name
         ] : null,
-          //  'uom_id'     => $d->uom_id,
+            'uom_id'     => $d->uom,
             'qty'   => $d->qty,
             'item_value' => $d->item_value,
             'total'      => $d->total,
+            'batch_no'   => $d->batch_no,
             'net'        => $d->net,
             'vat'        =>$d->vat,
 

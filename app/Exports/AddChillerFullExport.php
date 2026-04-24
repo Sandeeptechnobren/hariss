@@ -58,7 +58,7 @@ class AddChillerFullExport implements
         if ($this->uuid) {
             $query->where('uuid', $this->uuid);
         }
-
+        // dd($query->count());
         return $query->get()->map(function ($c) {
             return [
                 'Chiller Code' => $c->osa_code ?? '',

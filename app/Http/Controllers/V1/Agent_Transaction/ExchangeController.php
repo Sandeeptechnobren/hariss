@@ -696,29 +696,74 @@ class ExchangeController extends Controller
         ]);
     }
 
-    public function exportAllCollapse(Request $request)
-    {
-        $format = strtolower($request->input('format', 'xlsx'));
-        $extension = $format === 'csv' ? 'csv' : 'xlsx';
-        $filename = 'exchange_collapse_export_' . now()->format('Ymd_His') . '.' . $extension;
-        $path = 'exchangecollapseexports/' . $filename;
+    // public function exportAllCollapse(Request $request)
+    // {
+    //     $format = strtolower($request->input('format', 'xlsx'));
+    //     $extension = $format === 'csv' ? 'csv' : 'xlsx';
+    //     $filename = 'exchange_collapse_export_' . now()->format('Ymd_His') . '.' . $extension;
+    //     $path = 'exchangecollapseexports/' . $filename;
 
-        $export = new ExchangeCollapseExport();
+    //     $export = new ExchangeCollapseExport();
 
-        if ($format === 'csv') {
-            Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
-        } else {
-            Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
-        }
+    //     if ($format === 'csv') {
+    //         Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
+    //     } else {
+    //         Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
+    //     }
 
-        $appUrl = rtrim(config('app.url'), '/');
-        $fullUrl = $appUrl . '/storage/app/public/' . $path;
+    //     $appUrl = rtrim(config('app.url'), '/');
+    //     $fullUrl = $appUrl . '/storage/app/public/' . $path;
 
-        return response()->json([
-            'status' => 'success',
-            'download_url' => $fullUrl,
-        ]);
+    //     return response()->json([
+    //         'status' => 'success',
+    //         'download_url' => $fullUrl,
+    //     ]);
+    // }
+
+   public function exportAllCollapse(Request $request)
+{
+    $format = strtolower($request->input('format', 'xlsx'));
+    $extension = $format === 'csv' ? 'csv' : 'xlsx';
+    $filename = 'exchange_collapse_export_' . now()->format('Ymd_His') . '.' . $extension;
+    $path = 'exchangecollapseexports/' . $filename;
+
+    $filter = $request->filter ?? [];
+    $fromDate = !empty($filter['from_date'])
+        ? $filter['from_date']
+        : now()->startOfMonth()->toDateString();
+
+    $toDate = !empty($filter['to_date'])
+        ? $filter['to_date']
+        : now()->endOfMonth()->toDateString();
+    $toArray = function ($value) {
+        if (empty($value)) return [];
+        if (is_array($value)) return $value;
+        return array_values(array_filter(explode(',', $value)));
+    };
+
+    $companyId    = $filter['company_id'] ?? null;
+    $regionIds    = $toArray($filter['region_id'] ?? []);
+    $areaIds      = $toArray($filter['area_id'] ?? []);
+    $warehouseIds = $toArray($filter['warehouse_id'] ?? []);
+
+    $export = new ExchangeCollapseExport(
+        $fromDate,
+        $toDate,
+        $companyId,
+        $regionIds,
+        $areaIds,
+        $warehouseIds
+    );
+    if ($format === 'csv') {
+        Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
+    } else {
+        Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
     }
+    return response()->json([
+        'status' => 'success',
+        'download_url' => asset('storage/' . $path),
+    ]);
+}
 
 
 // public function exportExchangePdf(Request $request)

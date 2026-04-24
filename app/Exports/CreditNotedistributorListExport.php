@@ -21,13 +21,13 @@ class CreditNotedistributorListExport implements FromCollection, WithHeadings, W
 
     public function collection()
     {
-        $filter = $this->request->input('filter', []); // ✅ added
+        $filter = $this->request->input('filter', []); 
 
         $query = CreditNoteHeader::with([
             'customer:id,business_name,osa_code',
             'salesman:id,name',
             'distributor:id,uuid,warehouse_name,warehouse_code',
-            'purchaseInvoice:id,invoice_code'
+            'purchasereturn:id,return_code',
         ]);
 
         // ✅ Distributor UUID filter
@@ -51,28 +51,28 @@ class CreditNotedistributorListExport implements FromCollection, WithHeadings, W
             return [
                 $item->id,
                 $item->credit_note_no,
-                optional($item->purchaseInvoice)->invoice_code,
+                optional($item->purchasereturn)->return_code,
                 $item->supplier_id,
-                $item->total_amount,
                 $item->reason,
                 $item->status,
-
+                
                 // Customer
                 trim(
                     (optional($item->customer)->osa_code ?? '') . ' - ' .
                     (optional($item->customer)->business_name ?? ''),
                     ' -'
-                ),
-
-                optional($item->salesman)->name,
-
-                // Distributor
+                    ),
+                    
+                    optional($item->salesman)->name,
+                    
+                    // Distributor
                 trim(
                     (optional($item->distributor)->warehouse_code ?? '') . ' - ' .
                     (optional($item->distributor)->warehouse_name ?? ''),
                     ' -'
-                ),
-
+                    ),
+                        
+                $item->total_amount,
                 $item->created_at,
                 $item->updated_at,
             ];
@@ -84,14 +84,14 @@ class CreditNotedistributorListExport implements FromCollection, WithHeadings, W
         return [
             'ID',
             'Credit Note No',
-            'Invoice Code',
+            'return Code',
             'Supplier ID',
-            'Total Amount',
             'Reason',
             'Status',
             'Customer',
             'Salesman',
             'Distributor',
+            'Total Amount',
             'Created At',
             'Updated At',
         ];
@@ -105,7 +105,6 @@ class CreditNotedistributorListExport implements FromCollection, WithHeadings, W
                 $sheet = $event->sheet->getDelegate();
                 $lastColumn = $sheet->getHighestColumn();
 
-                // Header Style
                 $sheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
                     'font' => [
                         'bold' => true,
@@ -123,11 +122,8 @@ class CreditNotedistributorListExport implements FromCollection, WithHeadings, W
                         ],
                     ],
                 ]);
-
-                // Row height
                 $sheet->getRowDimension(1)->setRowHeight(25);
 
-                // Auto width
                 foreach (range('A', $lastColumn) as $col) {
                     $sheet->getColumnDimension($col)->setAutoSize(true);
                 }

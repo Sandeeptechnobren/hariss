@@ -11,6 +11,7 @@ use App\Traits\ApiResponse;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use App\Helpers\DataAccessHelper;
 
 class CompanyService
 {
@@ -83,6 +84,7 @@ public function getAll(
 
     public function search($perPage = 10, $keyword = null)
     {
+         $user = auth()->user();
         try {
             $query = Company::with(['country:id,country_name,country_code']);
 
@@ -103,7 +105,7 @@ public function getAll(
                         ->orWhere('primary_contact', 'like', "%{$keyword}%");
                 });
             }
-
+            $query = DataAccessHelper::filterWarehouses($query, $user);
             return $query->paginate($perPage);
         } catch (Exception $e) {
             throw new Exception("Failed to search companies: " . $e->getMessage());

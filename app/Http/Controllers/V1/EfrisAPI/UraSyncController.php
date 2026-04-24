@@ -15,11 +15,22 @@ class UraSyncController extends Controller
         $this->service = $service;
     }
 
+    // public function sync(Request $request)
+    // {
+    //     $itemId = $request->input('item_id', 'all');
+
+    //     $result = $this->service->syncItems($itemId);
+
+    //     return response()->json($result);
+    // }
+
     public function sync(Request $request)
     {
-        $itemId = $request->input('item_id', 'all');
+        $request->validate([
+            'item_id' => 'required'
+        ]);
 
-        $result = $this->service->syncItems($itemId);
+        $result = $this->service->syncItems($request->item_id);
 
         return response()->json($result);
     }

@@ -5,6 +5,7 @@ namespace App\Services\V1\MasterServices\Web;
 use App\Models\Country;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Helpers\DataAccessHelper;
 
 class CountryService
 {
@@ -86,6 +87,7 @@ class CountryService
     }
 public function search($perPage = 10, $keyword = null)
 {
+     $user = auth()->user();
     try {
         $query = Country::with([
                 'createdBy' => function ($q) {
@@ -108,7 +110,7 @@ public function search($perPage = 10, $keyword = null)
                   ->orWhereRaw('CAST(updated_date AS TEXT) ILIKE ?', ["%{$keyword}%"]);
             });
         }
-
+        $query = DataAccessHelper::filterWarehouses($query, $user);
         return $query->paginate($perPage);
 
     } catch (\Exception $e) {

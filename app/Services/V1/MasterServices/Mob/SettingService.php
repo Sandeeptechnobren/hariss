@@ -110,13 +110,21 @@ class SettingService
 
       public function getSalesmenByWarehouse($warehouseId)
     {
-        return Salesman::where('warehouse_id', $warehouseId)
-            ->with('route:id,route_name')
-            ->whereIn('type', [3])
-            ->whereNotNull('route_id')
-            ->where('route_id', '!=', 0) 
-            ->where('status', 1)
-            ->get(['id', 'name', 'osa_code','route_id'])
-            ->makeHidden(['route']);
-    } 
+return Salesman::where('warehouse_id', $warehouseId)
+    ->with('route:id,route_name')
+    ->whereIn('type', [3])
+    ->whereNotNull('route_id')
+    ->where('route_id', '!=', 0)
+    ->where('status', 1)
+    ->get(['id', 'name', 'osa_code','route_id'])
+    ->map(function ($item) {
+        return [
+            'id' => $item->id,
+            'name' => $item->name,
+            'osa_code' => $item->osa_code,
+            'route_id' => $item->route_id,
+            'route_name' => optional($item->route)->route_name,
+        ];
+    });
+    }
 }

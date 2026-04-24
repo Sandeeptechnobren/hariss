@@ -118,6 +118,10 @@ class UraDeliverySyncService extends BaseEfrisService
             ->get()
             ->keyBy('id');
 
+        // if (!$items->sap_id) {
+        //     return ['status' => false, 'message' => 'Item not Synced'];
+        // }
+
         $uoms = Uom::whereIn('id', $details->pluck('uom_id'))
             ->get()
             ->keyBy('id');

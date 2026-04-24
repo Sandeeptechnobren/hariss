@@ -48,6 +48,10 @@ class Salesman extends Model
         'block_date_from' => 'date',
         'block_date_to' => 'date',
     ];
+    protected $hidden = [
+        'route',
+        'route_name'
+    ];
     public function route()
     {
         return $this->belongsTo(Route::class, 'route_id');
@@ -60,38 +64,39 @@ class Salesman extends Model
     {
         return $this->belongsTo(ProjectList::class, 'sub_type', 'id');
     }
-    public function warehouse(){
-        return $this->belongsTo(Warehouse::class,'warehouse_id','id');
+    public function warehouse()
+    {
+        return $this->belongsTo(Warehouse::class, 'warehouse_id', 'id');
     }
-public function getWarehousesDataAttribute()
-{
-    if (empty($this->warehouse_id)) {
-        return null;
+    public function getWarehousesDataAttribute()
+    {
+        if (empty($this->warehouse_id)) {
+            return null;
+        }
+        $ids = array_filter(
+            array_map('intval', explode(',', $this->warehouse_id)),
+            fn($id) => $id > 0
+        );
+        return Warehouse::whereIn('id', $ids)
+            ->with([
+                'locationRelation:id,name',
+                'companyRelation:id,selling_currency,purchase_currency',
+            ])
+            ->get([
+                'id',
+                'warehouse_code',
+                'warehouse_name',
+                'location',
+                'company',
+                'tin_no',
+                'is_efris',
+                'owner_number',
+                'warehouse_manager_contact',
+            ]);
     }
-    $ids = array_filter(
-        array_map('intval', explode(',', $this->warehouse_id)),
-        fn($id) => $id > 0
-    );
-    return Warehouse::whereIn('id', $ids)
-        ->with([
-            'locationRelation:id,name',
-            'companyRelation:id,selling_currency,purchase_currency',
-        ])
-        ->get([
-            'id',
-            'warehouse_code',
-            'warehouse_name',
-            'location',
-            'company',
-            'tin_no',
-            'is_efris',
-            'owner_number',
-            'warehouse_manager_contact',
-        ]);
-}
-protected $appends = ['route_name'];
-public function getRouteNameAttribute()
-{
-    return $this->route ? $this->route->route_name : null;
-}
+    protected $appends = ['route_name'];
+    public function getRouteNameAttribute()
+    {
+        return $this->route ? $this->route->route_name : null;
+    }
 }

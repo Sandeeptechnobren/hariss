@@ -56,6 +56,7 @@ class ItemResource extends JsonResource
             'erp_code' => $this->erp_code,
             'item_code' => $this->code,
             'name' => $this->name,
+            'sap_id' => $this->sap_id,
             'description' => $this->description,
             'image' => $this->image,
             'is_promotional' => $this->is_promotional,
@@ -101,6 +102,7 @@ class ItemResource extends JsonResource
             'has_excies' => $this->has_excies,
             'item_weight' => $this->item_weight,
             'volume' => $this->volume,
+            'is_efris_sync' => optional($this->syncs->first())->is_synced ?? false,
             'warehouse_stocks' => $this->warehouse_stocks?->map(function ($stock) {
                 return [
                     'osa_code' => $stock->osa_code,

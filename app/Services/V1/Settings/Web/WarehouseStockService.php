@@ -14,6 +14,7 @@ use Illuminate\Support\Str;
 use Throwable;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Carbon\CarbonPeriod;
 
 class WarehouseStockService
 {
@@ -405,6 +406,7 @@ class WarehouseStockService
                 'i.name as item_name',
                 'i.code as item_code',
                 'i.erp_code',
+                'i.status',
                 'ws.qty as stock_qty',
                 'ws.warehouse_id',
                 'w.warehouse_name as warehouse_name',
@@ -412,7 +414,8 @@ class WarehouseStockService
                 'pd.buom_pc_price',
                 'pd.auom_ctn_price',
                 'pd.applicable_for'
-            )->where('ws.warehouse_id', $warehouseId);
+            )->where('ws.warehouse_id', $warehouseId)
+            ->where('i.status', 1);
         if (!is_null($isPromo)) {
             $stocks->where('i.is_promotional', filter_var($isPromo, FILTER_VALIDATE_BOOLEAN));
         }
@@ -1490,5 +1493,151 @@ class WarehouseStockService
             'total_valuation' => $details->sum('valuation'),
             'details' => $details
         ];
+    }
+
+    public function calculateVariance(array $warehouseIds, $date)
+    {
+        $result = [];
+        $nextDate = Carbon::parse($date)->addDay()->toDateString();
+
+        foreach ($warehouseIds as $warehouseId) {
+
+            // 🔹 Opening Stock (EFRIS DB)
+            $openingStock = DB::connection('efris_pgsql')
+                ->table('daily_stock_count_header as h')
+                ->join('daily_stock_count_details as d', 'h.id', '=', 'd.header_id')
+                ->where('h.warehouse_id', $warehouseId)
+                ->whereRaw('DATE(h.date) = ?', [$date])
+                ->sum('d.qty') ?? 0;
+
+            // 🔹 Next Day Opening
+            $nextDayOpening = DB::connection('efris_pgsql')
+                ->table('daily_stock_count_header as h')
+                ->join('daily_stock_count_details as d', 'h.id', '=', 'd.header_id')
+                ->where('h.warehouse_id', $warehouseId)
+                ->whereRaw('DATE(h.date) = ?', [$nextDate])
+                ->sum('d.qty') ?? 0;
+
+            // 🔹 DELIVERY
+            $delivery = DB::table('ht_delivery_header as h')
+                ->join('ht_delivery_detail as d', 'h.id', '=', 'd.header_id')
+                ->where('h.warehouse_id', $warehouseId)
+                ->where('h.status', 1)
+                ->whereDate('h.delivery_date', $date)
+                ->sum('d.quantity');
+
+            // 🔹 AGENT RETURN (IN)
+            $agentReturn = DB::table('return_header as h')
+                ->join('return_details as d', 'h.id', '=', 'd.header_id')
+                ->where('h.warehouse_id', $warehouseId)
+                ->where('h.status', 1)
+                ->whereDate('h.created_at', $date)
+                ->sum('d.item_quantity');
+
+            // 🔹 INVOICE (OUT)
+            $invoice = DB::table('invoice_headers as h')
+                ->join('invoice_details as d', 'h.id', '=', 'd.header_id')
+                ->where('h.warehouse_id', $warehouseId)
+                ->where('h.status', 1)
+                ->whereDate('h.invoice_date', $date)
+                ->sum('d.quantity');
+
+            // 🔹 COMPANY RETURN (OUT)
+            $companyReturn = DB::table('ht_return_header as h')
+                ->join('ht_return_details as d', 'h.id', '=', 'd.header_id')
+                ->where('h.warehouse_id', $warehouseId)
+                ->where('h.status', 1)
+                ->whereDate('d.return_date', $date)
+                ->sum('d.qty');
+
+            // 🔹 TRANSFER IN
+            $transferIn = DB::table('tbl_stock_transfer_header as h')
+                ->join('tbl_stock_transfer_details as d', 'h.id', '=', 'd.header_id')
+                ->where('h.destiny_warehouse', $warehouseId)
+                ->where('h.status', 1)
+                ->whereDate('h.transfer_date', $date)
+                ->sum('d.transfer_qty');
+
+            // 🔹 TRANSFER OUT
+            $transferOut = DB::table('tbl_stock_transfer_header as h')
+                ->join('tbl_stock_transfer_details as d', 'h.id', '=', 'd.header_id')
+                ->where('h.source_warehouse', $warehouseId)
+                ->where('h.status', 1)
+                ->whereDate('h.transfer_date', $date)
+                ->sum('d.transfer_qty');
+
+            // 🔹 ACTUAL CLOSING
+            $actualClosing = $openingStock
+                + $delivery
+                + $agentReturn
+                + $transferIn
+                - $invoice
+                - $companyReturn
+                - $transferOut;
+
+            // 🔹 VARIANCE
+            $variance = $actualClosing - $nextDayOpening;
+
+            $result[] = [
+                'warehouse_id' => $warehouseId,
+                'date' => $date,
+
+                'opening_stock' => $openingStock,
+
+                'delivery' => $delivery,
+                'agent_return' => $agentReturn,
+                'transfer_in' => $transferIn,
+
+                'invoice' => $invoice,
+                'company_return' => $companyReturn,
+                'transfer_out' => $transferOut,
+
+                'actual_closing' => $actualClosing,
+                'next_day_opening' => $nextDayOpening,
+                'variance' => $variance,
+
+                'status' => $variance == 0 ? 'MATCHED' : 'MISMATCH'
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * 🔹 DATE RANGE VARIANCE
+     */
+    public function calculateVarianceRange(array $warehouseIds, $fromDate, $toDate)
+    {
+        $finalResult = [];
+
+        $period = CarbonPeriod::create($fromDate, $toDate);
+
+        foreach ($warehouseIds as $warehouseId) {
+
+            $warehouseData = [];
+
+            foreach ($period as $date) {
+
+                $dateStr = $date->toDateString();
+
+                // reuse single-day logic
+                $dayResult = $this->calculateVariance([$warehouseId], $dateStr);
+
+                $warehouseData[] = $dayResult[0];
+            }
+
+            // 🔹 Aggregate (optional but useful)
+            $totalVariance = collect($warehouseData)->sum('variance');
+            $totalActual = collect($warehouseData)->sum('actual_closing');
+
+            $finalResult[] = [
+                'warehouse_id' => $warehouseId,
+                'total_variance' => $totalVariance,
+                'total_actual_closing' => $totalActual,
+                'data' => $warehouseData
+            ];
+        }
+
+        return $finalResult;
     }
 }

@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\EfrisAPI\EfrisItemSyncFlag;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -114,5 +116,11 @@ class Item extends Model
         return $this->hasOne(ItemUOM::class, 'item_id')
             ->where('uom_type', 'primary')   // ✅ filter
             ->with('uom:id,name');           // optional if you need uom table
+    }
+
+
+    public function syncs()
+    {
+        return $this->hasMany(EfrisItemSyncFlag::class, 'item_id', 'id');
     }
 }

@@ -231,10 +231,10 @@ class ChillerController extends Controller
             $filters = $request->input('filter', []);
 
             $status = $this->parseArrayFilter($filters['status'] ?? []);
-            $model  = $this->parseArrayFilter($filters['model_id'] ?? []);
+            $model  = $this->parseArrayFilter($filters['model'] ?? []);
 
             $warehouseIds = CommonLocationFilter::resolveWarehouseIds($filters);
-
+            // dd($warehouseIds);
             $export = new AddChillerFullExport(
                 $uuid,
                 $warehouseIds,

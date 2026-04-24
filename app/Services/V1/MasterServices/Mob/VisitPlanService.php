@@ -2,6 +2,7 @@
 
 namespace App\Services\V1\MasterServices\Mob;
 use App\Models\VisitPlan;
+use App\Models\SalesmanLocation;
 // use App\Models\Warehouse;
 
 class VisitPlanService
@@ -36,4 +37,22 @@ public function delete($id)
         $plan->delete();
         return true;
     }
+public function storeLocations(array $data)
+{
+    \DB::beginTransaction();
+
+    try {
+        $location = SalesmanLocation::create([
+            'salesman_id'  => $data['salesman_id'],
+            'warehouse_id' => $data['warehouse_id'] ?? null,
+            'route_id'     => $data['route_id'] ?? null,
+            'location'    => $data['location'], // ✅ full JSON
+        ]);
+        \DB::commit();
+        return $location;
+    } catch (\Throwable $e) {
+        \DB::rollBack();
+        throw new \Exception($e->getMessage());
+    }
+}
 }

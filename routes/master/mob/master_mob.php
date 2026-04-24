@@ -51,6 +51,7 @@ Route::prefix('master_mob')->group(function () {
             Route::get('show/{id}', [VisitPlanController::class, 'show']);
             Route::post('/add', [VisitPlanController::class, 'store']);
             Route::put('update/{uuid}', [VisitPlanController::class, 'update']);
+            Route::post('/location', [VisitPlanController::class, 'storelocation']);
             // Route::delete('/{uuid}', [NewCustomerController::class, 'destroy']);
         });
         Route::prefix('unload')->group(function () {

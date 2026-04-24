@@ -24,22 +24,20 @@ class CreditNoteHeaderExport implements FromCollection, WithHeadings, WithStyles
     {
         $request = $this->request;
 
-        // 🔥 FILTER ARRAY
         $filter = $request->input('filter', []);
 
         $fromDate = $filter['from_date'] ?? null;
         $toDate   = $filter['to_date'] ?? null;
         $distributorId = $filter['distributor_id'] ?? null;
 
-        // 🔥 QUERY
         $query = CreditNoteHeader::with([
             'customer',
             'distributor',
-            'purchaseInvoice',
+          //  'purchaseInvoice',
+            'purchasereturn',
             'salesman'
         ]);
 
-        // ✅ DATE FILTER
         if ($fromDate && $toDate) {
             $query->whereDate('created_at', '>=', $fromDate)
                   ->whereDate('created_at', '<=', $toDate);
@@ -53,7 +51,6 @@ class CreditNoteHeaderExport implements FromCollection, WithHeadings, WithStyles
 
         } else {
 
-            // 👉 helper filter only when distributor_id not present
             $warehouseIds = CommonLocationFilter::resolveWarehouseIds($filter);
 
             if (!empty($warehouseIds)) {
@@ -63,12 +60,12 @@ class CreditNoteHeaderExport implements FromCollection, WithHeadings, WithStyles
             }
         }
 
-        return $query->orderBy('id', 'desc')->get()->map(function ($item) {
+        return $query->orderBy('id', 'asc')->get()->map(function ($item) {
             return [
                 optional($item->created_at)->format('d M Y'),
                 $item->credit_note_no,
                 $item->supplier_id,
-                optional($item->purchaseInvoice)->invoice_code,
+                optional($item->purchasereturn)->return_code,
 
                 // ✅ Distributor combined
                 trim(
@@ -84,9 +81,12 @@ class CreditNoteHeaderExport implements FromCollection, WithHeadings, WithStyles
                     ' -'
                 ),
 
-                optional($item->salesman)->name ?? '-',
-                $item->total_amount,
+                // optional($item->salesman)->name ?? '-',
+                $item->total_net,
+                $item->total_vat,
                 $item->reason,
+                $item->total_amount,
+
             ];
         });
     }
@@ -97,12 +97,14 @@ class CreditNoteHeaderExport implements FromCollection, WithHeadings, WithStyles
             'Date',
             'Code',
             'SAP ID',
-            'Purchase Invoice Code',
+            'Purchase return Code',
             'Distributor',
             'Customer',
-            'Sale Team',
-            'Total Amount',
+           // 'Sale Team',
+            'Total_net',
+            'Toral_vat',
             'Reason',
+            'Total Amount',
         ];
     }
 

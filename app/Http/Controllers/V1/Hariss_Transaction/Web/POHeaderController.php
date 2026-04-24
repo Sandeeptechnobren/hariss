@@ -404,28 +404,76 @@ public function exportPoOrderHeader(Request $request)
     //         'download_url' => $fullUrl,
     //     ]);
     // }
-    public function exportItembsPoOrderCollapse(Request $request)
-{
-    $request->validate([
-        'item_id'   => 'required|integer',
-        'from_date' => 'nullable|date',
-        'to_date'   => 'nullable|date',
-        'format'    => 'nullable|in:xlsx,csv',
-    ]);
 
-    $format    = strtolower($request->input('format', 'xlsx'));
+//     public function exportItembsPoOrderCollapse(Request $request)
+// {
+//     $request->validate([
+//         'item_id'   => 'required|integer',
+//         'from_date' => 'nullable|date',
+//         'to_date'   => 'nullable|date',
+//         'format'    => 'nullable|in:xlsx,csv',
+//     ]);
+
+//     $format    = strtolower($request->input('format', 'xlsx'));
+//     $extension = $format === 'csv' ? 'csv' : 'xlsx';
+
+//     $itemId     = $request->input('item_id');        // now required
+//     $customerId = $request->input('customer_id');    // still optional
+
+//     $fromDate = $request->input('from_date')
+//         ? \Carbon\Carbon::parse($request->from_date)->startOfDay()
+//         : \Carbon\Carbon::now()->startOfDay();       // default: today start
+
+//     $toDate = $request->input('to_date')
+//         ? \Carbon\Carbon::parse($request->to_date)->endOfDay()
+//         : \Carbon\Carbon::now()->endOfDay();         // default: today end
+
+//     $filename = 'po_order_export_' . now()->format('Ymd_His') . '.' . $extension;
+//     $path     = 'poorderexports/' . $filename;
+
+//     $export = new ItemPoOrderCollapseExport(
+//         $fromDate,
+//         $toDate,
+//         $customerId,
+//         $itemId
+//     );
+
+//     if ($format === 'csv') {
+//         Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
+//     } else {
+//         Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
+//     }
+
+//     $appUrl  = rtrim(config('app.url'), '/');
+//     $fullUrl = $appUrl . '/storage/app/public/' . $path;
+
+//     return response()->json([
+//         'status'       => 'success',
+//         'download_url' => $fullUrl,
+//     ]);
+// }
+
+public function exportItembsPoOrderCollapse(Request $request)
+{
+    $format = strtolower($request->input('format', 'xlsx'));
     $extension = $format === 'csv' ? 'csv' : 'xlsx';
 
-    $itemId     = $request->input('item_id');        // now required
-    $customerId = $request->input('customer_id');    // still optional
+    $filter = $request->input('filter', []);
 
-    $fromDate = $request->input('from_date')
-        ? \Carbon\Carbon::parse($request->from_date)->startOfDay()
-        : \Carbon\Carbon::now()->startOfDay();       // default: today start
+    $itemId = $request->input('item_id') 
+        ?? ($filter['item_id'] ?? null);
 
-    $toDate = $request->input('to_date')
-        ? \Carbon\Carbon::parse($request->to_date)->endOfDay()
-        : \Carbon\Carbon::now()->endOfDay();         // default: today end
+    $customerId = $request->input('customer_id') 
+        ?? ($filter['customer_id'] ?? null);
+
+    // ✅ CURRENT MONTH DEFAULT
+    if (!empty($filter['from_date']) && !empty($filter['to_date'])) {
+        $fromDate = \Carbon\Carbon::parse($filter['from_date'])->startOfDay();
+        $toDate   = \Carbon\Carbon::parse($filter['to_date'])->endOfDay();
+    } else {
+        $fromDate = now()->startOfMonth();
+        $toDate   = now()->endOfMonth();
+    }
 
     $filename = 'po_order_export_' . now()->format('Ymd_His') . '.' . $extension;
     $path     = 'poorderexports/' . $filename;
@@ -437,21 +485,20 @@ public function exportPoOrderHeader(Request $request)
         $itemId
     );
 
-    if ($format === 'csv') {
-        Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
-    } else {
-        Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
-    }
-
-    $appUrl  = rtrim(config('app.url'), '/');
-    $fullUrl = $appUrl . '/storage/app/public/' . $path;
+    \Maatwebsite\Excel\Facades\Excel::store(
+        $export,
+        $path,
+        'public',
+        $format === 'csv'
+            ? \Maatwebsite\Excel\Excel::CSV
+            : \Maatwebsite\Excel\Excel::XLSX
+    );
 
     return response()->json([
-        'status'       => 'success',
-        'download_url' => $fullUrl,
+        'status' => 'success',
+        'download_url' => url('storage/' . $path),
     ]);
 }
-
     public function exportCustomerBasedPoOrder(Request $request)
     {
         $format = strtolower($request->input('format', 'xlsx'));

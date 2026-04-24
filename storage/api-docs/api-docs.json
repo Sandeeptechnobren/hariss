@@ -13534,6 +13534,127 @@
                 }
             }
         },
+        "/mob/master_mob/visit_plan/location": {
+            "post": {
+                "tags": [
+                    "Visit Plan"
+                ],
+                "summary": "Store salesman locations (bulk JSON)",
+                "operationId": "34483e82a90d03e4cea0599dc91644f7",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "salesman_id",
+                                    "locations"
+                                ],
+                                "properties": {
+                                    "salesman_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "warehouse_id": {
+                                        "type": "integer",
+                                        "example": 2
+                                    },
+                                    "route_id": {
+                                        "type": "integer",
+                                        "example": 5
+                                    },
+                                    "locations": {
+                                        "type": "array",
+                                        "items": {
+                                            "required": [
+                                                "lat",
+                                                "lng",
+                                                "time"
+                                            ],
+                                            "properties": {
+                                                "lat": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 28.61
+                                                },
+                                                "lng": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 77.2
+                                                },
+                                                "time": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "example": "2026-04-21 10:00:00"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Locations stored successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Locations stored successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer"
+                                                },
+                                                "salesman_id": {
+                                                    "type": "integer"
+                                                },
+                                                "warehouse_id": {
+                                                    "type": "integer"
+                                                },
+                                                "route_id": {
+                                                    "type": "integer"
+                                                },
+                                                "locations": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "lat": {
+                                                                "type": "number"
+                                                            },
+                                                            "lng": {
+                                                                "type": "number"
+                                                            },
+                                                            "time": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/master/agent_customers/list": {
             "get": {
                 "tags": [
