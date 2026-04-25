@@ -513,6 +513,8 @@ class CallRegisterService
             'asset.brand:id,osa_code,name',
             'asset.country:id,country_code,country_name',
             'asset.customer:id,osa_code,name,owner_name,street,landmark,town,district,contact_no,contact_no2',
+            'asset.asm:id,name',
+            'asset.rm:id,name',
         ])->whereNull('deleted_at');
 
         /* ============ FILTERS ============ */

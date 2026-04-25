@@ -117,4 +117,13 @@ class CallRegister extends Model
             'id'                 // local key in tbl_call_register
         );
     }
+    public function asm()
+    {
+        return $this->belongsTo(User::class, 'asm_id');
+    }
+
+    public function rm()
+    {
+        return $this->belongsTo(User::class, 'rm_id');
+    }
 }

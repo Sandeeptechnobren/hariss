@@ -148,12 +148,11 @@ class SalesTeamTrackingService
                             $visit->longitude
                         );
 
-
                         $timeDiff = abs(
                             Carbon::parse($visit->visit_start_time)
                                 ->diffInSeconds($locTime)
                         );
-                        // dd($timeDiff);
+
                         return [
                             'visit'    => $visit,
                             'distance' => $distance,
@@ -161,12 +160,8 @@ class SalesTeamTrackingService
                             'score'    => $timeDiff + ($distance * 2)
                         ];
                     })
-                    ->filter(
-                        fn($item) =>
-                        $item['distance'] <= 15 &&
-                            $item['timeDiff'] >= 1
-                    )
-                    // ->sortBy('score')
+                    ->filter(fn($item) => $item['distance'] <= 15 && $item['timeDiff'] <= 120)
+                    ->sortBy('score')
                     ->first();
 
                 $visit = $match['visit'] ?? null;
