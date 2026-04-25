@@ -91,7 +91,6 @@ class CreditNoteCollapseExport implements FromCollection, WithHeadings, WithEven
                     ' -'
                 ),
                // optional($header->salesman)->name ?? '-',
-                $header->batch_no,
                 $header->total_net,
                 $header->total_vat,
                 $header->reason,

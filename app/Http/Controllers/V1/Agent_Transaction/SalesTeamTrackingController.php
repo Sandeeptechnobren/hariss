@@ -76,10 +76,19 @@ class SalesTeamTrackingController extends Controller
             $request->date
         );
 
+        // ✅ Handle NOT FOUND
+        if (!$data) {
+            return response()->json([
+                'status' => false,
+                'message' => 'This salesman and warehouse not found'
+            ], 404);
+        }
+
+        // ✅ Success response
         return response()->json([
             'status' => true,
             'message' => 'Salesman locations fetched successfully',
             'data' => $data
-        ]);
+        ], 200);
     }
 }

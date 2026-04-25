@@ -161,4 +161,5 @@ class FrigeCustomerUpdate extends Model
     {
         return $this->belongsTo(AddChiller::class, 'serial_no', 'serial_number');
     }
+    
 }

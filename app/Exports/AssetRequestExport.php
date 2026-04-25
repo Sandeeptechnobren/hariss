@@ -17,144 +17,154 @@ use Illuminate\Support\Facades\DB;
 
 class AssetRequestExport implements FromQuery, WithMapping, WithHeadings, WithEvents
 {
-    protected $fromDate, $toDate, $status, $warehouseIds, $salesmanIds, $modelIds;
+    protected $fromDate, $toDate, $requestStatus, $warehouseIds;
 
-    public function __construct(
-        $status,
-        $warehouseIds,
-        $salesmanIds,
-        $modelIds,
-        $fromDate,
-        $toDate,
-    ) {
-        $this->fromDate     = $fromDate;
-        $this->toDate       = $toDate;
-        $this->status       = $status;
-        $this->warehouseIds = $warehouseIds;
-        $this->salesmanIds  = $salesmanIds;
-        $this->modelIds     = $modelIds;
+    public function __construct($fromDate, $toDate, $requestStatus, $warehouseIds)
+    {
+        $this->fromDate      = $fromDate;
+        $this->toDate        = $toDate;
+        $this->requestStatus = $requestStatus;
+        $this->warehouseIds  = $warehouseIds;
     }
 
     public function query()
     {
+        $user   = auth()->user();
         $query = ChillerRequest::with([
             'iro:id,status',
-            'customer:id,name,osa_code,street,district,contact_no,contact_no2,route_id,fridge_id',
+            'customer:id,name,osa_code,owner_name,street,district,contact_no,contact_no2,route_id,fridge_id',
             'customer.route:id,route_code,route_name',
-            'customer.fridge:id,osa_code,serial_number,model_number,branding',
-            'warehouse:id,warehouse_name,warehouse_code,area_id,region_id',
-            'warehouse.area:id,area_code,area_name',
+            'outlet:id,outlet_channel',
+            'customer.fridge' => function ($q) {
+                $q->select('id', 'customer_id', 'osa_code', 'serial_number', 'model_number', 'branding')
+                    ->withoutGlobalScopes()
+                    ->with([
+                        'assetsCategory:id,name',
+                        'modelNumber:id,name',
+                        'brand:id,name'
+                    ]);;
+            },
+            'warehouse:id,warehouse_name,warehouse_code,area_id',
+            'warehouse.area:id,area_code,area_name,region_id',
+            'warehouse.area.region:id,region_name',
             'salesman:id,osa_code,name',
         ]);
 
-        /** ✅ Data Access Helper */
-        $query = DataAccessHelper::apply($query, Auth::user());
+        /** ✅ DataAccessHelper */
+        $query = DataAccessHelper::filterAgentTransaction($query, $user);
+
+        /** ✅ DATE */
         $query->when(
             $this->fromDate,
-            fn($q) => $q->whereDate('created_at', '>=', $this->fromDate)
+            fn($q) =>
+            $q->whereDate('created_at', '>=', $this->fromDate)
         );
 
         $query->when(
             $this->toDate,
-            fn($q) => $q->whereDate('created_at', '<=', $this->toDate)
+            fn($q) =>
+            $q->whereDate('created_at', '<=', $this->toDate)
         );
-        /** FILTERS */
-        if ($this->status !== null) {
-            $query->where('status', (int)$this->status);
+
+        /** ✅ STATUS */
+        if (!empty($this->requestStatus)) {
+            $query->whereIn('status', $this->requestStatus);
         }
 
+        /** ✅ ONLY FINAL FILTER */
         if (!empty($this->warehouseIds)) {
             $query->whereIn('warehouse_id', $this->warehouseIds);
         }
 
-        if (!empty($this->regionIds)) {
-            $query->whereHas('warehouse', function ($q) {
-                $q->whereIn('region_id', $this->regionIds);
-            });
-        }
-        if (!empty($this->salesmanIds)) {
-            $query->whereIn('salesman_id', $this->salesmanIds);
-        }
-
-        if (!empty($this->userIds)) {
-            $query = DataAccessHelper::filterByUsers($query, $this->userIds);
-        }
-
-        /** MODEL FILTER */
-        if (!empty($this->modelIds)) {
-            $sizes = DB::table('am_model_number')
-                ->whereIn('id', $this->modelIds)
-                ->pluck('size')
-                ->toArray();
-
-            if (!empty($sizes)) {
-                $query->whereHas('customer.fridge', function ($q) use ($sizes) {
-                    $q->whereIn('model_number', $sizes);
-                });
-            }
-        }
-
         return $query->orderByDesc('id');
     }
-
     public function map($ch): array
     {
-        return [
-            optional($ch->iro)->status,
-            $ch->id,
+        $area   = $ch->warehouse?->area;
+        $region = $area?->region;
 
-            optional($ch->customer)->name,
-            optional($ch->customer)->osa_code,
+        $asm = $area?->getAsmUser();
+        $rsm = $region ? $region->getRmUser() : null;
+
+        $asmValue = $asm
+            ? trim(($asm->user_code ?? '') . ' - ' . ($asm->name ?? ''))
+            : '';
+
+        $rsmValue = $rsm
+            ? trim(($rsm->user_code ?? '') . ' - ' . ($rsm->name ?? ''))
+            : '';
+
+        $fridge = $ch->customer?->fridge;
+        return [
+            $ch->created_at
+                ? \Carbon\Carbon::parse($ch->created_at)->format('d M Y')
+                : '',
+
+            $ch->osa_code,
+
+            optional($ch->outlet)->outlet_channel ?? '',
+
+            // Customer (Merged)
+            trim(
+                (optional($ch->customer)->osa_code ?? '') . ' - ' .
+                    (optional($ch->customer)->name ?? '')
+            ),
+
+            optional($ch->customer)->owner_name,
             optional($ch->customer)->street,
             optional($ch->customer)->district,
             optional($ch->customer)->contact_no,
-            optional($ch->customer)->contact_no2,
+            // optional($ch->customer)->contact_no2,
 
-            optional($ch->customer->fridge)->osa_code ?? '',
-            optional($ch->customer->fridge)->serial_number ?? '',
-            optional($ch->customer->fridge)->model_number ?? '',
-            optional($ch->customer->fridge)->branding ?? '',
+            // Warehouse (Merged)
+            trim(
+                (optional($ch->warehouse)->warehouse_code ?? '') . ' - ' .
+                    (optional($ch->warehouse)->warehouse_name ?? '')
+            ),
 
-            optional($ch->warehouse)->warehouse_name,
-            optional($ch->warehouse)->warehouse_code,
+            // Route (Merged)
+            trim(
+                (optional($ch->customer->route)->route_code ?? '') . ' - ' .
+                    (optional($ch->customer->route)->route_name ?? '')
+            ),
 
-            optional($ch->warehouse->area)->area_code ?? '',
-            optional($ch->warehouse->area)->area_name ?? '',
+            // Salesman (Merged)
+            trim(
+                (optional($ch->salesman)->osa_code ?? '') . ' - ' .
+                    (optional($ch->salesman)->name ?? '')
+            ),
 
-            optional($ch->customer->route)->route_code ?? '',
-            optional($ch->customer->route)->route_name ?? '',
+            $asmValue,
+            $rsmValue,
 
-            optional($ch->salesman)->osa_code,
-            optional($ch->salesman)->name,
-
-            $ch->created_at,
+            optional($fridge)->osa_code ?? '',
+            optional($fridge)->serial_number ?? '',
+            optional($fridge?->modelNumber)->name ?? '',
+            optional($fridge?->brand)->name ?? '',
         ];
     }
 
     public function headings(): array
     {
         return [
-            'IRO Status',
-            'CRF ID',
-            'Customer Name',
-            'Customer Code',
+            'Date',
+            'CRF',
+            'Outlet Type',
+            'Customer',
+            'Owner Name',
             'City',
             'District',
-            'Phone 1',
-            'Phone 2',
+            'Contact No',
+            // 'Phone 2',
+            'Warehouse',
+            'Route',
+            'Salesman',
+            'ASM',
+            'RSM',
             'Fridge Code',
             'Serial Number',
             'Model Number',
             'Type',
-            'Warehouse Name',
-            'Warehouse Code',
-            'Region Code',
-            'Region Name',
-            'Route Code',
-            'Route Name',
-            'Salesman Code',
-            'Salesman Name',
-            'Created At'
         ];
     }
 

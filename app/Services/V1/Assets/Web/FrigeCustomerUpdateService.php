@@ -83,8 +83,9 @@ class FrigeCustomerUpdateService
 
     public function list(array $filters): LengthAwarePaginator
     {
+        $user = auth()->user();
         $query = FrigeCustomerUpdate::query();
-
+        $query = DataAccessHelper::filterAssets($query, $user);
         $fromDate = $filters['from_date'] ?? null;
         $toDate   = $filters['to_date'] ?? null;
 

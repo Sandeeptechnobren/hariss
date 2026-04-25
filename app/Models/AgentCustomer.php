@@ -66,7 +66,7 @@ class AgentCustomer extends Model
     }
     public function outlet_channel()
     {
-        return $this->belongsTo(OutletChannel::class, 'outlet_channel_id');
+        return $this->belongsTo(OutletChannel::class, 'outlet_channel_id', 'id');
     }
     public function category()
     {
@@ -112,5 +112,10 @@ class AgentCustomer extends Model
     public function visitDays()
     {
         return $this->hasMany(RouteVisit::class, 'customer_id', 'id');
+    }
+    public function fridge()
+    {
+        return $this->hasOne(AddChiller::class, 'customer_id', 'id')
+            ->withoutGlobalScopes(); // 🔥 IMPORTANT FIX
     }
 }

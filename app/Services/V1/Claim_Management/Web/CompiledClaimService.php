@@ -50,6 +50,7 @@ class CompiledClaimService
 
     public function getAll(int $perPage = 50, array $filters = [])
     {
+         $user = auth()->user();
         $query = CompiledClaim::query();
 
         if (!empty($filters['warehouse_id'])) {
@@ -75,8 +76,8 @@ class CompiledClaimService
         if (!empty($filters['to_date'])) {
             $query->whereDate('created_at', '<=', $filters['to_date']);
         }
-
         $query->orderBy('created_at', 'DESC');
+        $query = DataAccessHelper::filterWarehouses($query, $user);
 
         $result = $query->paginate($perPage);
 

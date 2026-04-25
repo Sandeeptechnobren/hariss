@@ -786,11 +786,11 @@ Route::prefix('assets')->group(function () {
             Route::delete('delete/{uuid}', [SpareController::class, 'destroy']);
         });
         Route::prefix('chiller-request')->group(function () {
-            Route::post('/export-request', [ChillerRequestController::class, 'exportAssetRequest']);
+            Route::post('/crf-export', [ChillerRequestController::class, 'exportAssetRequest']);
             Route::get('importimagespdf/{uuid}', [ChillerRequestController::class, 'exportPdf']);
             Route::get('/filter', [ChillerRequestController::class, 'filterChillerRequests']);
             Route::get('/approved', [ChillerRequestController::class, 'approvedChillerRequests']);
-            Route::post('/crf-export', [ChillerRequestController::class, 'export']);
+            // Route::post('/crf-export', [ChillerRequestController::class, 'export']);
             Route::get('/export-chiller-request-pdf', [ChillerRequestController::class, 'exportChillerRequestPdf']);
             Route::get('list', [ChillerRequestController::class, 'index']);
             Route::post('getCRFData', [ChillerRequestController::class, 'getCRFData']);

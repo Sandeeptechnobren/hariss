@@ -335,6 +335,7 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use App\Helpers\ApprovalHelper;
 use Carbon\Carbon;
+use App\Helpers\DataAccessHelper;
 
 class FridgeCustomerUpdateExport implements
     FromQuery,
@@ -364,14 +365,16 @@ class FridgeCustomerUpdateExport implements
     // ✅ MAIN QUERY (FILTER BASED)
     public function query()
     {
+        $user = auth()->user();
         $query = FrigeCustomerUpdate::with([
             'salesman:id,osa_code,name',
             'route:id,route_code,route_name',
             'warehouse:id,warehouse_code,warehouse_name',
             'customer:id,osa_code,name',
-            'outletChannel:id,outlet_channel'
+            'outletChannel:id,outlet_channel',
+            'modelNumber:id,name'
         ]);
-
+        $query = DataAccessHelper::filterAssets($query, $user);
         // ✅ Date filter (always applied)
         $query->whereBetween('created_at', [
             $this->fromDate . ' 00:00:00',
@@ -451,16 +454,19 @@ class FridgeCustomerUpdateExport implements
 
             // Outlet Type
             optional($row->outletChannel)->outlet_channel ?? '',
-
             // Salesman
             (optional($row->salesman)->osa_code ?? '') . ' - ' . (optional($row->salesman)->name ?? ''),
-
+            
             // Route
             (optional($row->route)->route_code ?? '') . ' - ' . (optional($row->route)->route_name ?? ''),
-
+            
             // Distributor
             (optional($row->warehouse)->warehouse_code ?? '') . ' - ' . (optional($row->warehouse)->warehouse_name ?? ''),
-
+            $row->area_manager,
+            $row->location,
+            $row->contact_number,
+            //$row->model,
+            optional($row->modelnumber)->name ?? '',
             $row->brand,
             $row->asset_number,
             $row->serial_no,
@@ -480,6 +486,10 @@ class FridgeCustomerUpdateExport implements
             'Salesman',
             'Route',
             'Distributor',
+            'Area manager',
+            'Location',
+            'Contact Number',
+            'Model Number',
             'Brand',
             'Chiller Number',
             'Serial Number',

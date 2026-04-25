@@ -66,7 +66,7 @@ class AddChillerFullExport implements
                 'Acquisition' => $c->acquisition
                     ? Carbon::parse($c->acquisition)->format('d M Y')
                     : '',
-                'Chiller Type' => $c->assets_type ?? '',
+              //  'Chiller Type' => $c->assets_type ?? '',
                 'Distributor' => trim(
                     (optional($c->warehouse)->warehouse_code ?? '') . ' - ' .
                         (optional($c->warehouse)->warehouse_name ?? '')

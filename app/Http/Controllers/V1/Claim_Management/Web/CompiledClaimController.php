@@ -14,6 +14,7 @@ use App\Http\Resources\V1\Claim_Management\Web\ClaimInvoiceDataResource;
 use App\Helpers\CommonLocationFilter;
 use Illuminate\Support\Facades\DB;
 use App\Helpers\ApprovalHelper;
+use App\Helpers\DataAccessHelper;
 
 class CompiledClaimController extends Controller
 {
@@ -123,6 +124,7 @@ class CompiledClaimController extends Controller
 
     public function export()
     {
+         $user = auth()->user();
         $filters = request()->input('filter', []);
         $format = strtolower(request()->input('format', 'xlsx'));
 
@@ -131,7 +133,6 @@ class CompiledClaimController extends Controller
 
         $fromDate = $filters['from_date'] ?? null;
         $toDate   = $filters['to_date'] ?? null;
-
         // warehouse filter (comma separated support)
         $warehouseIds = CommonLocationFilter::resolveWarehouseIds($filters);
 
@@ -177,6 +178,7 @@ class CompiledClaimController extends Controller
         // dd($query->count());
         // dd($query->count());
         $data = $query->get();
+        $query = DataAccessHelper::filterWarehouses($query, $user);   
 
         if ($data->isEmpty()) {
             return response()->json([

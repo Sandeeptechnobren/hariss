@@ -135,6 +135,7 @@ class PetitClaimController extends Controller
 
     public function export(Request $request)
     {
+         $user = auth()->user();
         $filters = $request->input('filter', []);
         $format = strtolower($request->input('format', 'xlsx'));
 
@@ -153,7 +154,8 @@ class PetitClaimController extends Controller
         $export = new PetitClaimExport(
             $fromDate,
             $toDate,
-            $warehouseIds
+            $warehouseIds,
+            $user
         );
 
         $filePath .= $format === 'csv' ? '.xlsx' : '.xlsx';

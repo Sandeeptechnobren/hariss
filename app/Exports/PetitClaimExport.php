@@ -5,6 +5,7 @@ namespace App\Exports;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
+use App\Helpers\DataAccessHelper;
 
 use App\Models\Claim_Management\Web\PetitClaim;
 use Maatwebsite\Excel\Concerns\{
@@ -28,12 +29,14 @@ class PetitClaimExport implements
     protected $fromDate;
     protected $toDate;
     protected $warehouseIds;
+    protected $user;
 
-    public function __construct($fromDate = null, $toDate = null, $warehouseIds = [])
+    public function __construct($fromDate = null, $toDate = null, $warehouseIds = [],$user = null)
     {
         $this->fromDate = $fromDate;
         $this->toDate = $toDate;
         $this->warehouseIds = $warehouseIds;
+         $this->user = $user;
     }
 
     public function query()
@@ -50,7 +53,7 @@ class PetitClaimExport implements
         if (!empty($this->warehouseIds)) {
             $query->whereIn('warehouse_id', $this->warehouseIds);
         }
-
+        $query = DataAccessHelper::filterWarehouses($query, $this->user);
         return $query;
     }
 

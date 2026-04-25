@@ -24,6 +24,13 @@ class ChillerRequestService
     {
         try {
             $user = auth()->user();
+            $query = ChillerRequest::with([
+                'warehouse:id,warehouse_code,warehouse_name,area_id',
+                'createdBy:id,name,username',
+                'updatedBy:id,name,username',
+                'customer:id,osa_code,name,district,category_id',
+                'customer.category:id,customer_category_name'
+            ])->orderBy('id', 'desc');
 
             if ($dropdown) {
                 $query = ChillerRequest::select(['id', 'asset_code', 'asset_name'])
@@ -44,26 +51,16 @@ class ChillerRequestService
                 return $query->get();
             }
 
-            $query = ChillerRequest::with([
-                'warehouse:id,warehouse_code,warehouse_name,area_id',
-                'createdBy:id,name,username',
-                'updatedBy:id,name,username',
-                'customer:id,osa_code,name,district,category_id',
-                'customer.category:id,customer_category_name'
-            ])->orderBy('id', 'desc');
 
-            $query = \App\Helpers\DataAccessHelper::filterAssets($query, $user);
+            $query = DataAccessHelper::filterAssets($query, $user);
 
-            if (!empty($filters) && isset($filters['filter']) && is_array($filters['filter'])) {
-
-                $warehouseIds = \App\Helpers\CommonLocationFilter::resolveWarehouseIds([
+            if (!empty($filters['filter']) && is_array($filters['filter'])) {
+                $warehouseIds = CommonLocationFilter::resolveWarehouseIds([
                     'company'   => $filters['filter']['company_id']   ?? null,
                     'region'    => $filters['filter']['region_id']    ?? null,
                     'area'      => $filters['filter']['area_id']      ?? null,
                     'warehouse' => $filters['filter']['warehouse_id'] ?? null,
-                    'route'     => $filters['filter']['route_id']     ?? null,
                 ]);
-
                 if (!empty($warehouseIds)) {
                     $query->whereIn('warehouse_id', $warehouseIds);
                 }
@@ -792,7 +789,7 @@ class ChillerRequestService
                 });
 
             if (method_exists(DataAccessHelper::class, 'filterAgentTransaction')) {
-                $query = DataAccessHelper::filterAgentTransaction($query, $user);
+                $query = DataAccessHelper::filterAssets($query, $user);
             }
 
             $warehouseIds = $this->parseIds($filter['warehouse_id'] ?? null);
@@ -1026,7 +1023,7 @@ class ChillerRequestService
             $filter = $filters['filter'] ?? [];
 
             $query = ChillerRequest::query();
-            // $query = DataAccessHelper::filterWarehouses($query, $user);
+            $query = DataAccessHelper::filterAssets($query, $user);
 
             // 🌍 Location hierarchy filter
             if (!empty($filter)) {

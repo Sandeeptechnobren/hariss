@@ -100,75 +100,94 @@ class SalesTeamTrackingService
 
     public function getSalesmanLocationsWithCustomers($salesmanId, $warehouseId, $date)
     {
-        // ✅ Only single date
         $startDate = Carbon::parse($date)->startOfDay();
-        $endDate   = Carbon::parse($date)->endOfDay();
 
         $locations = SalesmanLocation::where('salesman_id', $salesmanId)
             ->where('warehouse_id', $warehouseId)
-            ->with('warehouse', 'salesman')
+            ->with(['warehouse', 'salesman'])
             ->get();
 
-        $salesman  = optional($locations->first()->salesman);
-        $warehouse = optional($locations->first()->warehouse);
+        if ($locations->isEmpty()) {
+            return null;
+        }
+
+        $salesman  = $locations->first()->salesman;
+        $warehouse = $locations->first()->warehouse;
 
         $visits = VisitPlan::with('customer:id,name,osa_code,uuid')
             ->where('salesman_id', $salesmanId)
             ->where('warehouse_id', $warehouseId)
-            // ✅ filter only one date
             ->whereDate('visit_start_time', $date)
             ->get();
 
-        $visitMap = [];
-
-        foreach ($visits as $visit) {
-            $key = $this->makeKey(
-                $visit->latitude,
-                $visit->longitude,
-                Carbon::parse($visit->visit_start_time)->toDateString()
-            );
-
-            $visitMap[$key] = [
-                'customer_id' => $visit->customer_id,
-                'visit_id'    => $visit->id,
-                'customer'    => $visit->customer ? [
-                    'customer_id'   => $visit->customer->id,
-                    'customer_name' => $visit->customer->name,
-                    'customer_code' => $visit->customer->osa_code,
-                    'customer_uuid' => $visit->customer->uuid,
-                ] : null
-            ];
-        }
-
         $allLocations = [];
+        $usedVisits = [];
 
-        foreach ($locations as $row) {
+        foreach ($locations as $location) {
 
-            if (empty($row->location)) continue;
+            if (empty($location->location)) {
+                continue;
+            }
 
-            foreach ($row->location as $loc) {
+            foreach ($location->location as $loc) {
 
                 $locTime = Carbon::parse($loc['time']);
 
-                // ✅ Single date filter
                 if (!$locTime->isSameDay($startDate)) {
                     continue;
                 }
 
-                $key = $this->makeKey(
-                    $loc['lat'],
-                    $loc['lng'],
-                    $locTime->toDateString()
-                );
+                $match = collect($visits)
+                    ->filter(fn($visit) => !in_array($visit->id, $usedVisits))
+                    ->map(function ($visit) use ($loc, $locTime) {
 
-                $match = $visitMap[$key] ?? null;
+                        $distance = $this->calculateDistance(
+                            $loc['lat'],
+                            $loc['lng'],
+                            $visit->latitude,
+                            $visit->longitude
+                        );
+
+
+                        $timeDiff = abs(
+                            Carbon::parse($visit->visit_start_time)
+                                ->diffInSeconds($locTime)
+                        );
+                        // dd($timeDiff);
+                        return [
+                            'visit'    => $visit,
+                            'distance' => $distance,
+                            'timeDiff' => $timeDiff,
+                            'score'    => $timeDiff + ($distance * 2)
+                        ];
+                    })
+                    ->filter(
+                        fn($item) =>
+                        $item['distance'] <= 15 &&
+                            $item['timeDiff'] >= 1
+                    )
+                    // ->sortBy('score')
+                    ->first();
+
+                $visit = $match['visit'] ?? null;
+
+                if ($visit) {
+                    $usedVisits[] = $visit->id;
+                }
 
                 $allLocations[] = [
-                    'lat'      => $loc['lat'],
-                    'lng'      => $loc['lng'],
-                    'time'     => $locTime->toDateTimeString(),
-                    'customer' => $match['customer'] ?? null,
-                    'visit_id' => $match['visit_id'] ?? null,
+                    'lat'  => $loc['lat'],
+                    'lng'  => $loc['lng'],
+                    'time' => $locTime->toDateTimeString(),
+
+                    'customer' => $visit && $visit->customer ? [
+                        'customer_id'        => $visit->customer->id,
+                        'customer_name'      => $visit->customer->name,
+                        'customer_code'  => $visit->customer->osa_code,
+                        'customer_uuid'      => $visit->customer->uuid,
+                    ] : null,
+
+                    'visit_id' => $visit->id ?? null,
                 ];
             }
         }
@@ -188,7 +207,6 @@ class SalesTeamTrackingService
             ],
             'total_locations' => count($allLocations),
 
-            // ⚠️ FIX: customer_id missing tha, ab customer se check karenge
             'matched_locations' => collect($allLocations)
                 ->whereNotNull('customer')
                 ->count(),
@@ -199,8 +217,25 @@ class SalesTeamTrackingService
                 ->values()
         ];
     }
-    private function makeKey($lat, $lng, $date)
+
+    // private function makeKey($lat, $lng, $date)
+    // {
+    //     return round($lat, 6) . '_' . round($lng, 6) . '_' . $date;
+    // }
+
+    private function calculateDistance($lat1, $lng1, $lat2, $lng2)
     {
-        return round($lat, 6) . '_' . round($lng, 6) . '_' . $date;
+        $earthRadius = 6371000;
+
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLng = deg2rad($lng2 - $lng1);
+
+        $a = sin($dLat / 2) * sin($dLat / 2) +
+            cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
+            sin($dLng / 2) * sin($dLng / 2);
+
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+
+        return $earthRadius * $c;
     }
 }

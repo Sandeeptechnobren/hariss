@@ -125,6 +125,7 @@ class PetitClaimService
     // }
     public function getAll(int $perPage = 50, array $filters = [])
     {
+        $user = auth()->user();
         $query = PetitClaim::query();
 
         if (!empty($filters['warehouse_id'])) {
@@ -134,6 +135,7 @@ class PetitClaimService
 
             $query->whereIn('warehouse_id', $warehouseIds);
         }
+        $query = DataAccessHelper::filterWarehouses($query, $user);
 
         if (!empty($filters['claim_type'])) {
             $query->where('claim_type', $filters['claim_type']);
@@ -150,13 +152,11 @@ class PetitClaimService
         if (!empty($filters['year'])) {
             $query->where('year', $filters['year']);
         }
-
         $result = $query->orderBy('created_at', 'DESC')->paginate($perPage);
-
         $result->getCollection()->transform(function ($item) {
             return \App\Helpers\PetitApprovalHelper::attach($item, 'PetitClaim');
         });
-
+            
         return $result;
     }
 

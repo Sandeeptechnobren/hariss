@@ -76,6 +76,10 @@ class ChillerRequest extends Model
         'trading_licence_file',
     ];
 
+    public function iro()
+    {
+        return $this->belongsTo(IROHeader::class, 'iro_id');
+    }
     public function route()
     {
         return $this->belongsTo(Route::class, 'route_id');
@@ -92,7 +96,7 @@ class ChillerRequest extends Model
 
     public function customer()
     {
-        return $this->belongsTo(AgentCustomer::class, 'customer_id');
+        return $this->belongsTo(AgentCustomer::class, 'customer_id', 'id');
     }
     public function warehouse()
     {

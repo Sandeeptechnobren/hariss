@@ -641,45 +641,41 @@ class ChillerRequestController extends Controller
         $path = 'crfexports/' . $filename;
 
         $filters = $request->input('filter', []);
+        // dd($filters);
         $fromDate = $filters['from_date'] ?? null;
         $toDate   = $filters['to_date'] ?? null;
-        $status = $filters['status'] ?? null;
 
-        $salesmanIds = !empty($filters['salesman_id'])
-            ? array_map('intval', explode(',', $filters['salesman_id']))
+        /** ✅ request_status (MULTIPLE) */
+        $requestStatus = !empty($filters['request_status'])
+            ? array_map('intval', explode(',', $filters['request_status']))
             : [];
 
-        $modelIds = !empty($filters['model_id'])
-            ? array_map('intval', explode(',', $filters['model_id']))
-            : [];
-
-        /** ✅ Common Location Filter */
+        /** ✅ ONLY THIS (IMPORTANT) */
         $resolvedWarehouseIds = CommonLocationFilter::resolveWarehouseIds($filters);
 
         $inputWarehouseIds = !empty($filters['warehouse_id'])
             ? array_map('intval', explode(',', $filters['warehouse_id']))
             : [];
 
-        if (!empty($inputWarehouseIds)) {
-            $warehouseIds = array_values(array_intersect($resolvedWarehouseIds, $inputWarehouseIds));
-        } else {
-            $warehouseIds = $resolvedWarehouseIds;
-        }
+        $warehouseIds = !empty($inputWarehouseIds)
+            ? array_values(array_intersect($resolvedWarehouseIds, $inputWarehouseIds))
+            : $resolvedWarehouseIds;
 
         $export = new AssetRequestExport(
             $fromDate,
             $toDate,
-            $status,
-            $warehouseIds,
-            $salesmanIds,
-            $modelIds
+            $requestStatus,
+            $warehouseIds
         );
 
-        if ($format === 'csv') {
-            \Maatwebsite\Excel\Facades\Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::CSV);
-        } else {
-            \Maatwebsite\Excel\Facades\Excel::store($export, $path, 'public', \Maatwebsite\Excel\Excel::XLSX);
-        }
+        \Maatwebsite\Excel\Facades\Excel::store(
+            $export,
+            $path,
+            'public',
+            $format === 'csv'
+                ? \Maatwebsite\Excel\Excel::CSV
+                : \Maatwebsite\Excel\Excel::XLSX
+        );
 
         $fullUrl = rtrim(config('app.url'), '/') . '/storage/app/public/' . $path;
 
