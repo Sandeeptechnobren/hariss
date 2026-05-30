@@ -22,7 +22,7 @@ class PromotioUpdateRequest extends FormRequest
             'to_date'   => 'sometimes|date|after_or_equal:from_date',
 
             'status' => 'sometimes|integer|in:0,1',
-
+            'promotion_image' => 'sometimes|image|mimes:jpg,jpeg,png|max:2048',
             'sales_team_type'   => 'sometimes|nullable|array',
             'sales_team_type.*' => 'integer',
 

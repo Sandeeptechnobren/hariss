@@ -124,6 +124,30 @@ class PromotionHeaderService
         | 1. PROMOTION HEADER
         |--------------------------------------------------------------------------
         */
+            $imagePath = null;
+
+            if (!empty($data['promotion_image']) && $data['promotion_image'] instanceof \Illuminate\Http\UploadedFile) {
+
+                // extension detect
+                $extension = $data['promotion_image']->getClientOriginalExtension()
+                    ?: $data['promotion_image']->extension()
+                    ?: str_replace('promotion_image/', '', $data['promotion_image']->getMimeType());
+
+                // filename
+                $filename = Str::random(40) . '.' . $extension;
+
+                // relative folder path
+                $relativePath = 'promotion_image/' . $filename;
+
+                // save file to storage/app/public/image/
+                $data['promotion_image']->storeAs('promotion_image', $filename, 'public');
+
+                // PUBLIC URL using symlink
+                $appUrl = rtrim(config('app.url'), '/');
+
+                $imagePath = $appUrl . '/storage/app/public/' . $relativePath;
+            }
+            // dd($imagePath);
             $promotion = PromotionHeader::create([
                 'uuid'               => Str::uuid(),
                 'osa_code'           => $osaCode,
@@ -154,6 +178,7 @@ class PromotionHeaderService
                 'key_item' => $data['key']['Item'][0] ?? null,
 
                 'created_user' => auth()->id(),
+                'promotion_image' => $imagePath,
             ]);
 
             $details     = $data['promotion_details'] ?? [];
@@ -1491,16 +1516,16 @@ class PromotionHeaderService
     public function invoice_promo(array $filters)
     {
         try {
-             $query = PromotionHeader::select('id','promotion_name')->with('invoices')->orderByDesc('id');
+            $query = PromotionHeader::select('id', 'promotion_name')->with('invoices')->orderByDesc('id');
 
-                if (!empty($filters['promotion_id'])) {
-                    $query->where('id', $filters['promotion_id']);
-                }
-                
-                $limit = $filters['limit'] ?? 10;
-                return $query->paginate($limit);
+            if (!empty($filters['promotion_id'])) {
+                $query->where('id', $filters['promotion_id']);
+            }
+
+            $limit = $filters['limit'] ?? 10;
+            return $query->paginate($limit);
         } catch (\Throwable $e) {
-            throw new \Exception('Failed to fetch Invoice list. Please try again later.',500,$e);
+            throw new \Exception('Failed to fetch Invoice list. Please try again later.', 500, $e);
         }
     }
 }

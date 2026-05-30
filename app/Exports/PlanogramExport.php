@@ -1,10 +1,12 @@
 <?php
+
 namespace App\Exports;
 
 use App\Services\V1\Merchendisher\Web\PlanogramService;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
+use Carbon\Carbon;
 
 class PlanogramExport implements FromCollection, WithHeadings, WithMapping
 {
@@ -32,8 +34,12 @@ class PlanogramExport implements FromCollection, WithHeadings, WithMapping
             $row['planogram_id'],
             $row['planogram_name'],
             $row['planogram_code'],
-            $row['valid_from'],
-            $row['valid_to'],
+            !empty($row['valid_from'])
+                ? Carbon::parse($row['valid_from'])->format('d M Y')
+                : null,
+            !empty($row['valid_to'])
+                ? Carbon::parse($row['valid_to'])->format('d M Y')
+                : null,
             $row['merchandiser_name'],
             $row['customer_name'],
             $row['image'],
@@ -46,14 +52,14 @@ class PlanogramExport implements FromCollection, WithHeadings, WithMapping
     public function headings(): array
     {
         return [
-        'Planogram ID',
-        'Planogram Name',
-        'Planogram Code',
-        'Valid From',
-        'Valid To',
-        'Merchandiser Name',
-        'Customer Name',
-        'Image',
-    ];
+            'Planogram ID',
+            'Planogram Name',
+            'Planogram Code',
+            'Valid From',
+            'Valid To',
+            'Merchandiser Name',
+            'Customer Name',
+            'Image',
+        ];
     }
 }

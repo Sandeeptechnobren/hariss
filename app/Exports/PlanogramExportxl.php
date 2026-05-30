@@ -12,6 +12,7 @@ use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
+use Carbon\Carbon;
 
 class PlanogramExportxl implements FromCollection, WithHeadings, WithEvents
 {
@@ -24,7 +25,7 @@ class PlanogramExportxl implements FromCollection, WithHeadings, WithEvents
 
     public function collection()
     {
-        
+
         $query = Planogram::latest();
 
         if (!empty($this->searchTerm)) {
@@ -32,9 +33,9 @@ class PlanogramExportxl implements FromCollection, WithHeadings, WithEvents
 
             $query->where(function ($q) use ($s) {
                 $q->orWhereRaw("LOWER(CAST(id AS TEXT)) LIKE ?", ["%{$s}%"])
-                  ->orWhereRaw("LOWER(name) LIKE ?", ["%{$s}%"])
-                  ->orWhereRaw("LOWER(CAST(valid_from AS TEXT)) LIKE ?", ["%{$s}%"])
-                  ->orWhereRaw("LOWER(CAST(valid_to AS TEXT)) LIKE ?", ["%{$s}%"]);
+                    ->orWhereRaw("LOWER(name) LIKE ?", ["%{$s}%"])
+                    ->orWhereRaw("LOWER(CAST(valid_from AS TEXT)) LIKE ?", ["%{$s}%"])
+                    ->orWhereRaw("LOWER(CAST(valid_to AS TEXT)) LIKE ?", ["%{$s}%"]);
             });
         }
 
@@ -60,8 +61,12 @@ class PlanogramExportxl implements FromCollection, WithHeadings, WithEvents
             return [
                 'Code'          => $item->code,
                 'Name'          => $item->name,
-                'Valid From'    => $item->valid_from,
-                'Valid To'      => $item->valid_to,
+                'Valid From' => $item->valid_from
+                    ? Carbon::parse($item->valid_from)->format('d M Y')
+                    : null,
+                'Valid To'   => $item->valid_to
+                    ? Carbon::parse($item->valid_to)->format('d M Y')
+                    : null,
                 'Merchendisher' => $merchNames ?: 'N/A',
                 'Customer'      => $customerNames ?: 'N/A',
                 'Images'        => $imageList,

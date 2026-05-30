@@ -33,6 +33,7 @@ class AgentOrderHeader extends Model
         'sap_return_message',
         'is_delivered',
         'status',
+        'flag_order',
         'created_by',
         'updated_by',
     ];

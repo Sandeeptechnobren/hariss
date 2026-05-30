@@ -75,4 +75,13 @@ class AddChiller extends Model
     {
         return $this->belongsTo(FrigeCustomerUpdate::class, 'serial_number', 'serial_no');
     }
+    public function asm()
+{
+    return $this->belongsTo(\App\Models\User::class, 'asm_id');
+}
+
+public function rm()
+{
+    return $this->belongsTo(\App\Models\User::class, 'rm_id');
+}
 }

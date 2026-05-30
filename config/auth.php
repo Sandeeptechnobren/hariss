@@ -44,6 +44,10 @@ return [
             'driver' => 'passport',
             'provider' => 'users',
         ],
+        'b2c_app' => [
+            'driver' => 'passport',
+            'provider' => 'agent_customers',
+        ],
     ],
 
     /*
@@ -67,6 +71,10 @@ return [
         'users' => [
             'driver' => 'eloquent',
             'model' => env('AUTH_MODEL', App\Models\User::class),
+        ],
+        'agent_customers' => [
+            'driver' => 'eloquent',
+            'model' => env('AUTH_MODEL', App\Models\AgentCustomer::class),
         ],
 
         // 'users' => [

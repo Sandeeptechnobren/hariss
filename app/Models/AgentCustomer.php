@@ -7,12 +7,15 @@ use App\Models\Agent_Transaction\ReturnHeader;
 use App\Traits\Blames;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Laravel\Passport\HasApiTokens;
+use Illuminate\Foundation\Auth\User as Authenticatable;
 
-class AgentCustomer extends Model
+class AgentCustomer extends Authenticatable
 {
-    use SoftDeletes, Blames;
+    use HasApiTokens, SoftDeletes, Blames;
     protected $table = 'agent_customers';
     protected $hidden = ['fridgeStatus'];
+    protected $guard = 'b2c_app';
     protected $fillable = [
         'uuid',
         'osa_code',

@@ -19,7 +19,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class OrderHeader extends Model
 {
-    use HasFactory, SoftDeletes,Blames;
+    use HasFactory, SoftDeletes, Blames;
 
     protected $table = 'agent_order_headers';
 
@@ -47,6 +47,8 @@ class OrderHeader extends Model
         'status',
         'order_flag',
         'comment',
+        'flag_order',
+        'flag_user',
         'latitude',
         'longitude',
         'created_user',
@@ -65,53 +67,53 @@ class OrderHeader extends Model
         'deleted_at' => 'datetime',
     ];
 
- protected static function boot()
-{
-    parent::boot();
+    protected static function boot()
+    {
+        parent::boot();
 
-    static::creating(function ($model) {
+        static::creating(function ($model) {
 
-        if (empty($model->uuid)) {
-            $model->uuid = \Str::uuid()->toString();
-        }
-
-        if (empty($model->order_code)) {
-
-            $prefix = 'ORD';
-            $year   = now()->year;
-
-            $counter = DB::table('code_counters')
-                ->where('prefix', $prefix)
-                ->where('year', $year)
-                ->lockForUpdate()  
-                ->first();
-
-            if (!$counter) {
-                DB::table('code_counters')->insert([
-                    'prefix'        => $prefix,
-                    'current_value' => 1,
-                    'year'          => $year,
-                    'created_at'    => now(),
-                    'updated_at'    => now(),
-                ]);
-
-                $nextNumber = 1;
-            } else {
-                $nextNumber = $counter->current_value + 1;
-
-                DB::table('code_counters')
-                    ->where('id', $counter->id)
-                    ->update([
-                        'current_value' => $nextNumber,
-                        'updated_at'    => now(),
-                    ]);
+            if (empty($model->uuid)) {
+                $model->uuid = \Str::uuid()->toString();
             }
 
-            $model->order_code =
-                $prefix . '-' . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
-        }
-    });
-}
+            if (empty($model->order_code)) {
+
+                $prefix = 'ORD';
+                $year   = now()->year;
+
+                $counter = DB::table('code_counters')
+                    ->where('prefix', $prefix)
+                    ->where('year', $year)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$counter) {
+                    DB::table('code_counters')->insert([
+                        'prefix'        => $prefix,
+                        'current_value' => 1,
+                        'year'          => $year,
+                        'created_at'    => now(),
+                        'updated_at'    => now(),
+                    ]);
+
+                    $nextNumber = 1;
+                } else {
+                    $nextNumber = $counter->current_value + 1;
+
+                    DB::table('code_counters')
+                        ->where('id', $counter->id)
+                        ->update([
+                            'current_value' => $nextNumber,
+                            'updated_at'    => now(),
+                        ]);
+                }
+
+                $model->order_code =
+                    $prefix . '-' . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
+            }
+        });
+    }
 
     public function details(): HasMany
     {
@@ -123,7 +125,7 @@ class OrderHeader extends Model
         return $this->belongsTo(Warehouse::class, 'warehouse_id');
     }
 
-        public function country(): BelongsTo
+    public function country(): BelongsTo
     {
         return $this->belongsTo(Country::class, 'country_id');
     }

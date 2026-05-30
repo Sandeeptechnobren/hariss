@@ -586,4 +586,16 @@ class LoadHeaderController extends Controller
             'data'   => $salesmen
         ]);
     }
+
+    public function clearPending()
+    {
+        $count = $this->service->clearPendingLoads();
+        // dd($count);
+
+        return response()->json([
+            'status' => 1,
+            'message' => 'Done',
+            'data' => $count
+        ]);
+    }
 }

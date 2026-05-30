@@ -32,6 +32,7 @@ class PromotionHeaderResource extends JsonResource
 
             'from_date' => $this->from_date,
             'to_date'   => $this->to_date,
+            'promotion_image'   => $this->promotion_image,
 
             'sales_team_type' => $this->sales_team_type
                 ? explode(',', $this->sales_team_type)

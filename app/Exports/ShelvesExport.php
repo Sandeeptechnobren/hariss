@@ -95,6 +95,7 @@ use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
+use Carbon\Carbon;
 
 class ShelvesExport implements FromCollection, WithHeadings, WithEvents
 {
@@ -108,10 +109,10 @@ class ShelvesExport implements FromCollection, WithHeadings, WithEvents
     public function collection()
     {
         $query = Shelve::with([
-                'createdUser:id,name,username',
-                'updatedUser:id,name,username',
-                'deletedUser:id,name,username',
-            ])
+            'createdUser:id,name,username',
+            'updatedUser:id,name,username',
+            'deletedUser:id,name,username',
+        ])
             ->select([
                 'shelf_name',
                 'code',
@@ -136,7 +137,9 @@ class ShelvesExport implements FromCollection, WithHeadings, WithEvents
                     ->orWhereRaw('CAST(id AS TEXT) ILIKE ?', [$like]);
 
                 foreach (['createdUser', 'updatedUser', 'deletedUser'] as $relation) {
-                    $q->orWhereHas($relation, fn($sub) =>
+                    $q->orWhereHas(
+                        $relation,
+                        fn($sub) =>
                         $sub->whereRaw('LOWER(name) LIKE ?', [$like])
                             ->orWhereRaw('LOWER(username) LIKE ?', [$like])
                     );
@@ -183,8 +186,12 @@ class ShelvesExport implements FromCollection, WithHeadings, WithEvents
             return [
                 'Code'       => $item->code,
                 'Shelf Name' => $item->shelf_name,
-                'Valid From' => $item->valid_from,
-                'Valid To'   => $item->valid_to,
+                'Valid From' => $item->valid_from
+                    ? Carbon::parse($item->valid_from)->format('d M Y')
+                    : null,
+                'Valid To'   => $item->valid_to
+                    ? Carbon::parse($item->valid_to)->format('d M Y')
+                    : null,
                 'Height'     => $item->height,
                 'Width'      => $item->width,
                 'Depth'      => $item->depth,

@@ -236,28 +236,34 @@ class SurveyExport implements FromCollection, WithHeadings, ShouldAutoSize, With
 
             $query->where(function ($q) use ($likeSearch, $searchTerm) {
                 $q->whereRaw('LOWER(survey_code) LIKE ?', [$likeSearch])
-                  ->orWhereRaw('LOWER(survey_name) LIKE ?', [$likeSearch])
-                  ->orWhere(function ($sub) use ($searchTerm, $likeSearch) {
-                      if (is_numeric($searchTerm)) {
-                          $sub->where('status', $searchTerm);
-                      } else {
-                          $sub->whereRaw('LOWER(status::text) LIKE ?', [$likeSearch]);
-                      }
-                  })
-                  ->orWhereRaw('CAST(start_date AS TEXT) LIKE ?', [$likeSearch])
-                  ->orWhereRaw('CAST(end_date AS TEXT) LIKE ?', [$likeSearch])
-                  ->orWhereHas('createdUser', fn($sub) =>
-                      $sub->whereRaw('LOWER(name) LIKE ?', [$likeSearch])
-                          ->orWhereRaw('LOWER(username) LIKE ?', [$likeSearch])
-                  )
-                  ->orWhereHas('updatedUser', fn($sub) =>
-                      $sub->whereRaw('LOWER(name) LIKE ?', [$likeSearch])
-                          ->orWhereRaw('LOWER(username) LIKE ?', [$likeSearch])
-                  )
-                  ->orWhereHas('deletedUser', fn($sub) =>
-                      $sub->whereRaw('LOWER(name) LIKE ?', [$likeSearch])
-                          ->orWhereRaw('LOWER(username) LIKE ?', [$likeSearch])
-                  );
+                    ->orWhereRaw('LOWER(survey_name) LIKE ?', [$likeSearch])
+                    ->orWhere(function ($sub) use ($searchTerm, $likeSearch) {
+                        if (is_numeric($searchTerm)) {
+                            $sub->where('status', $searchTerm);
+                        } else {
+                            $sub->whereRaw('LOWER(status::text) LIKE ?', [$likeSearch]);
+                        }
+                    })
+                    ->orWhereRaw('CAST(start_date AS TEXT) LIKE ?', [$likeSearch])
+                    ->orWhereRaw('CAST(end_date AS TEXT) LIKE ?', [$likeSearch])
+                    ->orWhereHas(
+                        'createdUser',
+                        fn($sub) =>
+                        $sub->whereRaw('LOWER(name) LIKE ?', [$likeSearch])
+                            ->orWhereRaw('LOWER(username) LIKE ?', [$likeSearch])
+                    )
+                    ->orWhereHas(
+                        'updatedUser',
+                        fn($sub) =>
+                        $sub->whereRaw('LOWER(name) LIKE ?', [$likeSearch])
+                            ->orWhereRaw('LOWER(username) LIKE ?', [$likeSearch])
+                    )
+                    ->orWhereHas(
+                        'deletedUser',
+                        fn($sub) =>
+                        $sub->whereRaw('LOWER(name) LIKE ?', [$likeSearch])
+                            ->orWhereRaw('LOWER(username) LIKE ?', [$likeSearch])
+                    );
             });
         }
 
@@ -276,8 +282,14 @@ class SurveyExport implements FromCollection, WithHeadings, ShouldAutoSize, With
             return [
                 'Survey Code'  => $item->survey_code  ?? 'N/A',
                 'Survey Name'  => $item->survey_name  ?? 'N/A',
-                'Start Date'   => $item->start_date   ?? 'N/A',
-                'End Date'     => $item->end_date      ?? 'N/A',
+                'Start Date' => $item->start_date
+                    ? Carbon::parse($item->start_date)->format('d M Y')
+                    : null,
+                'End Date'   => $item->end_date
+                    ? Carbon::parse($item->end_date)->format('d M Y')
+                    : null,
+                // 'Start Date'   => $item->start_date   ?? 'N/A',
+                // 'End Date'     => $item->end_date      ?? 'N/A',
                 'Survey Type'  => $surveyTypeMap[$item->survey_type] ?? 'N/A',
                 'Merchandiser' => $merchandisers,
                 'Customer'     => $customers,

@@ -15,8 +15,11 @@ use Illuminate\Support\Str;
 use Throwable;
 use App\Helpers\DataAccessHelper;
 use App\Helpers\CommonLocationFilter;
+use App\Models\DeleteLoadHistory;
 use Carbon\Carbon;
 use Illuminate\Pagination\Paginator;
+use App\Models\EfrisAPI\DailyStockCountHeader;
+use App\Models\EfrisAPI\DailyStockCountDetail;
 
 class LoadHeaderService
 {
@@ -497,5 +500,129 @@ class LoadHeaderService
             'salesmen' => $salesmen,
             'routes'   => $routes,
         ];
+    }
+
+    public function clearPendingLoads()
+    {
+        if (!$this->acquireLock()) {
+            return 0;
+        }
+
+        $yesterday = Carbon::yesterday()->toDateString();
+
+        $count = 0;
+
+        LoadHeader::with('details')
+            ->where('is_confirmed', 0)
+            ->whereDate('created_at', $yesterday)
+            ->chunkById(50, function ($loads) use (&$count) {
+
+                foreach ($loads as $load) {
+                    DB::transaction(function () use ($load) {
+
+                        if (DeleteLoadHistory::where('load_id', $load->id)->exists()) {
+                            return;
+                        }
+                        $totalQty = $load->details->sum('qty');
+                        $grouped = $load->details
+                            ->groupBy('item_id')
+                            ->map(fn($rows) => $rows->sum('qty'));
+
+                        DeleteLoadHistory::create([
+                            'load_id'      => $load->id,
+                            'load_code'    => $load->load_id,
+                            'salesman_id'  => $load->salesman_id,
+                            'route_id'     => $load->route_id,
+                            'warehouse_id' => $load->warehouse_id,
+                            'total_qty'    => $totalQty
+                        ]);
+
+                        $grouped = $load->details
+                            ->groupBy('item_id')
+                            ->map(fn($rows) => $rows->sum('qty'));
+
+                        foreach ($grouped as $itemId => $qty) {
+
+                            DB::table('tbl_warehouse_stocks')
+                                ->updateOrInsert(
+                                    [
+                                        'warehouse_id' => $load->warehouse_id,
+                                        'item_id'      => $itemId
+                                    ],
+                                    [
+                                        'qty' => DB::raw("COALESCE(qty,0) + $qty"),
+                                        'updated_at' => now()
+                                    ]
+                                );
+
+                            $this->bulkDailyUpdate($load, $itemId, $qty);
+                        }
+                        DB::table('tbl_load_details')->where('header_id', $load->id)->delete();
+                        DB::table('tbl_load_header')->where('id', $load->id)->delete();
+                    });
+
+                    $count++;
+                }
+            });
+
+        $this->releaseLock();
+
+        return $count;
+    }
+
+    private function acquireLock()
+    {
+        $dir = storage_path('locks');
+
+        if (!file_exists($dir)) {
+            mkdir($dir, 0775, true);
+        }
+
+        $file = $dir . '/load_cleanup.lock';
+
+        if (file_exists($file) && (time() - filemtime($file)) < 300) {
+            return false;
+        }
+
+        file_put_contents($file, 'locked');
+        return true;
+    }
+
+    private function releaseLock()
+    {
+        $file = storage_path('locks/load_cleanup.lock');
+        if (file_exists($file)) {
+            unlink($file);
+        }
+    }
+
+    private function bulkDailyUpdate($load, $itemId, $qty)
+    {
+        $start = now()->parse($load->created_at)->addDay()->startOfDay();
+        $end   = now()->endOfDay();
+
+        $headers = DailyStockCountHeader::where('warehouse_id', $load->warehouse_id)
+            ->whereBetween('date', [$start, $end])
+            ->pluck('id');
+
+        if ($headers->isEmpty()) return;
+
+        $rows = [];
+
+        foreach ($headers as $headerId) {
+            $rows[] = [
+                'header_id' => $headerId,
+                'item_id'   => $itemId,
+                'qty'       => $qty,
+                'created_at' => now(),
+                'updated_at' => now()
+            ];
+        }
+
+        DailyStockCountDetail::query()->upsert(
+            $rows,
+            ['header_id', 'item_id'],
+            ['qty' => DB::raw('daily_stock_count_details.qty + EXCLUDED.qty')]
+        );
     }
 }

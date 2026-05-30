@@ -147,6 +147,7 @@ use App\Http\Controllers\V1\EfrisAPI\UraStockAdjustmentController;
 use App\Http\Controllers\V1\EfrisAPI\DailyStockCountController;
 use App\Http\Controllers\LogController;
 use App\Http\Controllers\SummaryReportController;
+use App\Http\Controllers\V1\B2C_App\UserOTPController;
 
 Route::post('/summary-export', [SummaryReportController::class, 'export']);
 // Route::get('/list', [OrderController::class, 'index']);
@@ -1006,6 +1007,7 @@ Route::prefix('merchendisher')->group(function () {
 Route::prefix('agent_transaction')->group(function () {
     Route::middleware('auth:api')->group(function () {
         Route::prefix('load')->group(function () {
+            Route::get('/clear-pending-loads', [LoadHeaderController::class, 'clearPending']);
             Route::post('export', [LoadHeaderController::class, 'exportLoadHeader']);
             Route::get('getsalesmanbywarehouse', [LoadHeaderController::class, 'getSalesmanRouteByWarehouse']);
             Route::get('get-salesmanRoute', [LoadHeaderController::class, 'getSalesmanRoutes']);
@@ -1414,5 +1416,22 @@ Route::prefix('EFRIS')->group(function () {
         Route::post('/get_return_list', [UraReturnController::class, 'getReturnsList']);
         Route::post('/get_return_detail', [UraReturnController::class, 'getReturnDetails']);
         Route::post('/sync_return', [UraReturnController::class, 'syncReturn']);
+    });
+});
+
+
+Route::prefix('B2C_App')->group(function () {
+
+    // 🔓 PUBLIC (NO AUTH)
+    Route::post('/send-otp', [UserOTPController::class, 'sendOtp']);
+    Route::post('/verify-otp', [UserOTPController::class, 'verifyOtp']);
+    Route::middleware('auth:b2c_app')->group(function () {
+        Route::get('/profile', function (Request $request) {
+            return $request->user();
+        });
+        Route::post('/logout', function (Request $request) {
+            $request->user()->token()->revoke();
+            return response()->json(['message' => 'Logged out']);
+        });
     });
 });

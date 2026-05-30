@@ -34,5 +34,10 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
+    'whapi' => [
+        'token' => env('WHAPI_TOKEN'),
+        'url' => env('WHAPI_URL', 'https://gate.whapi.cloud'),
+        'app_name' => env('APP_NAME', 'B2C App user verification'),
+    ],
 
 ];

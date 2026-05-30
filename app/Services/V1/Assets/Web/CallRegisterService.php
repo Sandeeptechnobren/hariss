@@ -506,16 +506,21 @@ class CallRegisterService
 
         $query = CallRegister::with([
             'technician:id,osa_code,name',
-            'asset:id,serial_number,osa_code,model_number,manufacturer,branding,country_id,customer_id',
-            'asset.assetsCategory:id,osa_code,name',
+
+            'asset:id,warehouse_id,serial_number,osa_code,model_number,manufacturer,branding,country_id,customer_id',
+
+            'asset.warehouse:id,warehouse_code,warehouse_name,area_id',
+            'asset.warehouse.area:id,region_id',
+            'asset.warehouse.area.region:id',
+            'assignedCustomer:id,warehouse',
+            'assignedCustomer.getWarehouse:id,warehouse_code,warehouse_name',
+
             'asset.modelNumber:id,code,name',
-            'asset.manufacture:id,osa_code,name',
-            'asset.brand:id,osa_code,name',
-            'asset.country:id,country_code,country_name',
-            'asset.customer:id,osa_code,name,owner_name,street,landmark,town,district,contact_no,contact_no2',
-            'asset.asm:id,name',
-            'asset.rm:id,name',
-        ])->whereNull('deleted_at');
+            'asset.manufacture:id,name',
+            'asset.brand:id,name',
+            'asset.country:id,country_name',
+            'asset.customer:id,osa_code,name,owner_name,town,district,contact_no,contact_no2',
+        ]);
 
         /* ============ FILTERS ============ */
 

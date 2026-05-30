@@ -24,7 +24,7 @@ class PromotionHeaderRequest extends FormRequest
             'to_date'   => 'required|date|after_or_equal:from_date',
 
             'status' => 'required|integer|in:0,1',
-
+            'promotion_image' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'sales_team_type'   => 'nullable|array',
             'sales_team_type.*' => 'integer',
 

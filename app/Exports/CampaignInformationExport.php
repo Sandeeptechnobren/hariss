@@ -91,7 +91,7 @@ class CampaignInformationExport implements FromCollection, WithHeadings, ShouldA
         $this->date           = $date;
     }
 
-public function collection()
+    public function collection()
     {
         $query = CampaignInformation::with(['merchandiser', 'customer']);
         if ($this->startDate && $this->endDate) {
@@ -113,23 +113,27 @@ public function collection()
             $s = strtolower($this->searchTerm);
             $query->where(function ($q) use ($s) {
                 $q->orWhereRaw("LOWER(CAST(id AS TEXT)) LIKE ?", ["%{$s}%"])
-                  ->orWhereRaw("LOWER(CAST(uuid AS TEXT)) LIKE ?", ["%{$s}%"])
-                  ->orWhereRaw("LOWER(code) LIKE ?", ["%{$s}%"])
-                  ->orWhereRaw("LOWER(CAST(merchandiser_id AS TEXT)) LIKE ?", ["%{$s}%"])
-                  ->orWhereRaw("LOWER(CAST(customer_id AS TEXT)) LIKE ?", ["%{$s}%"])
-                  ->orWhereHas('merchandiser', fn($sub) =>
-                      $sub->whereRaw("LOWER(name) LIKE ?", ["%{$s}%"])
-                  )
-                  ->orWhereHas('customer', fn($sub) =>
-                      $sub->whereRaw("LOWER(business_name) LIKE ?", ["%{$s}%"])
-                  );
+                    ->orWhereRaw("LOWER(CAST(uuid AS TEXT)) LIKE ?", ["%{$s}%"])
+                    ->orWhereRaw("LOWER(code) LIKE ?", ["%{$s}%"])
+                    ->orWhereRaw("LOWER(CAST(merchandiser_id AS TEXT)) LIKE ?", ["%{$s}%"])
+                    ->orWhereRaw("LOWER(CAST(customer_id AS TEXT)) LIKE ?", ["%{$s}%"])
+                    ->orWhereHas(
+                        'merchandiser',
+                        fn($sub) =>
+                        $sub->whereRaw("LOWER(name) LIKE ?", ["%{$s}%"])
+                    )
+                    ->orWhereHas(
+                        'customer',
+                        fn($sub) =>
+                        $sub->whereRaw("LOWER(business_name) LIKE ?", ["%{$s}%"])
+                    );
             });
         }
         return $query->latest()->get()->map(function ($item) {
             return [
                 'Code'          => $item->code,
-                'Merchandiser'  => $item->merchandiser->name ?? 'N/A',
-                'Customer'      => $item->customer->business_name ?? 'N/A',
+                'Merchandiser' => (optional($item->merchandiser)->osa_code ?? 'N/A') . ' - ' . (optional($item->merchandiser)->name ?? 'N/A'),
+                'Customer'     => (optional($item->customer)->osa_code ?? 'N/A') . ' - ' . (optional($item->customer)->business_name ?? 'N/A'),
                 'Feedback'      => $item->feedback,
                 // 'Images'        => is_array($item->images)
                 //                     ? implode(' | ', $item->images)

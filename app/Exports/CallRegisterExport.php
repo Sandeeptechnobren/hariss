@@ -26,6 +26,13 @@ class CallRegisterExport implements FromQuery, WithHeadings, WithMapping, Should
 
     public function map($row): array
     {
+        $code = optional($row->assignedCustomer?->getWarehouse)->warehouse_code
+          ?? $row->current_warehouse_code
+          ?? '';
+
+        $name = optional($row->assignedCustomer?->getWarehouse)->warehouse_name
+           ?? $row->current_warehouse_name
+           ?? '';
         return [
             $row->osa_code,
             $row->ticket_type,
@@ -45,9 +52,11 @@ class CallRegisterExport implements FromQuery, WithHeadings, WithMapping, Should
             $row->asset?->ACF_Status ?? '',
             $row->asset?->ACF_Mapped_Distributer ?? '',
             $row->asset?->ACF_Mapped_ASM ?? '',
-            $row->asset?->Assigned_Distributor ?? '',
-            $row->current_asm,
-            $row->current_rm,
+
+            trim($code . ' - ' . $name, ' -'),
+           
+            optional($row->asset?->warehouse?->area?->getAsmUser())->name ?? '',
+            optional($row->asset?->warehouse?->area?->region?->getRmUser())->name ?? '',
             $row->asset?->serial_number ?? '',
             $row->asset_number,
             $row->asset?->modelNumber?->code ?? '',
