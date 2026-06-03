@@ -165,6 +165,19 @@ public function index(Request $request)
     ]);
 }
 
+public function getRewards(Request $request)
+{  
+    $filters = $request->all();
+    $data = $this->service->listRewards($filters);
+
+    return response()->json([
+        'status'  => 'success',
+        'code'    => 200,
+        'message' => 'Rewards fetched successfully',
+        'data'    => RewardCategoryResource::collection($data),
+    ]);
+}
+
 
 public function show(string $uuid)
 {

@@ -19,7 +19,8 @@ class RewardUpdateRequest extends FormRequest
             'image'    => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
             'points_required' => 'nullable|integer',
             'stock_qty' => 'nullable|numeric',
-            'type'      => 'nullable|string'
+            'type'      => 'nullable|string',
+            'description' => 'nullable|string',
         ];
     }
 }

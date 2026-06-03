@@ -28,6 +28,7 @@ class Adjustment extends Model
         'closing_points',
         'adjustment_symbol',
         'description',
+        'reward_id',
     ];
 
     protected static function boot()

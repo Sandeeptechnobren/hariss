@@ -58,6 +58,12 @@ public function createReward(array $data): RewardCategory
         return $query->orderBy('id', 'desc')->get();
     }
 
+    public function getRewards(array $filters = [])
+    {
+        $query = RewardCategory::query();
+        return $query->orderBy('id', 'desc')->get();
+    }
+
  public function getByUuid(string $uuid): ?RewardCategory
     {
         return RewardCategory::where('uuid', $uuid)->first();

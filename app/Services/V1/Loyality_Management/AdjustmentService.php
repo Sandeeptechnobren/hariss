@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Exception;
 use App\Models\Loyality_Management\CustomerLoyalityActivity;
 use App\Models\Tier;
+use App\Models\AgentCustomer;
 
 class AdjustmentService
 {
@@ -264,4 +265,53 @@ public function getByUuid(string $uuid, array $filters = [])
 //     });
 // }
 
+   public function processAdjustment(array $data)
+    {
+        return DB::transaction(function () use ($data) {
+            $agent = AgentCustomer::findOrFail($data['customer_id']);
+            
+            $closingPoints = $data['currentreward_points'] - $data['adjustment_points'];
+            $adjustment = Adjustment::create([
+                'currentreward_points' => $data['currentreward_points'],
+                'adjustment_points'    => $data['adjustment_points'],
+                'adjustment_date'      => $data['adjustment_date'],
+                'reward_id'            => $data['reward_id'],
+                'customer_id'          => $data['customer_id'],
+                'adjustment_symbol'    => 2,
+                'closing_points'       => $closingPoints,
+                'route_id'             => $agent->route_id,
+                'warehouse_id'         => $agent->warehouse, 
+            ]);
+
+            $loyalty = CustomerLoyalityPoint::where('customer_id', $data['customer_id'])->firstOrFail();
+
+            $newTotalSpend = $loyalty->total_spend + $data['adjustment_points'];
+            $newTotalClosing = $loyalty->total_earning - $newTotalSpend;
+
+            $tier = Tier::where('minpurchase', '<=', $newTotalClosing)
+                ->where('maxpurchase', '>=', $newTotalClosing)
+                ->first();
+
+            $tierId = $tier ? $tier->id : $loyalty->tier_id;
+
+            $loyalty->update([
+                'total_spend'   => $newTotalSpend,
+                'total_closing' => $newTotalClosing,
+                'tier_id'       => $tierId, 
+            ]);
+
+            return CustomerLoyalityActivity::create([
+                'customer_id'      => $data['customer_id'],
+                'activity_date'    => $data['adjustment_date'],
+                'activity_type'    => 'adjustment',
+                'incooming_point'  => 0,
+                'outgoing_point'   => $data['adjustment_points'],
+                'closing_point'    => $newTotalClosing,
+                'adjustment_point' => $data['adjustment_points'],
+                'header_id'        => $loyalty->id,
+                'reward_id'        => $data['reward_id'],
+                'invoice_id'       => $adjustment->id,
+            ]);
+        });
+    }
 }

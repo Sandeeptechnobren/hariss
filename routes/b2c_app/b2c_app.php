@@ -7,8 +7,9 @@ use App\Http\Controllers\V1\B2C_App\Master\B2CUserController;
 use App\Http\Controllers\V1\B2C_App\Master\DataStoragePathController;
 use App\Http\Controllers\V1\B2C_App\Master\PromotionController;
 use App\Http\Controllers\V1\B2C_App\Loyality_Management\LoyalityPointController;
+use App\Http\Controllers\V1\Settings\Web\RewardCategoryController;
+use App\Http\Controllers\V1\Loyality_Management\AdjustmentController;
 
-// 🔓 PUBLIC (NO AUTH)
 Route::prefix('b2c_app')->group(function () {
     Route::post('/send-otp', [UserOTPController::class, 'sendOtp']);
     Route::post('/verify-otp', [UserOTPController::class, 'verifyOtp']);
@@ -33,6 +34,8 @@ Route::prefix('b2c_app')->group(function () {
         });
         Route::prefix('loyality_management')->group(function () {
             Route::get('list', [LoyalityPointController::class, 'index']);
+            Route::get('getrewards', [RewardCategoryController::class, 'getRewards']);
+            Route::post('adjustredeem', [AdjustmentController::class, 'adjust']);
         });
         Route::prefix('promotion')->group(function () {
             Route::get('list', [PromotionController::class, 'index']);

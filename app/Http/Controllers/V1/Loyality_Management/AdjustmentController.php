@@ -140,4 +140,31 @@ public function update(UpdateAdjustmentRequest $request, string $uuid): JsonResp
     }
 }
 
+    public function adjust(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'currentreward_points' => 'required|numeric',
+            'adjustment_points'    => 'required|numeric',
+            'adjustment_date'      => 'required|date',
+            'reward_id'            => 'required|integer',
+            'customer_id'          => 'required|integer',
+        ]);
+
+        try {
+            $result = $this->service->processAdjustment($validated);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Points adjusted successfully',
+                'data'    => $result
+            ], 200);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to adjust points: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
 }

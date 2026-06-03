@@ -30,6 +30,7 @@ class CustomerLoyalityActivity extends Model
         'adjustment_point',
         'customer_id',
         'header_id',
+        'reward_id',
     ];
 
     protected static function boot()

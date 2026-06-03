@@ -19,7 +19,8 @@ class RewardCategoryRequest extends FormRequest
             'image'    => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
             'points_required' => 'required|integer',
             'stock_qty' => 'required|numeric',
-            'type'      => 'required|string'
+            'type'      => 'required|string',
+            'description' => 'required|string',
         ];
     }
 }

@@ -22,6 +22,7 @@ class RewardCategory extends Model
         'points_required',
         'stock_qty',
         'type',
+        'description',
     ];
 
     protected static function boot()
